@@ -19,7 +19,7 @@ capacity) · distance (haversine) · analytics formulas · upload validation · 
 Auth and resource ownership per role · profile creation across several categories on one account ·
 booking create/accept/cancel/reschedule · **concurrent booking attempts on the last seat** (N parallel
 transactions, exactly `capacity` succeed) · subscription expiry hides profiles without deleting data ·
-admin price change applies to future periods only · payment idempotency · outbox: email failure leaves
+admin price change applies to future periods only (✅ `tests/integration/admin.test.ts`) · payment idempotency · outbox: email failure leaves
 the booking intact · private media access denied to other users.
 
 ## End-to-end journeys (Playwright)
@@ -50,6 +50,28 @@ node scripts/hero-shots.mjs http://localhost:3000/fr 1440 900 .playwright-mcp/d-
 node scripts/page-shot.mjs http://localhost:3000/fr 375 812 .playwright-mcp/m-full.jpg
 node scripts/console-check.mjs http://localhost:3000/fr/coiffeuses 375
 ```
+
+### Verified (2026-10-17, dashboards, billing engine, booking lifecycle)
+
+- Type check, ESLint, production build: clean.
+- Unit: 94 tests, adding billing (invoice lines, statuses, visibility) and booking rules (who may act when, payment sums, strict amounts).
+- Integration: 99 tests, adding billing (trial, invoices once per period, agreed price, exemption, verification, grace and expiry) and booking lifecycle (cancellations, reschedule holding both slots and refusing taken ones, decline back to the previous state, completion, payments and refunds, one review, no-show hides the phone, expiry once, table filters and ownership).
+- End-to-end: 16 tests, adding billing (admin sets an agreed monthly price; the professional sees her trial) and the booking journey through the new tables (accept in the booking detail, client cancels from her appointment). One run had the Botox spec time out under load; it passed alone and in the previous full run.
+- Screenshots: provider overview and bookings at 375/768/1440 in FR and AR, no horizontal overflow. Not covered: client appointment pages with real rows (the dev database has no client or booking, and none are invented); they are exercised by the e2e journey.
+
+### Verified (2026-10-16, booking core and visual redesign)
+
+- Unit: 73 tests, adding slot generation (Algiers time, 15-minute grid, closed and open exceptions, buffers on both sides, capacity, notice period).
+- Integration: 66 tests, adding availability, a full request (history, notifications, two emails, place taken), idempotent repeats, 5 clients racing for 2 places (exactly 2 succeed), role/verification/off-grid/unknown-service refusals, the 5-open-requests cap, accept by the owner only and once, decline frees the place.
+- End-to-end: 13 tests, adding the booking journey (profile published by staff, guest picks a time, signs in, choice restored, sends with a note, professional accepts, client sees “Confirmé”).
+- Overflow sweep: 7 pages x FR/AR x 390/768 px, and screenshots at 375/768/1440, with no horizontal scroll.
+
+### Verified (2026-10-16, Phase 10 second slice: users, categories, pricing, audit)
+
+- Unit: 81 tests, adding admin policies (who reads users/catalog, who changes them, audit ADMIN+, assignable roles incl. never one's own, suspendable states) and price dates (Algiers day boundaries, tomorrow-to-two-years rule, whole-dinar parsing, current/upcoming/past/replaced states).
+- Integration: 84 tests, adding SUPPORT read-only and client/provider refusals on every admin service; user search, role and status filters, pagination; staff roles only by SUPER_ADMIN, never on oneself, audited; a professional moved to CLIENT or suspended disappears from the directory, profile, provider and featured queries and comes back on restore (cache tags returned); unverified accounts restored to PENDING_VERIFICATION; category deactivation hiding profiles and the price, reorder renumbering with end refusals, credential toggle, each audited; price rows refused for today, the past, bad amounts and unknown categories, created at Algiers midnight, audited, never altering existing rows; the public price switching exactly at 00:00 Algiers with same-day correction winning; audit filters (action, actor, system, entity, inclusive Algiers dates) and pagination.
+- End-to-end: 15 tests, adding a CLI-created Super Admin scheduling a nails price (announced, listed as upcoming in the history, a past date refused by the server, found in the audit log with readable details) and a signed-in client getting the not-found page on users, categories, pricing and audit.
+- Screenshots of users, user file, categories, pricing and audit at 375/768/1440 in FR and AR (dev database, temporary session removed afterwards): no horizontal overflow.
 
 ### Verified (2026-10-16, Phase 10 first slice: review queue)
 

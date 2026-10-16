@@ -1,0 +1,27 @@
+%% Booking lifecycle. Source of truth: src/lib/booking-rules.ts (who may act when) and
+%% src/server/services/booking-lifecycle.ts (status-guarded writes + BookingStatusHistory).
+%% Active statuses (hold capacity): PENDING, ACCEPTED, RESCHEDULE_PROPOSED.
+stateDiagram-v2
+    [*] --> PENDING: client requests a free slot\n(profile row lock, idempotency key)
+    PENDING --> ACCEPTED: professional accepts
+    PENDING --> REJECTED: professional declines
+    PENDING --> EXPIRED: no answer before pendingExpiresAt\n(npm run daily)
+    PENDING --> CANCELLED_BY_CLIENT: client cancels before start
+    PENDING --> RESCHEDULE_PROPOSED: professional proposes a free time
+    ACCEPTED --> RESCHEDULE_PROPOSED: professional proposes a free time
+    RESCHEDULE_PROPOSED --> ACCEPTED: client accepts\n(start moves to the proposed slot)
+    RESCHEDULE_PROPOSED --> PENDING: client declines\n(if the proposal came from PENDING)
+    RESCHEDULE_PROPOSED --> ACCEPTED: client declines\n(if it came from ACCEPTED; original time kept)
+    ACCEPTED --> CANCELLED_BY_CLIENT: client cancels before start
+    ACCEPTED --> CANCELLED_BY_PROVIDER: professional cancels (reason required)
+    RESCHEDULE_PROPOSED --> CANCELLED_BY_CLIENT
+    RESCHEDULE_PROPOSED --> CANCELLED_BY_PROVIDER
+    ACCEPTED --> COMPLETED: after start, professional marks done
+    ACCEPTED --> NO_SHOW: after start, client absent
+    COMPLETED --> COMPLETED: payments / refunds recorded,\none review by the client
+    REJECTED --> [*]
+    EXPIRED --> [*]
+    CANCELLED_BY_CLIENT --> [*]
+    CANCELLED_BY_PROVIDER --> [*]
+    NO_SHOW --> [*]
+    COMPLETED --> [*]

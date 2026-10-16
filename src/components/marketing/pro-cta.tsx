@@ -9,8 +9,8 @@ import { InViewVideo } from "./in-view-video";
 /** The page's one deliberate color block: wine band that runs into the footer. */
 export function ProCta({ locale, copy }: { locale: Locale; copy: Dictionary["proCta"] }) {
   return (
-    <section aria-labelledby="pro-cta-title" className="bg-wine text-on-wine">
-      <div className="mx-auto grid max-w-[1480px] items-center gap-12 px-5 py-24 sm:px-8 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:py-32 lg:px-14">
+    <section aria-labelledby="pro-cta-title" className="mx-auto max-w-[1400px] px-4 pb-20 sm:px-8 lg:px-12">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-12 overflow-hidden rounded-[36px] bg-[linear-gradient(135deg,#4a1a2a,#2e1019)] px-6 py-16 text-on-wine shadow-(--shadow-float) sm:px-10 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:px-14 md:py-20">
         <Reveal>
           <h2 id="pro-cta-title" className="type-display text-[clamp(3rem,7vw,6.5rem)] leading-[1.02]">
             {copy.title}

@@ -68,6 +68,36 @@ export function canChangeStatus(actor: Actor, target: { id: string; role: Role }
   return hasStaffRank(actor.role, "ADMIN");
 }
 
+export const ROLES: readonly Role[] = ["CLIENT", "PROVIDER", "SUPPORT", "ADMIN", "SUPER_ADMIN"];
+
+/** The roles this actor may give the target right now (empty when the actor cannot change it at all). */
+export function assignableRoles(actor: Actor, target: { id: string; role: Role }) {
+  return ROLES.filter((r) => canChangeRole(actor, target, r));
+}
+
+/** A suspension only applies to an account that can sign in; a restore only to a suspended one. */
+export function canSuspendFrom(status: Status) {
+  return status === "ACTIVE" || status === "PENDING_VERIFICATION";
+}
+
+/** User list and user files: verified staff (SUPPORT reads only). */
+export function canViewUsers(actor: Actor) {
+  return canSignIn(actor.status) && actor.emailVerified && isStaff(actor.role);
+}
+
+/** Categories and subscription prices: SUPPORT reads; ADMIN and above change them. */
+export function canViewCatalog(actor: Actor) {
+  return canViewUsers(actor);
+}
+export function canManageCatalog(actor: Actor) {
+  return canSignIn(actor.status) && actor.emailVerified && hasStaffRank(actor.role, "ADMIN");
+}
+
+/** The audit log holds notes about people and every staff decision: ADMIN and above only. */
+export function canViewAudit(actor: Actor) {
+  return canManageCatalog(actor);
+}
+
 /** Provider resources: only the owning provider, or staff for moderation reads. */
 export function canManageProviderResource(actor: Actor, ownerUserId: string) {
   return canSignIn(actor.status) && actor.role === "PROVIDER" && actor.id === ownerUserId;

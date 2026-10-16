@@ -67,7 +67,7 @@ async function Directory({ params, searchParams }: PageProps<"/[locale]/[categor
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1480px] gap-8 px-5 pb-24 sm:px-8 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-12 lg:px-14">
+      <div className="mx-auto grid max-w-[1480px] grid-cols-[minmax(0,1fr)] gap-8 px-5 pb-24 sm:px-8 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-12 lg:px-14">
         <Suspense fallback={<FiltersSkeleton />}>
           <Filters searchParams={searchParams} locale={locale} category={category} action={action} pages={pages} geo={dict.search} />
         </Suspense>
@@ -169,10 +169,10 @@ async function Results({
           </div>
         </div>
       ) : (
-        <ul className="grid gap-x-6 gap-y-12 sm:grid-cols-2 xl:grid-cols-3">
-          {result.cards.map((card) => (
+        <ul className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {result.cards.map((card, i) => (
             <li key={card.slug} className="flex">
-              <ProviderCard card={card} category={category} locale={locale} copy={d.card} workplace={pages.workplace} />
+              <ProviderCard card={card} category={category} locale={locale} copy={d.card} workplace={pages.workplace} index={i} />
             </li>
           ))}
         </ul>

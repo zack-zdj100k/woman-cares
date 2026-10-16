@@ -1,0 +1,14 @@
+%% Public website and entry into the dashboards.
+flowchart TD
+    Home[/fr or /ar home/] --> Cat[Category directory\nfilters in the URL]
+    Home --> About[About platform / services]
+    Home --> Contact[Contact form -> SupportRequest]
+    Cat --> Profile[Category profile\nservices, portfolio, hours, booking panel]
+    Profile --> Slot{Signed in\nverified client?}
+    Slot -- no --> SignIn[Sign in / sign up\nchoice kept in the URL] --> Profile
+    Slot -- yes --> Request[Request sent\nreference WC-XXXXXX]
+    Request --> ClientDash[/dashboard/client/appointments/]
+    SignIn --> Area{Role}
+    Area -- CLIENT --> ClientDash
+    Area -- PROVIDER --> ProDash[/dashboard/provider/]
+    Area -- SUPPORT, ADMIN, SUPER_ADMIN --> AdminDash[/dashboard/admin/]

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Amiri, Cormorant_Garamond, IBM_Plex_Sans_Arabic, Outfit } from "next/font/google";
 import { isLocale, localeDirection, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { SiteBackdrop } from "@/components/layout/site-backdrop";
 import "../globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -38,10 +39,8 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbf4f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#160e12" },
-  ],
+  themeColor: "#f6eae2",
+  colorScheme: "light",
 };
 
 export default async function LocaleLayout({ children, params }: LayoutProps<"/[locale]">) {
@@ -54,7 +53,10 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
       dir={localeDirection[locale]}
       className={`${cormorant.variable} ${outfit.variable} ${amiri.variable} ${plexArabic.variable} antialiased`}
     >
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        <SiteBackdrop />
+        {children}
+      </body>
     </html>
   );
 }

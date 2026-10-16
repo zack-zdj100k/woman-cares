@@ -62,7 +62,7 @@ export function weekdayOf(isoDate: string) {
 
 /**
  * Public directory search. Visibility rules (published profile, billing-visible,
- * approved provider, active category) are fixed in SQL and cannot be relaxed by the query.
+ * approved provider whose own account is active, active category) are fixed in SQL and cannot be relaxed by the query.
  *
  * Distance uses the provider's *public* position: exact coordinates only when the provider
  * chose EXACT; otherwise the commune centroid (or coordinates rounded to ~1 km).
@@ -77,6 +77,8 @@ export async function searchDirectory(category: string, query: DirectoryQuery): 
     Prisma.sql`p.status = 'PUBLISHED'`,
     Prisma.sql`p."billingVisible" = true`,
     Prisma.sql`a.status = 'APPROVED'`,
+    Prisma.sql`u.status = 'ACTIVE'`,
+    Prisma.sql`u.role = 'PROVIDER'`,
     Prisma.sql`cat.active = true`,
     Prisma.sql`cat.slug = ${category}`,
   ];
@@ -158,6 +160,7 @@ export async function searchDirectory(category: string, query: DirectoryQuery): 
           ELSE c.longitude::float8 END AS lng
       FROM "ProviderServiceProfile" p
       JOIN "ProviderAccount" a ON a.id = p."providerId"
+      JOIN "User" u ON u.id = a."userId"
       JOIN "Category" cat ON cat.id = p."categoryId"
       JOIN "Wilaya" w ON w.code = a."wilayaCode"
       LEFT JOIN "Commune" c ON c.id = a."communeId"

@@ -1,7 +1,23 @@
 import type { ProviderDictionary } from "./provider.fr";
 
 const providerAr: ProviderDictionary = {
-  nav: { overview: "نظرة عامة", profiles: "ملفاتي", settings: "المؤسسة", label: "المساحة المهنية" },
+  nav: { overview: "نظرة عامة", bookings: "الطلبات", profiles: "ملفاتي", settings: "المؤسسة", label: "المساحة المهنية" },
+  bookings: {
+    title: "الطلبات والمواعيد",
+    intro: "تحجز الطلبات الجديدة المكان حتى تردي عليها. اقبليها أو ارفضيها هنا، وتصل الزبونة رسالة بالبريد.",
+    pending: "بانتظار الرد",
+    upcoming: "مواعيد مؤكدة",
+    empty: "لا توجد طلبات حاليًا.",
+    emptyUpcoming: "لا توجد مواعيد مؤكدة قادمة.",
+    accept: "قبول",
+    reject: "رفض",
+    note: "رسالة للزبونة (اختياري)",
+    clientNote: "رسالة الزبونة",
+    phone: "الهاتف",
+    reference: "المرجع",
+    done: "تم إرسال الرد.",
+    errors: { state: "تمت معالجة هذا الطلب مسبقًا.", forbidden: "إجراء غير ممكن." } as Record<string, string>,
+  },
   common: {
     save: "حفظ",
     saving: "جارٍ الحفظ…",

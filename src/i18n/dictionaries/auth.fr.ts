@@ -119,8 +119,23 @@ const authFr = {
   dashboard: {
     client: {
       title: (name: string) => `Bonjour ${name}`,
-      intro: "Votre espace cliente. Les rendez-vous et les favoris apparaîtront ici dès l’ouverture des demandes en ligne.",
+      intro: "Votre espace cliente : vos demandes et vos rendez-vous, au même endroit.",
       explore: "Trouver mon soin",
+      bookings: "Mes rendez-vous",
+      empty: "Aucune demande pour le moment. Choisissez une professionnelle et un créneau pour commencer.",
+      reference: "Référence",
+      statuses: {
+        PENDING: "En attente de réponse",
+        ACCEPTED: "Confirmé",
+        REJECTED: "Non accepté",
+        CANCELLED_BY_CLIENT: "Annulé",
+        CANCELLED_BY_PROVIDER: "Annulé par la professionnelle",
+        RESCHEDULE_PROPOSED: "Nouvel horaire proposé",
+        COMPLETED: "Terminé",
+        NO_SHOW: "Absente",
+        EXPIRED: "Expiré",
+      } as Record<string, string>,
+      reply: "Réponse de la professionnelle",
     },
     provider: {
       title: (name: string) => `Bonjour ${name}`,

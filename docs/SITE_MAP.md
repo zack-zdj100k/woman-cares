@@ -68,7 +68,7 @@ Legend: ✅ built and verified · 🚧 partially built · ⬜ not built yet.
 | `/[locale]` | Home | ✅ |
 | `/[locale]/coiffeuses` · `esthetique` · `massage` · `nails` · `extensions-de-cils` · `botox` | Category directories | ✅ |
 | `/[locale]/providers/[slug]` | Provider identity | ✅ |
-| `/[locale]/profiles/[profileSlug]` | Category profile | 🚧 booking panel waits for Phase 6 |
+| `/[locale]/profiles/[profileSlug]` | Category profile | ✅ soft cards, price pill, booking panel (service, day strip, time bars, request) |
 | `/[locale]/about-platform` | About Woman Cares | ✅ |
 | `/[locale]/about-services` | For professionals | ✅ |
 | `/[locale]/auth/sign-in` · `/auth/sign-up` (`?role=provider`) · `/auth/check-email` · `/auth/verify-email` · `/auth/forgot-password` · `/auth/reset-password` | Authentication | ✅ |
@@ -83,9 +83,9 @@ Coordinates are rounded to two decimals (~1 km) before entering the URL.
 
 | Area | Routes | Status |
 |---|---|---|
-| Client | `/dashboard/client` 🚧 (guarded overview) · `/appointments`, `/favorites`, `/profile`, `/notifications`, `/settings` ⬜ | |
-| Provider | `/dashboard/provider` ✅ overview · `/profiles` ✅ (list, add/archive categories) · `/profiles/[profileId]` ✅ editor (presentation, services, portfolio, hours, closures, submit) · `/settings` ✅ (business, location, visibility) · `/services` ✅ and `/schedule` ✅ (index into each profile's editor) · `/bookings`, `/analytics`, `/earnings`, `/billing`, `/notifications`, `/support` ⬜ | |
-| Admin | `/dashboard/admin` ✅ overview with live counts and the review summary · `/providers` ✅ review queue (filters, search, pagination) · `/providers/[providerId]` ✅ review page (decisions ADMIN+, read-only for SUPPORT) · `/users`, `/categories`, `/pricing`, `/subscriptions`, `/payments`, `/content`, `/moderation`, `/analytics`, `/support`, `/audit`, `/settings` ⬜ | |
+| Client | `/dashboard/client` ✅ overview · `/appointments` ✅ table and `/appointments/[bookingId]` ✅ (cancel, answer a proposal, review) · `/notifications` ✅ · `/favorites`, `/reviews`, `/profile`, `/support` ⬜ | Full dashboard map: [DASHBOARD_SITE_MAP.md](DASHBOARD_SITE_MAP.md) |
+| Provider | `/dashboard/provider` ✅ overview (category switcher) · `/bookings` ✅ table and `/bookings/[bookingId]` ✅ (respond, propose, cancel, complete, no-show, payments) · `/profiles` ✅ · `/profiles/[profileId]` ✅ · `/services` ✅ · `/schedule` ✅ · `/settings` ✅ · `/subscriptions` ✅ · `/invoices` ✅ · `/notifications` ✅ · `/calendar`, `/earnings`, `/analytics`, `/support` ⬜ | |
+| Admin | `/dashboard/admin` ✅ overview with live counts and the review summary · `/providers` ✅ review queue (filters, search, pagination) · `/providers/[providerId]` ✅ review page (decisions ADMIN+, read-only for SUPPORT) · `/users` ✅ accounts (search by name or email, role tabs, status filter, pagination; SUPPORT+) · `/users/[userId]` ✅ account file (role change and suspend/restore within the role policy; history ADMIN+) · `/categories` ✅ order, activation, credential requirement (changes ADMIN+, SUPPORT reads) · `/pricing` ✅ price per category, history, future price rows (ADMIN+, SUPPORT reads) · `/audit` ✅ audit log browser (ADMIN+ only; tab hidden for SUPPORT) · `/subscriptions`, `/payments`, `/content`, `/moderation`, `/analytics`, `/support`, `/settings` ⬜ | |
 
 Access: `src/proxy.ts` sends visitors without a session cookie to sign-in (optimistic, no database).
 Every dashboard page then calls `requireArea()` on the server: wrong role or suspended account → 404.

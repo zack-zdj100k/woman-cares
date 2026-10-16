@@ -10,18 +10,21 @@ import {
   getAdminDictionary,
   getAuthDictionary,
   getDictionary,
+  getDashboardDictionary,
   getProviderDictionary,
 } from "@/i18n/get-dictionary";
+import { getProviderBilling } from "@/server/services/billing";
+import { RecordPaymentForm, TermsForm } from "@/components/dashboard/billing-forms";
+import { Badge } from "@/components/ui/badge";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
 import { canReview } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { getProviderReview } from "@/server/services/review";
-import { PageShell } from "@/components/layout/page-shell";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { DecisionForm } from "@/components/admin/decision-form";
-import { DecisionFeedback } from "@/components/admin/decision-feedback";
+import { DecisionFeedback } from "@/components/ui/decision-feedback";
+import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
 type Params =
   PageProps<"/[locale]/dashboard/admin/providers/[providerId]">["params"];
@@ -30,11 +33,11 @@ export const metadata: Metadata = { robots: { index: false } };
 
 export default function ProviderReviewPage({ params }: { params: Params }) {
   return (
-    <PageShell>
+    <>
       <Suspense fallback={<DashboardSkeleton />}>
         <Review params={params} />
       </Suspense>
-    </PageShell>
+    </>
   );
 }
 
@@ -54,12 +57,16 @@ async function Review({ params }: { params: Params }) {
     if (e instanceof ForbiddenError) notFound();
     throw e;
   }
-  const [at, t, dict, pt] = await Promise.all([
+  const [at, t, dict, pt, dd, billing] = await Promise.all([
     getAdminDictionary(locale),
     getAuthDictionary(locale),
     getDictionary(locale),
     getProviderDictionary(locale),
+    getDashboardDictionary(locale),
+    getProviderBilling(user, providerId),
   ]);
+  const b = dd.billing;
+  const sub = billing.subscription;
   const { account, profiles, audit } = data;
   const decide = canReview(user);
   const labels = {
@@ -73,8 +80,7 @@ async function Review({ params }: { params: Params }) {
   const s = account.status;
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 pt-12 pb-24 sm:px-8 md:pt-16">
-      <AdminNav locale={locale} active="providers" copy={at.nav} />
+    <div className={pageClass}>
       <Link
         href={`/${locale}/dashboard/admin/providers`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink"
@@ -186,6 +192,93 @@ async function Review({ params }: { params: Params }) {
                   labels={labels}
                 />
               )}
+            </div>
+          )}
+        </Block>
+
+        {/* Subscription: how this professional is billed (Admin can set an agreed price). */}
+        <Block title={b.termsTitle}>
+          {!sub ? (
+            <p className="text-sm text-muted-foreground">{b.noSubscription}</p>
+          ) : (
+            <div className="grid gap-6">
+              <dl className="grid gap-4 text-sm sm:grid-cols-4">
+                <div>
+                  <dt className="text-muted-foreground">{b.status}</dt>
+                  <dd className="mt-1">
+                    <Badge variant={sub.status === "EXPIRED" ? "destructive" : sub.status === "GRACE" ? "warning" : sub.status === "EXEMPT" ? "outline" : "success"}>{b.statuses[sub.status]}</Badge>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{b.current}</dt>
+                  <dd className="mt-1">
+                    {b.bases[sub.billingBasis]}
+                    {sub.billingBasis === "NEGOTIATED" && sub.negotiatedMonthlyPrice && ` · ${formatDzd(sub.negotiatedMonthlyPrice.toString(), locale)} ${b.perMonth}`}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{sub.status === "TRIALING" ? b.trialEnds : b.period}</dt>
+                  <dd className="mt-1">
+                    {sub.status === "TRIALING" && sub.trialEndsAt
+                      ? formatDate(sub.trialEndsAt, locale)
+                      : sub.currentPeriodStart && sub.currentPeriodEnd
+                        ? `${formatDate(sub.currentPeriodStart, locale, { dateStyle: "medium" })} – ${formatDate(sub.currentPeriodEnd, locale, { dateStyle: "medium" })}`
+                        : "-"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">{b.billable}</dt>
+                  <dd className="mt-1">{billing.categories.length ? billing.categories.map((c) => cat(c.slug)).join(", ") : "-"}</dd>
+                </div>
+              </dl>
+              {sub.exemptReason && <p className="text-sm text-muted-foreground">{sub.exemptReason}</p>}
+              {decide && (
+                <TermsForm
+                  providerId={account.id}
+                  current={sub.billingBasis === "NEGOTIATED" || sub.billingBasis === "EXEMPT" ? sub.billingBasis : "PER_CATEGORY"}
+                  negotiated={sub.negotiatedMonthlyPrice?.toString() ?? null}
+                  reason={sub.exemptReason}
+                  labels={{
+                    standard: b.standard,
+                    standardHelp: b.standardHelp(formatDzd(String(billing.standardMonthly), locale)),
+                    negotiated: b.negotiated,
+                    negotiatedHelp: b.negotiatedHelp,
+                    exemption: b.exemption,
+                    exemptionHelp: b.exemptionHelp,
+                    monthly: b.monthly,
+                    reason: b.reason,
+                    save: b.saveTerms,
+                    saved: b.saved,
+                    errors: b.errors,
+                  }}
+                />
+              )}
+              <div>
+                <p className="mb-2 text-sm font-medium">{b.invoicesTitle}</p>
+                {billing.invoices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{b.noInvoices}</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-xl border border-border">
+                    {billing.invoices.map((inv) => (
+                      <li key={inv.id} className="grid gap-3 p-4 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <span className="font-medium" dir="ltr">
+                            {inv.number}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {formatDate(inv.periodStart, locale, { dateStyle: "medium" })} – {formatDate(inv.periodEnd, locale, { dateStyle: "medium" })}
+                          </span>
+                          <span className="tabular-nums">{formatDzd(inv.total.toString(), locale)}</span>
+                          <Badge variant={inv.status === "PAID" ? "success" : inv.status === "OVERDUE" ? "destructive" : "warning"}>{b.invoiceStatuses[inv.status]}</Badge>
+                        </div>
+                        {decide && (inv.status === "OPEN" || inv.status === "OVERDUE") && (
+                          <RecordPaymentForm invoiceId={inv.id} labels={{ method: b.method, reference: b.reference, save: b.record, methods: b.methods, errors: b.errors }} />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
         </Block>

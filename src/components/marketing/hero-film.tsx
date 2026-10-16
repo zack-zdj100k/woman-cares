@@ -90,7 +90,7 @@ export function HeroFilm({
   const titleOpacity = useTransform(p, map([0.58, 0.72], [0, 1]));
   const titleY = useTransform(p, map([0.58, 0.72], [40, 0]));
   const titleVisibility = useTransform(titleOpacity, (o) => (o < 0.02 ? "hidden" : "visible"));
-  const scrim = useTransform(p, map([0.5, 0.75], [0.06, 0.35]));
+  const scrim = useTransform(p, map([0.5, 0.75], [0, 0.14]));
 
   function seek(c: number) {
     const v = videoRef.current;
@@ -182,12 +182,12 @@ export function HeroFilm({
     <section
       ref={sectionRef}
       aria-labelledby="hero-title"
-      className={cn("relative bg-wine", reduce ? "h-dvh" : "h-[260vh] md:h-[300vh]")}
+      className={cn("relative", reduce ? "h-dvh" : "h-[260vh] md:h-[300vh]")}
     >
       <div className="sticky top-0 h-dvh overflow-hidden">
         {/* Film frame */}
         <motion.div
-          className="absolute inset-0 overflow-hidden bg-wine"
+          className="absolute inset-0 overflow-hidden bg-[#e8d3cb]"
           style={reduce ? undefined : { clipPath }}
         >
           <motion.video
@@ -209,11 +209,11 @@ export function HeroFilm({
           </motion.video>
 
           {/* Scrims: one under the copy side, one under the chapter rail, one global that deepens on scroll. */}
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-[rgb(var(--scrim)/0.72)] via-[rgb(var(--scrim)/0.3)] to-transparent rtl:bg-linear-to-l md:via-[rgb(var(--scrim)/0.25)]" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-linear-to-t from-[rgb(var(--scrim)/0.7)] to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-[rgb(var(--scrim)/0.46)] via-[rgb(var(--scrim)/0.12)] to-transparent rtl:bg-linear-to-l md:via-[rgb(var(--scrim)/0.08)]" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-[rgb(var(--scrim)/0.42)] to-transparent" />
           <motion.div
             className="pointer-events-none absolute inset-0 bg-[rgb(var(--scrim))]"
-            style={{ opacity: reduce ? 0.06 : scrim }}
+            style={{ opacity: reduce ? 0 : scrim }}
           />
         </motion.div>
 
@@ -221,7 +221,7 @@ export function HeroFilm({
         <div className="relative z-10 mx-auto flex h-full max-w-[1480px] flex-col px-5 pb-6 pt-28 text-on-media sm:px-8 md:pb-8 lg:px-14 lg:pt-32">
           <motion.div
             style={reduce ? undefined : { y: introY, opacity: introOpacity, visibility: introVisibility }}
-            className="max-w-[44rem] [text-shadow:0_1px_28px_rgb(22_10_16/0.35)]"
+            className="max-w-[44rem] [text-shadow:0_1px_2px_rgb(22_10_16/0.35),0_2px_30px_rgb(22_10_16/0.45)]"
           >
             <motion.p
               initial={reduce ? false : { opacity: 0, y: 12 }}

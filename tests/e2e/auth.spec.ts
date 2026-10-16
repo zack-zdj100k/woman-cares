@@ -107,6 +107,6 @@ test("a super admin created with the CLI can open the admin area", async ({ page
   await page.goto("/fr/auth/sign-in");
   await signIn(page, email, password);
   await expect(page).toHaveURL(/\/fr\/dashboard\/admin$/);
-  await expect(page.getByRole("heading", { name: "Administration" })).toBeVisible();
-  await expect(page.getByText("SUPER_ADMIN")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Vue d’ensemble", level: 1 })).toBeVisible();
+  await expect(page.getByText("Super administratrice")).toBeVisible();
 });

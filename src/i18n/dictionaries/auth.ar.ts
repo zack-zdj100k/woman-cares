@@ -121,8 +121,23 @@ const authAr: AuthDictionary = {
   dashboard: {
     client: {
       title: (name: string) => `مرحبًا ${name}`,
-      intro: "مساحتك. ستظهر هنا المواعيد والمفضلة عند فتح الطلبات عبر الإنترنت.",
+      intro: "مساحتك: طلباتك ومواعيدك في مكان واحد.",
       explore: "اعثري على عنايتك",
+      bookings: "مواعيدي",
+      empty: "لا توجد طلبات بعد. اختاري محترفة وموعدًا للبدء.",
+      reference: "المرجع",
+      statuses: {
+        PENDING: "بانتظار الرد",
+        ACCEPTED: "مؤكد",
+        REJECTED: "غير مقبول",
+        CANCELLED_BY_CLIENT: "ملغى",
+        CANCELLED_BY_PROVIDER: "ألغته المحترفة",
+        RESCHEDULE_PROPOSED: "اقتُرح موعد جديد",
+        COMPLETED: "منتهٍ",
+        NO_SHOW: "غياب",
+        EXPIRED: "منتهي الصلاحية",
+      } as Record<string, string>,
+      reply: "رد المحترفة",
     },
     provider: {
       title: (name: string) => `مرحبًا ${name}`,

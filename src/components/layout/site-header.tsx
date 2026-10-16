@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, Menu, Search, X } from "lucide-react";
+import { ChevronDown, Menu, Search } from "lucide-react";
 import { categorySlugs, type CategorySlug } from "@/config/categories";
 import { localeLabel, locales, type Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/fr";
-import { buttonClass } from "@/components/ui/button";
 import { useFindCareOptional } from "@/components/marketing/find-care";
 import { cn } from "@/lib/cn";
 import { LocaleSwitch } from "./locale-switch";
+import { DialMenu, openDialMenu } from "./dial-menu";
 
 type Props = {
   locale: Locale;
@@ -18,33 +18,34 @@ type Props = {
   findLabel: string;
   brand: string;
   categoryNames: Record<CategorySlug, string>;
-  /** Transparent over the hero film until the element with id="hero-end" scrolls away. */
-  overlay?: boolean;
+  categories: Dictionary["categories"];
+  /** The header starts over the hero film (homepage): floating text is light until it fades on scroll. */
+  overMedia?: boolean;
   /** Server-rendered account control (sign-in link or account menu), streamed behind Suspense. */
   account?: ReactNode;
-  mobileAccount?: ReactNode;
 };
 
-export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, overlay = false, account, mobileAccount }: Props) {
+export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categories, account, overMedia = false }: Props) {
   const findCare = useFindCareOptional();
   const reduce = useReducedMotion();
-  const [solid, setSolid] = useState(!overlay);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [careOpen, setCareOpen] = useState(false);
-  const careRef = useRef<HTMLDivElement>(null);
-
+  // As soon as the page moves, floating text fades so content never runs under it; round icons stay.
+  const [compact, setCompact] = useState(false);
   useEffect(() => {
-    if (!overlay) return;
-    const end = document.getElementById("hero-end");
-    if (!end) return;
-    // Solid once the bottom of the hero passes under the header.
-    const io = new IntersectionObserver(([e]) => setSolid(e.boundingClientRect.top < 80), {
-      rootMargin: "-80px 0px 0px 0px",
-      threshold: [0, 1],
-    });
-    io.observe(end);
-    return () => io.disconnect();
-  }, [overlay]);
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setCompact(window.scrollY > 24));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+  const fade = cn("transition-[opacity,visibility] duration-300", compact && "invisible opacity-0");
+  const careRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!careOpen) return;
@@ -60,48 +61,42 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, overl
     };
   }, [careOpen]);
 
-  useEffect(() => {
-    document.documentElement.style.overflow = menuOpen ? "hidden" : "";
-    return () => {
-      document.documentElement.style.overflow = "";
-    };
-  }, [menuOpen]);
-
-  const onMedia = !solid && !menuOpen;
   const otherLocale = locales.find((l) => l !== locale)!;
-
+  // No bar (owner's request): links float on their own, light over the film, ink on the floral pages.
+  const ink = overMedia
+    ? "text-white [text-shadow:0_1px_2px_rgb(22_10_16/0.45),0_2px_18px_rgb(22_10_16/0.4)]"
+    : "text-ink [text-shadow:0_1px_10px_rgb(255_250_246/0.9)]";
   const pill = cn(
-    "whitespace-nowrap rounded-full px-3.5 py-2 text-[0.92rem] transition-colors duration-300 xl:px-4",
-    onMedia ? "text-on-media/90 hover:bg-on-media/15 hover:text-on-media" : "text-ink-2 hover:bg-ink/5 hover:text-ink",
+    "whitespace-nowrap rounded-full px-3.5 py-2 text-[0.95rem] font-medium transition-colors duration-300 xl:px-4",
+    ink,
+    overMedia ? "hover:bg-white/15" : "hover:bg-white/60",
+  );
+  const circle = cn(
+    "grid size-11 shrink-0 place-items-center rounded-full text-white transition-[transform,background-color,box-shadow] duration-300 hover:scale-105",
+    "glass-dark",
+    compact && "size-12",
   );
 
   return (
-    <header
-      className={cn(
-        "fixed inset-x-0 top-0 z-40 transition-[background-color,box-shadow,color] duration-500",
-        onMedia ? "text-on-media" : "bg-ground/90 text-ink shadow-[0_1px_0_var(--line)] backdrop-blur-xl",
-      )}
-    >
+    <header className="fixed inset-x-0 top-0 z-40 px-3 pt-3 sm:px-5 lg:px-8">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-ground"
       >
         {nav.skip}
       </a>
-      <div
-        className={cn(
-          "mx-auto flex h-[4.5rem] max-w-[1480px] items-center justify-between gap-4 lg:grid lg:grid-cols-[1fr_auto_1fr] px-5 transition-[padding] duration-500 sm:px-8 lg:px-14",
-          onMedia && "lg:pt-3",
-        )}
-      >
-        {/* Start: pill cluster */}
-        <nav aria-label="Principal" className="hidden lg:block">
-          <div
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-full border p-1 transition-colors duration-500",
-              onMedia ? "border-on-media/20 bg-[rgb(var(--scrim)/0.18)] backdrop-blur-md" : "border-line",
-            )}
-          >
+      {/* No bar: floating links and round glass buttons (owner's request, 2026-10-16). */}
+      <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-2 px-1 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+        <div className="flex min-w-0 items-center gap-1">
+          <Link href={`/${locale}`} aria-label={brand} className={circle}>
+            <span className="type-display text-[1.05rem] tracking-[0.06em]" dir="ltr" aria-hidden="true">
+              WC
+            </span>
+          </Link>
+          <Link href={`/${locale}`} className={cn("type-display truncate px-2 text-[1.15rem] uppercase tracking-[0.18em] lg:hidden", ink, fade)} dir="ltr" tabIndex={compact ? -1 : undefined}>
+            {brand}
+          </Link>
+          <nav aria-label={nav.menu} className={cn("hidden items-center gap-0.5 ps-1 lg:flex", fade)}>
             <div ref={careRef} className="relative">
               <button
                 type="button"
@@ -111,10 +106,7 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, overl
                 className={cn(pill, "inline-flex items-center gap-1.5")}
               >
                 {nav.care}
-                <ChevronDown
-                  className={cn("size-3.5 transition-transform duration-300", careOpen && "rotate-180")}
-                  strokeWidth={1.75}
-                />
+                <ChevronDown className={cn("size-3.5 transition-transform duration-300", careOpen && "rotate-180")} strokeWidth={1.75} />
               </button>
               <AnimatePresence>
                 {careOpen && (
@@ -124,7 +116,7 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, overl
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={reduce ? undefined : { opacity: 0, y: -6, scale: 0.98 }}
                     transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute start-0 top-[calc(100%+0.75rem)] w-[22rem] origin-top-left rounded-[22px] border border-line bg-ground p-2 text-ink shadow-[0_30px_80px_-30px_rgb(37_22_29/0.45)]"
+                    className="glass-dark absolute start-0 top-[calc(100%+0.9rem)] w-[24rem] origin-top-left rounded-[26px] p-2"
                   >
                     <ul className="grid grid-cols-2 gap-1">
                       {categorySlugs.map((slug) => (
@@ -132,9 +124,10 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, overl
                           <Link
                             href={`/${locale}/${slug}`}
                             onClick={() => setCareOpen(false)}
-                            className="block rounded-2xl px-4 py-3 text-[0.95rem] transition-colors hover:bg-surface"
+                            className="block rounded-2xl px-4 py-3 transition-colors hover:bg-white/10"
                           >
-                            {categoryNames[slug]}
+                            <span className="block text-[0.95rem] text-white">{categoryNames[slug]}</span>
+                            <span className="mt-0.5 line-clamp-1 block text-xs text-white/60">{categories[slug].short}</span>
                           </Link>
                         </li>
                       ))}
@@ -149,35 +142,16 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, overl
             <Link href={`/${locale}/about-services`} className={pill}>
               {nav.forPros}
             </Link>
-          </div>
-        </nav>
+          </nav>
+        </div>
 
-        {/* Mobile: wordmark at start */}
-        <Link
-          href={`/${locale}`}
-          className="type-display whitespace-nowrap text-[1.3rem] uppercase tracking-[0.2em] lg:hidden"
-          dir="ltr"
-        >
+        <Link href={`/${locale}`} className={cn("type-display hidden whitespace-nowrap text-[1.6rem] uppercase tracking-[0.26em] lg:block", ink, fade)} dir="ltr" tabIndex={compact ? -1 : undefined}>
           {brand}
         </Link>
 
-        {/* Center wordmark (desktop) */}
-        <Link
-          href={`/${locale}`}
-          className="type-display hidden whitespace-nowrap text-[1.6rem] uppercase tracking-[0.28em] lg:block"
-          dir="ltr"
-        >
-          {brand}
-        </Link>
-
-        {/* End actions */}
-        <div className="flex items-center justify-end gap-1 sm:gap-2">
-          <LocaleSwitch
-            target={otherLocale}
-            className={cn(pill, "hidden sm:inline-flex")}
-            aria-label={`${nav.language}: ${localeLabel[otherLocale]}`}
-          />
-          <span className={cn("hidden lg:inline-flex", onMedia ? "text-on-media" : "text-ink")}>
+        <div className="flex items-center justify-end gap-1.5">
+          <LocaleSwitch target={otherLocale} className={cn(pill, "hidden sm:inline-flex", fade)} aria-label={`${nav.language}: ${localeLabel[otherLocale]}`} />
+          <span className={cn("hidden lg:inline-flex", ink, fade)}>
             {account ?? (
               <Link href={`/${locale}/auth/sign-in`} className={pill}>
                 {nav.signIn}
@@ -188,112 +162,31 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, overl
             <button
               type="button"
               onClick={() => findCare.open()}
-              className={buttonClass({ variant: onMedia ? "media" : "solid", size: "sm", className: "max-md:hidden" })}
+              className={cn(
+                "inline-flex h-11 items-center gap-2 rounded-full ps-3 pe-4 text-[0.92rem] text-white transition-colors hover:bg-white/15 max-md:size-11 max-md:justify-center max-md:p-0",
+                "glass-dark",
+                compact && "size-12 justify-center p-0",
+              )}
+              aria-label={findLabel}
             >
-              <Search className="size-4" strokeWidth={1.75} />
-              {findLabel}
+              <Search className="size-4 shrink-0" strokeWidth={1.75} />
+              <span className={cn("max-md:hidden", compact && "hidden")}>{findLabel}</span>
             </button>
           ) : (
-            <Link
-              href={`/${locale}/coiffeuses`}
-              className={buttonClass({ variant: onMedia ? "media" : "solid", size: "sm", className: "max-md:hidden" })}
-            >
-              <Search className="size-4" strokeWidth={1.75} />
-              {findLabel}
+            <Link href={`/${locale}/coiffeuses`} className="glass-dark inline-flex h-11 items-center gap-2 rounded-full ps-3 pe-4 text-[0.92rem] text-white max-md:size-11 max-md:justify-center max-md:p-0" aria-label={findLabel}>
+              <Search className="size-4 shrink-0" strokeWidth={1.75} />
+              <span className="max-md:hidden">{findLabel}</span>
             </Link>
           )}
-          <button
-            type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-expanded={menuOpen}
-            aria-controls="mobile-menu"
-            aria-label={menuOpen ? nav.close : nav.menu}
-            className={cn(
-              "relative z-10 grid size-11 place-items-center rounded-full border transition-colors lg:hidden",
-              onMedia ? "border-on-media/30 bg-[rgb(var(--scrim)/0.2)] backdrop-blur-md" : "border-line",
-            )}
-          >
-            {menuOpen ? <X className="size-5" strokeWidth={1.75} /> : <Menu className="size-5" strokeWidth={1.75} />}
+          <button type="button" onClick={openDialMenu} aria-label={nav.menu} className={circle}>
+            <Menu className="size-5" strokeWidth={1.75} />
           </button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            id="mobile-menu"
-            initial={reduce ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={reduce ? undefined : { opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 top-[4.5rem] overflow-y-auto bg-ground px-5 pb-10 pt-4 text-ink sm:px-8 lg:hidden"
-          >
-            <nav aria-label={nav.menu} className="grid gap-8">
-              <div>
-                <p className="mb-3 text-sm text-ink-2">{nav.care}</p>
-                <ul className="grid gap-1">
-                  {categorySlugs.map((slug, i) => (
-                    <motion.li
-                      key={slug}
-                      initial={reduce ? false : { opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.04 * i, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      <Link
-                        href={`/${locale}/${slug}`}
-                        onClick={() => setMenuOpen(false)}
-                        className="type-display block py-1.5 text-4xl"
-                      >
-                        {categoryNames[slug]}
-                      </Link>
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-              <ul className="grid gap-3 text-lg">
-                <li>
-                  <Link href={`/${locale}/about-platform`} onClick={() => setMenuOpen(false)}>
-                    {nav.about}
-                  </Link>
-                </li>
-                <li>
-                  <Link href={`/${locale}/about-services`} onClick={() => setMenuOpen(false)}>
-                    {nav.forPros}
-                  </Link>
-                </li>
-                <li onClick={() => setMenuOpen(false)}>
-                  {mobileAccount ?? <Link href={`/${locale}/auth/sign-in`}>{nav.signIn}</Link>}
-                </li>
-                <li>
-                  <LocaleSwitch target={otherLocale} />
-                </li>
-              </ul>
-              <div className="grid gap-3">
-                {findCare && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      findCare.open();
-                    }}
-                    className={buttonClass({ variant: "solid", size: "lg", className: "w-full" })}
-                  >
-                    <Search className="size-4" strokeWidth={1.75} />
-                    {findLabel}
-                  </button>
-                )}
-                <Link
-                  href={`/${locale}/auth/sign-up?role=provider`}
-                  onClick={() => setMenuOpen(false)}
-                  className={buttonClass({ variant: "outline", size: "lg", className: "w-full" })}
-                >
-                  {nav.join}
-                </Link>
-              </div>
-            </nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Reads the current path, so it streams in (Cache Components). */}
+      <Suspense fallback={null}>
+        <DialMenu locale={locale} nav={nav} categoryNames={categoryNames} categories={categories} />
+      </Suspense>
     </header>
   );
 }

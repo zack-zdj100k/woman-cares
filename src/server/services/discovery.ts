@@ -21,13 +21,14 @@ export type ProfileCard = {
 
 /**
  * A profile is publicly visible only when: the profile is PUBLISHED, billing has not
- * hidden it, the provider account is APPROVED and the category is active.
+ * hidden it, the provider account is APPROVED, its owner is an ACTIVE account with the PROVIDER
+ * role (a suspension or role change from the Users page hides it at once), and the category is active.
  * Every public query must go through this filter.
  */
 export const publicProfileWhere = {
   status: "PUBLISHED",
   billingVisible: true,
-  provider: { status: "APPROVED" },
+  provider: { status: "APPROVED", user: { status: "ACTIVE", role: "PROVIDER" } },
   category: { active: true },
 } as const;
 
@@ -87,4 +88,15 @@ export async function getFeaturedProfiles(limit = 8): Promise<ProfileCard[]> {
       reviewCount: r?._count._all ?? 0,
     };
   });
+}
+
+/** Number of publicly visible profiles per category slug (real counts only). Cached; tag "profiles". */
+export async function getCategoryCounts(): Promise<Record<string, number>> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("profiles");
+  const rows = await db.providerServiceProfile.groupBy({ by: ["categoryId"], where: publicProfileWhere, _count: { _all: true } });
+  const categories = await db.category.findMany({ select: { id: true, slug: true } });
+  const slugById = new Map(categories.map((c) => [c.id, c.slug]));
+  return Object.fromEntries(rows.map((r) => [slugById.get(r.categoryId) ?? "", r._count._all]));
 }

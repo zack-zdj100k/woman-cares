@@ -5,7 +5,7 @@ import { reviewAction, type ReviewState } from "@/app/[locale]/dashboard/admin/a
 import { buttonClass } from "@/components/ui/button";
 import { fieldClass } from "@/components/auth/fields";
 import { cn } from "@/lib/cn";
-import { useAnnounce } from "./decision-feedback";
+import { useAnnounce } from "@/components/ui/decision-feedback";
 
 type Labels = { note: string; notePlaceholder: string; done: string; errors: Record<string, string> };
 

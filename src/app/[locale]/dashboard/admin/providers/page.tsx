@@ -6,12 +6,11 @@ import { getAdminDictionary, getAuthDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { listProviderQueue, type QueueFilter } from "@/server/services/review";
-import { PageShell } from "@/components/layout/page-shell";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { buttonClass } from "@/components/ui/button";
 import { fieldClass } from "@/components/ui/field-class";
 import { cn } from "@/lib/cn";
+import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
 const FILTERS: QueueFilter[] = ["pending", "approved", "suspended", "rejected", "all"];
 
@@ -22,11 +21,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function QueuePage({ params, searchParams }: PageProps<"/[locale]/dashboard/admin/providers">) {
   return (
-    <PageShell>
+    <>
       <Suspense fallback={<DashboardSkeleton />}>
         <Queue params={params} searchParams={searchParams} />
       </Suspense>
-    </PageShell>
+    </>
   );
 }
 
@@ -42,8 +41,7 @@ async function Queue({ params, searchParams }: PageProps<"/[locale]/dashboard/ad
   const href = (f: QueueFilter, p = 1) => `/${locale}/dashboard/admin/providers?filter=${f}${q ? `&q=${encodeURIComponent(q)}` : ""}${p > 1 ? `&page=${p}` : ""}`;
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 pt-12 pb-24 sm:px-8 md:pt-16">
-      <AdminNav locale={locale} active="providers" copy={at.nav} />
+    <div className={pageClass}>
       <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)]">{at.queue.title}</h1>
       <div className="mt-8 flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (

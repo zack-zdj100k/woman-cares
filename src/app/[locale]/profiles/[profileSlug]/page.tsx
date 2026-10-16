@@ -2,8 +2,8 @@ import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, ChevronLeft, MapPin, Phone, ShieldCheck, Star } from "lucide-react";
-import { isCategorySlug, type CategorySlug } from "@/config/categories";
+import { BadgeCheck, CalendarX, ChevronLeft, Clock, LayoutGrid, MapPin, Phone, Scissors, ShieldCheck, Sparkles, Star, UserRound } from "lucide-react";
+import { categoryArt, isCategorySlug, type CategorySlug } from "@/config/categories";
 import { specialtyLabel } from "@/config/specialties";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary, getPagesDictionary, type Dictionary, type PagesDictionary } from "@/i18n/get-dictionary";
@@ -13,7 +13,12 @@ import { getPublicProfile, type PublicProfile } from "@/server/services/profiles
 import { PageShell } from "@/components/layout/page-shell";
 import { ProfileGallery } from "@/components/profile/profile-gallery";
 import { ViewBeacon } from "@/components/profile/view-beacon";
-import { buttonClass } from "@/components/ui/button";
+import { ArrowDot, buttonClass } from "@/components/ui/button";
+import { FilmTitle } from "@/components/ui/film-title";
+import { Reveal } from "@/components/marketing/reveal";
+import { BookingPanel, type BookableService } from "@/components/profile/booking-panel";
+import { bookingCopy } from "@/lib/booking-copy";
+import { getSessionUser } from "@/lib/auth/session";
 
 type Params = PageProps<"/[locale]/profiles/[profileSlug]">["params"];
 
@@ -67,66 +72,58 @@ function Profile({
   const place = [locale === "ar" ? pr.communeAr : pr.communeFr, locale === "ar" ? pr.wilayaAr : pr.wilayaFr].filter(Boolean).join(", ");
   const hours = weeklyHours(profile.schedules);
   const hasHours = profile.schedules.length > 0;
+  const price = (s: { priceMin: string; priceMax: string | null }) =>
+    s.priceMax && s.priceMax !== s.priceMin ? `${formatDzd(s.priceMin, locale)} - ${formatDzd(s.priceMax, locale)}` : `${t.from} ${formatDzd(s.priceMin, locale)}`;
+  const cover = profile.media.find((m) => m.type === "IMAGE")?.url ?? categoryArt[category].image;
+
+  const facts = [
+    pr.verified && { icon: BadgeCheck, text: t.verified },
+    profile.regulated && { icon: ShieldCheck, text: t.regulated },
+    { icon: MapPin, text: `${place}, ${pages.workplace[pr.workplaceType].toLowerCase()}` },
+    profile.experienceYears ? { icon: Sparkles, text: t.experience(profile.experienceYears) } : null,
+    profile.reviewCount > 0 && profile.rating !== null ? { icon: Star, text: `${profile.rating.toFixed(1)} / 5, ${t.reviewsCount(profile.reviewCount)}` } : null,
+  ].filter(Boolean) as { icon: typeof MapPin; text: string }[];
 
   return (
-    <article className="mx-auto max-w-[1480px] px-5 pt-8 pb-24 sm:px-8 lg:px-14">
+    <article className="mx-auto max-w-[1400px] px-4 pt-4 pb-24 sm:px-8 lg:px-12">
       <ViewBeacon slug={profile.slug} />
-      <Link
-        href={`/${locale}/${category}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink"
-      >
+      <Link href={`/${locale}/${category}`} className="mb-5 inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5 text-sm text-ink-2 shadow-[inset_0_1px_0_white] hover:text-rose-ink">
         <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} />
         {dict.categories[category].name}
       </Link>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
-        <ProfileGallery
-          media={profile.media.map((m) => ({ id: m.id, type: m.type, url: m.url, alt: m.alt }))}
-          name={pr.businessName}
-          emptyLabel={t.noMedia}
-        />
+      {/* Identity: gallery card + soft identity card with the price on top */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="card-soft rounded-[32px] p-2.5">
+          <ProfileGallery media={profile.media.map((m) => ({ id: m.id, type: m.type, url: m.url, alt: m.alt }))} name={pr.businessName} emptyLabel={t.noMedia} />
+        </div>
 
-        <div className="lg:pt-4">
-          <p className="text-sm text-ink-2">{dict.categories[category].name}</p>
-          <h1 className="type-display mt-2 text-[clamp(2.6rem,5vw,4.5rem)]">{pr.businessName}</h1>
+        <div className="card-soft relative flex flex-col rounded-[32px] p-6 sm:p-8">
+          {profile.startingPrice && (
+            <a href="#reserver" className="price-glow float-soft inline-flex items-center gap-2 self-start rounded-full bg-[linear-gradient(180deg,#c25a73,#8e3249)] px-5 py-2.5 text-[0.95rem] font-medium text-white">
+              <span className="opacity-80">{t.from}</span>
+              {formatDzd(profile.startingPrice, locale)}
+            </a>
+          )}
+          <p className="mt-6 text-sm text-ink-2">{dict.categories[category].name}</p>
+          <FilmTitle as="h1" text={pr.businessName} image={cover} reveal="scale" className="mt-1 text-[clamp(2.4rem,4.6vw,4rem)]" />
           <p className="mt-4 text-lg leading-relaxed text-ink-2">{profile.headline}</p>
 
-          <ul className="mt-6 grid gap-2.5 text-[0.95rem]">
-            {pr.verified && (
-              <li className="flex items-center gap-2">
-                <BadgeCheck className="size-4 text-rose" strokeWidth={1.75} aria-hidden="true" />
-                {t.verified}
+          <ul className="mt-6 divide-y divide-line overflow-hidden rounded-2xl bg-white/70">
+            {facts.map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-center gap-3 px-4 py-3 text-[0.95rem]">
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[linear-gradient(180deg,#f8e5e9,#f1d3da)] text-rose-ink">
+                  <Icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                </span>
+                {text}
               </li>
-            )}
-            {profile.regulated && (
-              <li className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-rose" strokeWidth={1.75} aria-hidden="true" />
-                {t.regulated}
-              </li>
-            )}
-            <li className="flex items-center gap-2">
-              <MapPin className="size-4 text-ink-2" strokeWidth={1.75} aria-hidden="true" />
-              {place}, {pages.workplace[pr.workplaceType].toLowerCase()}
-            </li>
-            {profile.experienceYears ? <li className="ps-6">{t.experience(profile.experienceYears)}</li> : null}
-            {profile.reviewCount > 0 && profile.rating !== null && (
-              <li className="flex items-center gap-2">
-                <Star className="size-4 fill-current text-rose" strokeWidth={1.5} aria-hidden="true" />
-                {profile.rating.toFixed(1)} / 5, {t.reviewsCount(profile.reviewCount)}
-              </li>
-            )}
+            ))}
           </ul>
 
-          {profile.startingPrice && (
-            <p className="mt-6 text-lg">
-              <span className="text-ink-2">{t.from}</span>{" "}
-              <span className="font-medium">{formatDzd(profile.startingPrice, locale)}</span>
-            </p>
-          )}
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#reserver" className={buttonClass({ variant: "solid", size: "lg" })}>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a href="#reserver" className={buttonClass({ variant: "solid", size: "lg", className: "pe-4" })}>
               {t.book.title}
+              <ArrowDot />
             </a>
             <Link href={`/${locale}/providers/${pr.slug}`} className={buttonClass({ variant: "outline", size: "lg" })}>
               {t.seeProvider}
@@ -134,10 +131,9 @@ function Profile({
           </div>
 
           {profile.socialLinks.length > 0 && (
-            <p className="mt-6 flex flex-wrap gap-4 text-sm">
-              <span className="text-ink-2">{t.social}</span>
+            <p className="mt-5 flex flex-wrap gap-2 text-sm">
               {profile.socialLinks.map((s) => (
-                <a key={s.network} href={s.url} target="_blank" rel="noopener noreferrer nofollow" className="capitalize underline underline-offset-4 hover:text-rose-ink">
+                <a key={s.network} href={s.url} target="_blank" rel="noopener noreferrer nofollow" className="rounded-full bg-white/80 px-3 py-1.5 capitalize hover:text-rose-ink">
                   {s.network}
                 </a>
               ))}
@@ -146,94 +142,89 @@ function Profile({
         </div>
       </div>
 
-      <div className="mt-20 grid gap-14 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
-        <div className="grid gap-16">
+      {/* Details: one floating card per subject, in reading order */}
+      <div className="mt-8 grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5">
           {(profile.description || pr.bio) && (
-            <Section title={t.about}>
-              {profile.description && <p className="whitespace-pre-line text-[1.05rem] leading-relaxed">{profile.description}</p>}
+            <Card title={t.about} icon={UserRound} delay={0}>
+              {profile.description && <p className="whitespace-pre-line text-[1.02rem] leading-relaxed">{profile.description}</p>}
               {pr.bio && <p className="mt-4 whitespace-pre-line leading-relaxed text-ink-2">{pr.bio}</p>}
-            </Section>
+            </Card>
           )}
 
-          {profile.specialties.length > 0 && (
-            <Section title={t.specialties}>
-              <ul className="flex flex-wrap gap-2">
-                {profile.specialties.map((s) => (
-                  <li key={s} className="rounded-full border border-line px-4 py-2 text-sm">
-                    {specialtyLabel(category, s, locale)}
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          <Section title={t.services}>
+          <Card title={t.services} icon={Scissors} delay={1}>
             {profile.services.length === 0 ? (
               <p className="text-ink-2">{t.noServices}</p>
             ) : (
               <>
-                <ul className="divide-y divide-line border-y border-line">
+                <ul className="grid gap-2">
                   {profile.services.map((s) => (
-                    <li key={s.id} className="flex items-start justify-between gap-6 py-5">
+                    <li key={s.id} className="flex items-start justify-between gap-4 rounded-2xl bg-white/75 px-4 py-3.5">
                       <div>
-                        <p className="text-[1.05rem] font-medium">{s.name}</p>
-                        {s.description && <p className="mt-1 text-sm leading-relaxed text-ink-2">{s.description}</p>}
-                        <p className="mt-1 text-sm text-ink-2">{t.duration(s.durationMinutes)}</p>
+                        <p className="font-medium">{s.name}</p>
+                        {s.description && <p className="mt-0.5 text-sm leading-relaxed text-ink-2">{s.description}</p>}
+                        <p className="mt-1 inline-flex items-center gap-1 text-xs text-ink-2">
+                          <Clock className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+                          {t.duration(s.durationMinutes)}
+                        </p>
                       </div>
-                      <p className="shrink-0 text-end">
-                        {s.priceMax && s.priceMax !== s.priceMin
-                          ? `${formatDzd(s.priceMin, locale)} - ${formatDzd(s.priceMax, locale)}`
-                          : `${t.from} ${formatDzd(s.priceMin, locale)}`}
-                      </p>
+                      <p className="shrink-0 rounded-full bg-[#f6e3e7] px-3 py-1 text-sm text-rose-ink">{price(s)}</p>
                     </li>
                   ))}
                 </ul>
-                <p className="mt-4 text-sm text-ink-2">{t.priceNote}</p>
+                <p className="mt-3 text-xs text-ink-2">{t.priceNote}</p>
               </>
             )}
-          </Section>
+          </Card>
+
+          {profile.specialties.length > 0 && (
+            <Card title={t.specialties} icon={Sparkles} delay={2}>
+              <ul className="flex flex-wrap gap-2">
+                {profile.specialties.map((s) => (
+                  <li key={s} className="rounded-full bg-white/80 px-4 py-2 text-sm shadow-[inset_0_1px_0_white,0_4px_10px_-8px_rgb(74_32_46/0.5)]">
+                    {specialtyLabel(category, s, locale)}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           {(profile.hygieneNotes || profile.productNotes) && (
-            <Section title={t.practices}>
-              <p className="mb-4 text-sm text-ink-2">{t.declared}</p>
-              <dl className="grid gap-4">
+            <Card title={t.practices} icon={ShieldCheck} delay={3}>
+              <p className="mb-4 text-xs text-ink-2">{t.declared}</p>
+              <dl className="grid gap-3">
                 {profile.hygieneNotes && (
-                  <div>
+                  <div className="rounded-2xl bg-white/75 px-4 py-3">
                     <dt className="font-medium">{t.hygiene}</dt>
                     <dd className="mt-1 whitespace-pre-line leading-relaxed text-ink-2">{profile.hygieneNotes}</dd>
                   </div>
                 )}
                 {profile.productNotes && (
-                  <div>
+                  <div className="rounded-2xl bg-white/75 px-4 py-3">
                     <dt className="font-medium">{t.products}</dt>
                     <dd className="mt-1 whitespace-pre-line leading-relaxed text-ink-2">{profile.productNotes}</dd>
                   </div>
                 )}
               </dl>
-            </Section>
+            </Card>
           )}
 
           {profile.cancellationPolicy && (
-            <Section title={t.policy}>
+            <Card title={t.policy} icon={CalendarX} delay={4}>
               <p className="whitespace-pre-line leading-relaxed text-ink-2">{profile.cancellationPolicy}</p>
-            </Section>
+            </Card>
           )}
 
-          <Section title={t.reviews}>
+          <Card title={t.reviews} icon={Star} delay={5}>
             {profile.reviews.length === 0 ? (
               <p className="text-ink-2">{t.noReviews}</p>
             ) : (
-              <ul className="grid gap-6">
+              <ul className="grid gap-3">
                 {profile.reviews.map((r) => (
-                  <li key={r.id} className="rounded-(--radius-media) bg-surface p-6">
+                  <li key={r.id} className="rounded-2xl bg-white/75 p-5">
                     <p className="flex items-center gap-1" aria-label={`${r.rating} / 5`}>
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className={i < r.rating ? "size-4 fill-current text-rose" : "size-4 text-ink/20"}
-                          strokeWidth={1.5}
-                          aria-hidden="true"
-                        />
+                        <Star key={i} className={i < r.rating ? "size-4 fill-current text-rose" : "size-4 text-ink/20"} strokeWidth={1.5} aria-hidden="true" />
                       ))}
                     </p>
                     {r.comment && <p className="mt-3 line-clamp-3 leading-relaxed">{r.comment}</p>}
@@ -244,11 +235,11 @@ function Profile({
                 ))}
               </ul>
             )}
-          </Section>
+          </Card>
 
           {pr.otherProfiles.length > 0 && (
-            <Section title={t.alsoOffers}>
-              <ul className="flex flex-wrap gap-3">
+            <Card title={t.alsoOffers} icon={LayoutGrid} delay={6}>
+              <ul className="flex flex-wrap gap-2">
                 {pr.otherProfiles.map((o) =>
                   isCategorySlug(o.categorySlug) ? (
                     <li key={o.slug}>
@@ -259,30 +250,49 @@ function Profile({
                   ) : null,
                 )}
               </ul>
-            </Section>
+            </Card>
           )}
+
+          <Card title={t.location} icon={MapPin} delay={7}>
+            <p className="text-[1.02rem]">{place}</p>
+            <p className="mt-1 text-ink-2">{pages.workplace[pr.workplaceType]}</p>
+            <p className="mt-3 text-sm leading-relaxed text-ink-2">{t.locationNote}</p>
+          </Card>
         </div>
 
-        <aside className="grid content-start gap-6 lg:sticky lg:top-24 lg:self-start">
-          <div id="reserver" className="scroll-mt-28 rounded-(--radius-media) bg-parchment p-7">
-            <h2 className="type-display text-3xl">{t.book.title}</h2>
-            <p className="mt-3 leading-relaxed text-ink-2">{t.book.soon}</p>
-            {pr.publicPhone ? (
-              <a href={`tel:${pr.publicPhone.replace(/[^\d+]/g, "")}`} className={buttonClass({ variant: "solid", className: "mt-6" })}>
-                <Phone className="size-4" strokeWidth={1.75} />
-                {t.book.call} {pr.publicPhone}
-              </a>
-            ) : (
-              <p className="mt-4 text-sm text-ink-2">{t.book.noPhone}</p>
-            )}
-          </div>
-
-          <div className="rounded-(--radius-media) border border-line p-7">
-            <h2 className="type-display text-3xl">{t.hours}</h2>
+        <aside className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 lg:sticky lg:top-24 lg:self-start">
+          <section id="reserver" aria-labelledby="book-title" className="card-soft scroll-mt-28 rounded-[30px] p-6">
+            <h2 id="book-title" className="type-display mb-5 text-[2rem]">
+              {t.book.title}
+            </h2>
             {hasHours ? (
-              <dl className="mt-5 grid gap-2.5 text-[0.95rem]">
+              <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-white/60" aria-hidden="true" />}>
+                <BookingSlot
+                  locale={locale}
+                  slug={profile.slug}
+                  copy={t.book}
+                  services={profile.services.map((s) => ({ id: s.id, name: s.name, duration: t.duration(s.durationMinutes), price: price(s) }))}
+                />
+              </Suspense>
+            ) : (
+              <p className="text-ink-2">{t.book.noHours}</p>
+            )}
+            {pr.publicPhone && (
+              <a href={`tel:${pr.publicPhone.replace(/[^\d+]/g, "")}`} className="mt-5 inline-flex items-center gap-2 text-sm text-ink-2 hover:text-rose-ink" dir="ltr">
+                <Phone className="size-4" strokeWidth={1.75} />
+                {pr.publicPhone}
+              </a>
+            )}
+          </section>
+
+          <section aria-labelledby="hours-title" className="card-soft rounded-[26px] p-4">
+            <h2 id="hours-title" className="type-display px-1 text-[1.45rem]">
+              {t.hours}
+            </h2>
+            {hasHours ? (
+              <dl className="mt-2.5 grid gap-1 text-[0.85rem]">
                 {hours.map((d) => (
-                  <div key={d.weekday} className="flex justify-between gap-4">
+                  <div key={d.weekday} className="flex justify-between gap-4 rounded-lg bg-white/70 px-3 py-1.5">
                     <dt className="text-ink-2">{pages.weekdays[d.weekday]}</dt>
                     <dd dir="ltr" className="text-end">
                       {d.ranges.length ? d.ranges.join(", ") : <span className="text-ink-2">{t.closed}</span>}
@@ -291,34 +301,53 @@ function Profile({
                 ))}
               </dl>
             ) : (
-              <p className="mt-4 text-ink-2">{t.noHours}</p>
+              <p className="mt-2 px-1 text-sm text-ink-2">{t.noHours}</p>
             )}
-          </div>
+          </section>
 
-          <div className="rounded-(--radius-media) border border-line p-7">
-            <h2 className="type-display text-3xl">{t.location}</h2>
-            <p className="mt-4">{place}</p>
-            <p className="mt-1 text-ink-2">{pages.workplace[pr.workplaceType]}</p>
-            <p className="mt-4 text-sm leading-relaxed text-ink-2">{t.locationNote}</p>
-          </div>
         </aside>
       </div>
     </article>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** Who is looking decides the booking button: guests sign in, clients send, others are told why not. */
+async function BookingSlot({ locale, slug, copy, services }: { locale: Locale; slug: string; copy: PagesDictionary["profile"]["book"]; services: BookableService[] }) {
+  const user = await getSessionUser();
+  const viewer = !user ? "guest" : user.role === "CLIENT" ? (user.emailVerified ? "client" : "unverified") : "other";
   return (
-    <section>
-      <h2 className="type-display mb-6 text-[clamp(2rem,3vw,2.75rem)]">{title}</h2>
-      {children}
-    </section>
+    <BookingPanel
+      locale={locale}
+      profileSlug={slug}
+      services={services}
+      copy={bookingCopy(copy)}
+      viewer={viewer}
+      signInHref={`/${locale}/auth/sign-in?next=${encodeURIComponent(`/${locale}/profiles/${slug}`)}`}
+      myBookingsHref={`/${locale}/dashboard/client`}
+    />
+  );
+}
+
+/** One subject per soft card, rising in as it scrolls into view and floating gently. */
+function Card({ title, icon: Icon, delay, children }: { title: string; icon: typeof MapPin; delay: number; children: ReactNode }) {
+  return (
+    <Reveal delay={Math.min(delay * 0.05, 0.25)}>
+      <section className="card-soft rounded-[30px] p-6 sm:p-7">
+        <h2 className="mb-5 flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-2xl bg-[linear-gradient(180deg,#f8e5e9,#f1d3da)] text-rose-ink shadow-[inset_0_1px_0_white]">
+            <Icon className="size-5" strokeWidth={1.6} aria-hidden="true" />
+          </span>
+          <span className="type-display text-[clamp(1.7rem,2.6vw,2.2rem)]">{title}</span>
+        </h2>
+        {children}
+      </section>
+    </Reveal>
   );
 }
 
 function ProfileSkeleton() {
   return (
-    <div className="mx-auto grid max-w-[1480px] gap-10 px-5 pt-16 pb-24 sm:px-8 lg:grid-cols-[7fr_5fr] lg:px-14" aria-hidden="true">
+    <div className="mx-auto grid grid-cols-[minmax(0,1fr)] max-w-[1480px] gap-10 px-5 pt-16 pb-24 sm:px-8 lg:grid-cols-[7fr_5fr] lg:px-14" aria-hidden="true">
       <div className="aspect-[5/4] animate-pulse rounded-(--radius-media) bg-surface-2" />
       <div className="grid content-start gap-4">
         <div className="h-4 w-24 animate-pulse rounded-full bg-surface-2" />

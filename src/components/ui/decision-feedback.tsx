@@ -5,7 +5,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 const Announce = createContext<(message: string) => void>(() => {});
 
 /**
- * Page-level confirmation for review decisions. A decision often removes its own button
+ * Page-level confirmation for decisions (reviews, booking answers). A decision often removes its own button
  * (a published profile no longer shows "Publier"), so the message lives above the forms
  * and survives the refresh that follows the action.
  */

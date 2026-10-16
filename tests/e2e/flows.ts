@@ -73,3 +73,29 @@ export async function newSuperAdmin(page: Page) {
   await s.getByRole("button", { name: "Se connecter" }).click();
   await expect(page).toHaveURL(/\/fr\/dashboard\/admin$/);
 }
+
+/** Opens a professional's review page from the admin queue. */
+export async function openInQueue(admin: Page, business: string) {
+  await admin.goto("/fr/dashboard/admin/providers");
+  await admin.getByRole("textbox", { name: "Nom, établissement ou e-mail" }).fill(business);
+  await admin.getByRole("button", { name: "Rechercher" }).click();
+  await expect(admin).toHaveURL(/q=/);
+  await admin.getByRole("listitem").filter({ hasText: business }).getByRole("link", { name: "Examiner" }).click();
+  await expect(admin.getByRole("heading", { name: business, level: 1 })).toBeVisible();
+}
+
+/** Signs up a client, confirms the email from the outbox link. Ends signed out. */
+export async function newVerifiedClient(page: Page, email: string, name = "Amina Benali") {
+  await page.goto("/fr/auth/sign-up");
+  const f = form(page);
+  await f.getByLabel("Nom complet").fill(name);
+  await f.getByLabel("E-mail").fill(email);
+  await f.getByLabel("Téléphone").fill("0550 12 34 56");
+  await f.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+  await f.getByRole("checkbox").check();
+  await f.getByRole("button", { name: "Créer mon compte" }).click();
+  await expect(page.getByRole("heading", { name: "Vérifiez votre boîte mail" })).toBeVisible();
+  await page.goto(await linkFromEmail(email, "verify-email"));
+  await page.getByRole("button", { name: "Confirmer mon adresse" }).click();
+  await expect(page.getByText("Votre adresse est confirmée")).toBeVisible();
+}

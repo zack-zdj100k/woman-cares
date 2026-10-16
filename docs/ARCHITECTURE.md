@@ -97,16 +97,19 @@ sequenceDiagram
     API-->>UI: Return current booking status
 ```
 
-### Capacity and concurrency (Phase 6 design)
+### Capacity and concurrency (Phase 6, implemented)
 
-- Availability = weekly `WorkingSchedule` windows, minus `ScheduleException` closures, minus existing
-  bookings in capacity-holding states (`PENDING` until `pendingExpiresAt`, `ACCEPTED`, `RESCHEDULE_PROPOSED`).
-- Create/accept/reschedule run in a transaction that first takes `SELECT … FOR UPDATE` on the
-  `ProviderServiceProfile` row, then counts overlapping capacity-holding bookings per minute window, and
-  only then writes. Two simultaneous requests for the last seat serialize on that lock; the second fails
-  with `409 SLOT_FULL`.
-- Pending requests hold capacity for `booking.pendingExpiryHours` (default 48 h, a `PlatformSetting`),
-  then expire automatically.
+- Availability (`src/lib/availability.ts`, pure) = weekly `WorkingSchedule` windows, replaced by an open
+  `ScheduleException` or removed by a closed one, on a 15-minute grid, minus starts closer than 2 hours.
+  A start is offered while fewer than `capacity` capacity-holding bookings (`PENDING`, `ACCEPTED`,
+  `RESCHEDULE_PROPOSED`) overlap `[start, start + duration + buffer)`; each existing booking blocks its own
+  `[start, end + buffer)`.
+- `requestBooking` (`src/server/services/bookings.ts`) takes `SELECT … FOR UPDATE` on the
+  `ProviderServiceProfile` row, recomputes that day's availability inside the transaction and only then
+  inserts the booking, its history row, notifications and outbox emails. Simultaneous requests for the
+  last place serialize on the lock; the later ones fail with `slot`.
+- Pending requests store `pendingExpiresAt` (48 h, or the start time if sooner). The expiry job is not
+  written yet, so until then a pending request holds its place until the professional answers.
 - Cached availability is display-only. The transaction is the authority.
 
 ## Hero film (homepage)

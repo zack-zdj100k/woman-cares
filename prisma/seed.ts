@@ -55,6 +55,7 @@ async function main() {
   const settings: Record<string, unknown> = {
     "billing.trialDays": 30,
     "billing.graceDays": 7,
+    "billing.dueDays": 7,
     "billing.defaultMonthlyPriceDzd": 30000,
     "booking.pendingExpiryHours": 48,
     "booking.minNoticeMinutes": 120,

@@ -170,7 +170,7 @@ export async function getPublicProvider(slug: string) {
   cacheTag("profiles", `provider:${slug}`);
 
   const a = await db.providerAccount.findFirst({
-    where: { slug, status: "APPROVED" },
+    where: { slug, status: "APPROVED", user: { status: "ACTIVE", role: "PROVIDER" } },
     select: {
       slug: true,
       businessName: true,

@@ -23,10 +23,10 @@ export async function PageShell({ children }: { children: ReactNode }) {
         findLabel={dict.hero.primary}
         brand={dict.brand.name}
         categoryNames={categoryNames}
+        categories={dict.categories}
         account={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="header" />}
-        mobileAccount={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="mobile" />}
       />
-      <main id="main" className="min-h-[70dvh] pt-[4.5rem]">
+      <main id="main" className="min-h-[70dvh] pt-24">
         {children}
       </main>
       <SiteFooter locale={locale} dict={dict} categoryNames={categoryNames} />

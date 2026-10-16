@@ -752,6 +752,8 @@ model Invoice {
   lines        InvoiceLine[]
   payments     SubscriptionPayment[]
 
+  /// One invoice per subscription period: the billing cycle can run twice without billing twice.
+  @@unique([subscriptionId, periodStart])
   @@index([providerId, status])
   @@index([status, dueAt])
 }
@@ -776,6 +778,10 @@ model SubscriptionPayment {
   externalReference String?
   proofStorageKey   String? // private
   idempotencyKey    String?                   @unique
+  /// Professional who declared the transfer (null when staff recorded it directly).
+  declaredById      String?                   @db.Uuid
+  /// Professional's message with the declaration, or the staff reason for a refusal.
+  note              String?
   verifiedById      String?                   @db.Uuid
   verifiedAt        DateTime?                 @db.Timestamptz
   createdAt         DateTime                  @default(now()) @db.Timestamptz

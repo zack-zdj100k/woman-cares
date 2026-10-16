@@ -24,7 +24,7 @@ an OpenAPI document will be generated from the shared Zod schemas once the first
 | GET | `/categories` | Active categories, ordered. |
 | GET | `/profiles` | Directory search: `category` (required), `wilaya`, `commune`, `q`, `date`, `lat`,`lng` (2 dp), `maxKm`, `minPrice`, `maxPrice`, `verified`, `sort=relevance|distance|price|rating`, pagination. Only publicly visible profiles. |
 | GET | `/profiles/{slug}` | Public profile, services, ordered media, weekly hours, rating summary. |
-| GET | `/profiles/{slug}/availability?serviceId&from&to` | Slots for ≤ 31 days. Display only; booking re-checks. |
+| GET | `/profiles/{slug}/availability?serviceId&from&days` ✅ | Free start times for one active service of a public profile, 1-14 days from `from` (default today), horizon 60 days. `{ data: [{ date, weekday, slots: [{ startAt, minute, remaining }] }] }`, `no-store`, 120/min per IP, 404 for unknown or private profiles. Display only; the request re-checks. |
 | GET | `/profiles/{slug}/reviews` | Published reviews, paginated. |
 | POST | `/profiles/{slug}/views` ✅ | Records a privacy-conscious view: HMAC(secret, day, IP, UA), one per visitor per day, bots ignored, only the referrer host kept. Always 204. |
 | GET | `/content/{page}?locale=` | Published CMS sections. |
@@ -50,7 +50,7 @@ Zod-validated): `signUpAction`, `signInAction`, `signOutAction`, `verifyEmailAct
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/bookings` | `profileId`, `serviceId`, `startAt`, `note?`, `Idempotency-Key`. Transactional capacity check. |
+| POST | `/bookings` | `profileId`, `serviceId`, `startAt`, `note?`, `Idempotency-Key`. Transactional capacity check. Today a Server Action (`requestBookingAction` in `src/app/[locale]/booking/actions.ts`): verified clients only, 10 per 10 min, at most 5 open requests, profile row locked while capacity is recounted; errors `slot`, `limit`, `profile`, `service`, `role`, `verify`, `signin`, `rate`. |
 | POST | `/bookings/{id}/references` | Multipart image ≤ 8 MB (JPEG/PNG/WebP/HEIC, magic-byte checked). Private. |
 | GET | `/me/bookings` · `/me/bookings/{id}` | Own bookings only. |
 | POST | `/me/bookings/{id}/cancel` · `/accept-reschedule` · `/decline-reschedule` | State machine enforced. |
@@ -58,6 +58,8 @@ Zod-validated): `signUpAction`, `signInAction`, `signOutAction`, `verifyEmailAct
 | POST | `/me/bookings/{id}/review` | Only `COMPLETED`, once. |
 | GET/PATCH | `/me/notifications` | |
 | PATCH | `/me` | Profile, locale, preferred wilaya, notification preferences. |
+
+| PATCH | `/bookings/{id}` (client) | Cancel before the start (`reason?`), accept or decline a proposed time, review a completed visit (`rating` 1-5, `comment?`). Today Server Actions `clientCancelAction`, `answerProposalAction`, `reviewAction` (`src/app/[locale]/dashboard/booking-actions.ts`) over `src/server/services/booking-lifecycle.ts`; errors `state`, `slot`, `service`, `forbidden`. |
 
 ## Provider
 
@@ -84,17 +86,20 @@ ownership from the session. The REST routes below will wrap the same services.
 | POST | `/provider/category-requests` · `/provider/support` | |
 | POST | `/provider/credentials` ✅ | Multipart `file`, `category`, `type` (diploma, training, license, other), optional `issuer`, `expiresAt`. Same-origin, ≤ 10 MB, 20 per hour, 12 per account. Only for categories with a pending request or an existing profile. PDF (header checked) stored as uploaded; JPEG/PNG/WebP re-encoded (metadata stripped). Private storage only. 201 `{ data: { id } }`; 422 `TYPE`/`SIZE`/`LIMIT`/`CORRUPT`; 404 `NOT_FOUND`; 409 `LOCKED`. |
 
+| PATCH | `/provider/bookings/{id}` | Accept/decline (`respondBookingAction`), propose a free time (`proposeTimeAction`, free times from `freeSlotsAction`), cancel with a required reason, complete or no-show after the start (`closeVisitAction`), record a payment or refund (`visitPaymentAction`: `amount`, `method` cash/transfer/ccp/baridimob/card, `refund?`, `note?`). Ownership and status are re-checked in each write. Rate limit 30 per 10 minutes. |
+
 ## Admin (roles: SUPPORT ⊂ ADMIN ⊂ SUPER_ADMIN)
 
 | Method | Path | Notes |
 |---|---|---|
-| GET/PATCH | `/admin/users`, `/admin/users/{id}` | Suspend, restore. Role changes to ADMIN/SUPER_ADMIN: SUPER_ADMIN only. Audited. |
+| GET/PATCH | `/admin/users`, `/admin/users/{id}` | List (`q` on name/email, `role`, `status`, `page`, 25 per page) and detail: SUPPORT+. Suspend (reason ≥ 10 characters, from ACTIVE or PENDING_VERIFICATION) and restore (from SUSPENDED, back to ACTIVE or PENDING_VERIFICATION when the email was never confirmed): ADMIN+ for clients and professionals, SUPER_ADMIN for staff. Role changes: ADMIN moves CLIENT ↔ PROVIDER only; anything touching SUPPORT/ADMIN/SUPER_ADMIN is SUPER_ADMIN only; nobody changes their own role. Both revoke the target's sessions, write `user.role.change` / `user.suspend` / `user.restore`, and refresh the public pages of a professional's profiles (a suspended or demoted professional is hidden). Today: Server Action `manageAction` (`src/app/[locale]/dashboard/admin/manage-actions.ts`) over `src/server/services/admin-users.ts`. |
 | GET/PATCH | `/admin/providers/{id}` | Approve/reject, verify, add/remove categories, restrict a single profile. Audited. Today these decisions are Server Actions (`src/app/[locale]/dashboard/admin/actions.ts`) over `src/server/services/review.ts`; the REST routes will wrap the same services. |
 | GET | `/admin/credentials/{id}/file` ✅ | ADMIN+ only (404 otherwise, same as unknown ids). Streams the private document; PDFs as attachments, photos inline; `Cache-Control: private, no-store`, `nosniff`, sandbox CSP, `Referrer-Policy: no-referrer`. Each opening writes `credential.view` to the audit log. |
-| CRUD | `/admin/categories` | Deactivate, reorder, verification requirements, profile field schema. |
-| GET/POST | `/admin/pricing` | New price rows apply to future periods only. Audited. |
+| CRUD | `/admin/categories` | List: SUPPORT+. Activate/deactivate, move up/down (renumbered 1..n under a row lock), require/waive credential review: ADMIN+, audited (`category.activate`, `category.deactivate`, `category.reorder`, `category.credentials.require`, `category.credentials.waive`). Deactivation hides every profile of the category (public queries require an active category) and invalidates `profiles`, `pricing` and `directory:<slug>`. Profile field schema: not yet. Today: `manageAction` over `src/server/services/admin-categories.ts`. |
+| GET/POST | `/admin/pricing` | GET (SUPPORT+): per category the price in effect, the next change and the full history with states (in effect, upcoming, past, replaced). POST (ADMIN+): `{ categoryId, price, day }`, whole dinars 1..1 000 000, `day` from tomorrow to two years ahead (Algiers calendar); the row starts at 00:00 Africa/Algiers. Rows are never edited; a second row for the same day replaces the first (latest created wins). Audited as `subscription.price.schedule`; invalidates `pricing`. The public price list (`getPublicPricing`) reads the row in effect on today's Algiers date, keyed by day in the cache so the switch happens at midnight. Today: `manageAction` over `src/server/services/admin-pricing.ts`. |
 | GET/PATCH | `/admin/subscriptions/{id}` | Negotiated price, exemption, grace extension. Audited. |
 | POST | `/admin/subscription-payments/{id}/verify` | Manual verification, idempotent. Audited. |
 | CRUD | `/admin/content/{page}/sections` | Draft, preview token, publish, reorder, hide. |
 | GET/PATCH | `/admin/moderation/*` | Reviews, reports, credentials. |
-| GET | `/admin/analytics`, `/admin/audit` | |
+| GET | `/admin/audit` | ADMIN+ only. Filters: `action`, `actor` (user id or `system`), `entity` (entity type), `from`/`to` (Algiers days, inclusive), `page` (50 per page), newest first. Read-only; filter menus list only values present in the log. Today: page `/dashboard/admin/audit` over `src/server/services/audit.ts`. |
+| GET | `/admin/analytics` | |

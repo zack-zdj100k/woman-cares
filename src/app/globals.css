@@ -6,10 +6,12 @@
  * parchment lilies and noir roses. One accent (rose); lavender is a tint only.
  */
 :root {
-  --ground: #fbf4f2;
-  --surface: #f5e6e4;
-  --surface-2: #eddad7;
-  --parchment: #f4eadf;
+  /* Light only (owner, 2026-10-16): the floral parchment backdrop is the page. */
+  --ground: #f7ece4;
+  --surface: rgb(255 251 248 / 0.62);
+  --surface-2: rgb(255 248 244 / 0.82);
+  --parchment: rgb(255 250 244 / 0.86);
+  --card: rgb(255 252 249 / 0.9);
   --ink: #25161d;
   --ink-2: #5b4550;
   --line: rgb(37 22 29 / 0.12);
@@ -21,43 +23,9 @@
   --lavender: #8b79a8;
   --focus: #a8445c;
   --scrim: 22 10 16;
+  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 18px 44px -26px rgb(74 32 46 / 0.38);
+  --shadow-float: 0 1px 0 rgb(255 255 255 / 0.8) inset, 0 30px 70px -34px rgb(74 32 46 / 0.5);
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ground: #160e12;
-    --surface: #21151b;
-    --surface-2: #2c1d24;
-    --parchment: #2a1f1f;
-    --ink: #f6e9ec;
-    --ink-2: #cbb4bc;
-    --line: rgb(246 233 236 / 0.14);
-    --rose: #e07d96;
-    --rose-ink: #f0a3b6;
-    --on-rose: #2a0e17;
-    --wine: #0f080b;
-    --on-wine: #f8eaec;
-    --focus: #f0a3b6;
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme="dark"] {
-  --ground: #160e12;
-  --surface: #21151b;
-  --surface-2: #2c1d24;
-  --parchment: #2a1f1f;
-  --ink: #f6e9ec;
-  --ink-2: #cbb4bc;
-  --line: rgb(246 233 236 / 0.14);
-  --rose: #e07d96;
-  --rose-ink: #f0a3b6;
-  --on-rose: #2a0e17;
-  --wine: #0f080b;
-  --on-wine: #f8eaec;
-  --focus: #f0a3b6;
-  color-scheme: dark;
 }
 
 @theme inline {
@@ -74,6 +42,36 @@
   --color-wine: var(--wine);
   --color-on-wine: var(--on-wine);
   --color-lavender: var(--lavender);
+  --color-card: var(--card);
+  /* Dashboard (shadcn-style) tokens; values are set by .dashboard-dark. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   /* Text and controls placed over photography/video; never theme-switched. */
   --color-on-media: #fff8f6;
   --color-media-ink: #25161d;
@@ -106,6 +104,7 @@ html {
 
 body {
   background: var(--ground);
+  background-color: #f6eae2;
   color: var(--ink);
   font-family: var(--font-body);
   text-rendering: optimizeLegibility;
@@ -119,7 +118,10 @@ body {
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
-  border-radius: 6px;
+}
+/* Containers focused by script (dialogs, menus) don't need a ring; their controls have one. */
+[tabindex="-1"]:focus-visible {
+  outline: none;
 }
 
 /* Display type: tight, generous size, slightly negative tracking in Latin only. */
@@ -165,4 +167,274 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Smoky glass, for the navbar, the half-circle menu and controls over media (owner's picture 9). */
+.glass-dark {
+  background:
+    linear-gradient(100deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.02) 38%, rgb(255 255 255 / 0) 62%, rgb(255 255 255 / 0.1)),
+    rgb(38 24 31 / 0.62);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 18px 50px -24px rgb(22 10 16 / 0.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+  color: #fff8f6;
+}
+.glass-dark-inner {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.04));
+  border: 1px solid rgb(255 255 255 / 0.18);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2);
+}
+
+/* Soft iOS-style card over the floral backdrop. */
+.card-soft {
+  /* No backdrop blur: dozens of blurred cards made scrolling heavy. Solid soft white reads the same. */
+  background: var(--card);
+  border: 1px solid rgb(255 255 255 / 0.7);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Gentle idle float for cards (disabled with reduced motion by the rule above). */
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes price-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  to {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+/* Pulsing ring around the price pill: transform + opacity only (no repaint). */
+.price-glow {
+  position: relative;
+}
+.price-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid rgb(168 68 92 / 0.6);
+  animation: price-ring 2.6s ease-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* MaskedHeading (React Bits, adapted). Before hydration the plain text shows; once measured, the
+   letters become windows onto the image or film. */
+.masked-heading {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-wrap: balance;
+  -webkit-font-smoothing: antialiased;
+}
+.masked-heading__measure {
+  color: inherit;
+}
+.masked-heading[data-ready] .masked-heading__measure {
+  color: transparent;
+}
+.masked-heading:not([data-ready]) .masked-heading__reveal,
+.masked-heading:not([data-ready]) .masked-heading__outline {
+  visibility: hidden;
+}
+.masked-heading__word {
+  display: inline-block;
+  white-space: pre;
+}
+.masked-heading__word:not(:last-child)::after {
+  content: " ";
+}
+.masked-heading__baseline {
+  display: inline-block;
+  width: 0;
+  height: 0;
+}
+.masked-heading__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+.masked-heading__reveal,
+.masked-heading__clip,
+.masked-heading__media,
+.masked-heading__tint,
+.masked-heading__spot {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.masked-heading__media {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.masked-heading__tint {
+  mix-blend-mode: color;
+}
+.masked-heading__spot--tone {
+  background: #808080;
+  mix-blend-mode: saturation;
+}
+.masked-heading__spot--shade {
+  background: #000;
+  opacity: 0.55;
+}
+.masked-heading__reveal {
+  /* The photo is zoomed past the heading for parallax; keep that overscan out of the page width. */
+  overflow: clip;
+  overflow-clip-margin: 0.25em;
+}
+.masked-heading__outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke-linejoin: round;
+}
+.masked-heading__source {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Footer marquee: two identical copies slide by half their width for a seamless loop. */
+@keyframes footer-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes footer-marquee-rtl {
+  to {
+    transform: translateX(50%);
+  }
+}
+
+/* Long-running marquee: its own compositor layer. */
+.marquee-track {
+  will-change: transform;
+}
+
+/*
+ * Dashboards: a black workspace (owner's "app-1" reference in black). Scoped so the public site stays
+ * light. Site tokens are remapped too, so shared components (fields, cards, buttons) read correctly.
+ */
+.dashboard-dark {
+  color-scheme: dark;
+  --background: #0a0909;
+  --foreground: #f3eef0;
+  --card: #131113;
+  --card-foreground: #f3eef0;
+  --popover: #161316;
+  --popover-foreground: #f3eef0;
+  --primary: #f4e7eb;
+  --primary-foreground: #160f12;
+  --secondary: #1c191c;
+  --secondary-foreground: #f3eef0;
+  --muted: #1a171a;
+  --muted-foreground: #a69ca2;
+  --accent: #221e21;
+  --accent-foreground: #f3eef0;
+  --destructive: #f0617a;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.12);
+  --ring: #e07d96;
+  --sidebar: #0e0c0d;
+  --sidebar-foreground: #d9cfd4;
+  --sidebar-accent: #1e1a1d;
+  --sidebar-border: rgb(255 255 255 / 0.07);
+  --chart-1: #e88aa3;
+  --chart-2: #d9b88f;
+  --chart-3: #a596cf;
+  --chart-4: #7cc3a2;
+  --chart-5: #f0a35e;
+  --success: #7cc3a2;
+  --warning: #f0b45e;
+
+  /* Site tokens, remapped for shared components. */
+  --ground: #0a0909;
+  --surface: rgb(255 255 255 / 0.04);
+  --surface-2: rgb(255 255 255 / 0.07);
+  --parchment: #161316;
+  --ink: #f3eef0;
+  --ink-2: #a69ca2;
+  --line: rgb(255 255 255 / 0.08);
+  --rose: #e88aa3;
+  --rose-ink: #f2a9bb;
+  --on-rose: #1a0e13;
+  --focus: #e88aa3;
+  --shadow-soft: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 30px -18px rgb(0 0 0 / 0.8);
+  --shadow-float: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 20px 50px -24px rgb(0 0 0 / 0.9);
+  background: var(--background);
+  color: var(--foreground);
+}
+.dashboard-dark .card-soft {
+  background: var(--card);
+  border-color: var(--border);
+}
+/* Shared buttons, adapted to the dark workspace. */
+.dashboard-dark .btn-solid {
+  background: linear-gradient(180deg, #fbf3f5, #e6d3d9);
+  color: #160f12;
+  box-shadow: inset 0 1px 0 #fff, 0 8px 20px -10px rgb(0 0 0 / 0.9);
+}
+.dashboard-dark .btn-soft {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--foreground);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  border: 1px solid var(--border);
+}
+.dashboard-dark .btn-soft:hover {
+  background: rgb(255 255 255 / 0.1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Dashboard typography (app-1 reference): compact sans titles instead of the website's display serif. */
+.dashboard-dark .type-display {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.dashboard-dark h1.type-display {
+  font-size: clamp(1.5rem, 2.2vw, 1.85rem) !important;
+}
+.dashboard-dark h2.type-display,
+.dashboard-dark p.type-display,
+.dashboard-dark span.type-display {
+  font-size: clamp(1.1rem, 1.6vw, 1.3rem) !important;
+}
+.dashboard-dark h3.type-display {
+  font-size: 1.05rem !important;
 }

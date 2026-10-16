@@ -24,6 +24,18 @@ const fr = {
     language: "Langue",
     allCategories: "Toutes les catégories",
     skip: "Aller au contenu",
+    search: "Rechercher",
+    dial: {
+      hint: "Faites tourner pour choisir",
+      open: "Ouvrir",
+      home: "Accueil",
+      homeShort: "Le film, les six univers et les professionnelles du moment.",
+      aboutShort: "Pourquoi Woman Cares existe et comment nous travaillons.",
+      prosShort: "Votre vitrine, vos demandes et votre agenda au même endroit.",
+      contact: "Contact",
+      contactShort: "Une question, un souci ou une suggestion : écrivez-nous.",
+      accountShort: "Vos rendez-vous, vos favoris et vos réglages.",
+    },
   },
   categories: {
     coiffeuses: {
@@ -106,6 +118,8 @@ const fr = {
       "Nous vérifions actuellement les premières professionnelles. Revenez bientôt, ou rejoignez-nous si vous êtes vous-même professionnelle.",
     from: "À partir de",
     viewProfile: "Voir le profil",
+    book: "Réserver",
+    verified: "Vérifiée",
     browse: "Voir les six univers",
     proLink: "Vous êtes professionnelle ? Rejoignez-nous",
   },
@@ -122,11 +136,11 @@ const fr = {
       },
       {
         title: "Demandez",
-        body: "Choisissez un créneau libre, ajoutez une photo d’inspiration si vous le souhaitez, et envoyez votre demande.",
+        body: "Choisissez un créneau libre, ajoutez un mot si vous le souhaitez, et envoyez votre demande.",
       },
       {
         title: "Recevez la réponse",
-        body: "La professionnelle accepte, refuse ou propose un autre horaire. Vous êtes prévenue par e-mail.",
+        body: "La professionnelle accepte ou refuse votre demande. Vous êtes prévenue par e-mail.",
       },
     ],
   },
@@ -151,6 +165,40 @@ const fr = {
     body: "Woman Cares est née d’une idée simple : une femme ne devrait pas avoir à fouiller dix comptes Instagram pour trouver la bonne coiffeuse, la bonne esthéticienne ou un moment de calme.",
     about: "Notre histoire",
   },
+  home: {
+    intro: {
+      title: "Six univers de soin, une seule adresse",
+      services: "Nos soins",
+      profiles: (n: number) => (n === 1 ? "1 profil" : `${n} profils`),
+      search: "Coiffure, ongles, massage…",
+      location: "Partout en Algérie",
+      write: "Écrivez-nous",
+      join: "Rejoindre",
+      book: "Réserver",
+      all: "Tout explorer",
+    },
+    why: {
+      title: "Pourquoi Woman Cares ?",
+      items: [
+        { title: "Tout au même endroit", body: "Six univers de soin, chacun avec ses filtres et ses profils. Une recherche remplace dix onglets." },
+        { title: "Voir avant de choisir", body: "Réalisations, prestations, durées, prix de départ et horaires, visibles d’un coup d’œil." },
+        { title: "Près de chez vous", body: "Par wilaya, par commune ou autour de vous. Votre position n’est jamais enregistrée." },
+        { title: "Profils relus", body: "Chaque profil est relu par notre équipe avant publication. Pour le botox, des justificatifs sont exigés." },
+      ],
+    },
+    bento: {
+      title: "Choisissez votre univers",
+      tabs: { all: "Tous", beauty: "Beauté", wellness: "Bien-être" },
+      proTitle: "Vous êtes professionnelle ?",
+      proBody: "Présentez votre travail et recevez vos demandes au même endroit.",
+      open: "Découvrir",
+    },
+    spotlight: {
+      eyebrow: "Soin à la une",
+      specialties: "Spécialités",
+      more: "Voir les professionnelles",
+    },
+  },
   faq: {
     title: "Questions fréquentes",
     items: [
@@ -160,7 +208,7 @@ const fr = {
       },
       {
         q: "Le rendez-vous est-il confirmé dès l’envoi ?",
-        a: "Non. Votre demande est transmise à la professionnelle, qui l’accepte, la refuse ou propose un autre horaire. Vous recevez sa réponse par e-mail et dans votre espace.",
+        a: "Non. Votre demande est transmise à la professionnelle, qui l’accepte ou la refuse. Vous recevez sa réponse par e-mail et dans votre espace.",
       },
       {
         q: "Comment se passe le paiement ?",
@@ -194,6 +242,10 @@ const fr = {
     privacy: "Confidentialité",
     terms: "Conditions d’utilisation",
     rights: "Tous droits réservés.",
+    services: "Soins",
+    write: "Écrivez-nous",
+    coverage: "Partout en Algérie, 58 wilayas",
+    languages: "Langues",
   },
   common: {
     comingSoon: "Bientôt disponible",

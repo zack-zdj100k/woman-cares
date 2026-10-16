@@ -1,5 +1,21 @@
 const providerFr = {
-  nav: { overview: "Vue d’ensemble", profiles: "Mes profils", settings: "Établissement", label: "Espace professionnel" },
+  nav: { overview: "Vue d’ensemble", bookings: "Demandes", profiles: "Mes profils", settings: "Établissement", label: "Espace professionnel" },
+  bookings: {
+    title: "Demandes et rendez-vous",
+    intro: "Les nouvelles demandes réservent la place jusqu’à votre réponse. Acceptez ou refusez-les ici ; la cliente est prévenue par e-mail.",
+    pending: "À traiter",
+    upcoming: "Rendez-vous confirmés",
+    empty: "Aucune demande pour le moment.",
+    emptyUpcoming: "Aucun rendez-vous confirmé à venir.",
+    accept: "Accepter",
+    reject: "Refuser",
+    note: "Message pour la cliente (facultatif)",
+    clientNote: "Message de la cliente",
+    phone: "Téléphone",
+    reference: "Référence",
+    done: "Réponse envoyée.",
+    errors: { state: "Cette demande a déjà été traitée.", forbidden: "Action impossible." } as Record<string, string>,
+  },
   common: {
     save: "Enregistrer",
     saving: "Enregistrement…",

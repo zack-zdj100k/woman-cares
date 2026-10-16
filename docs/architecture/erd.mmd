@@ -1,0 +1,29 @@
+%% Core entities (full field list: prisma/schema.prisma; narrative: docs/DATABASE_ERD.md).
+erDiagram
+    User ||--o| ProviderAccount : "owns (PROVIDER)"
+    User ||--o{ Session : has
+    User ||--o{ Booking : "books (CLIENT)"
+    User ||--o{ Favorite : saves
+    User ||--o{ Notification : receives
+    User ||--o{ AuditLog : acts
+    ProviderAccount ||--o{ ProviderServiceProfile : "one per category"
+    ProviderAccount ||--o{ ProviderCategoryRequest : requests
+    ProviderAccount ||--o{ ProviderCredential : uploads
+    ProviderAccount ||--o{ ProviderSubscription : "billed by"
+    Category ||--o{ ProviderServiceProfile : groups
+    Category ||--o{ CategorySubscriptionPricing : "price history"
+    ProviderServiceProfile ||--o{ ProviderService : offers
+    ProviderServiceProfile ||--o{ PortfolioMedia : shows
+    ProviderServiceProfile ||--o{ WorkingSchedule : "weekly hours"
+    ProviderServiceProfile ||--o{ ScheduleException : closures
+    ProviderServiceProfile ||--o{ Booking : receives
+    ProviderServiceProfile ||--o{ ProfileViewEvent : "daily views"
+    ProviderServiceProfile ||--o{ Review : rated
+    Booking ||--o{ BookingStatusHistory : "every transition"
+    Booking ||--o{ BookingPayment : "paid / refunded"
+    Booking ||--o| Review : "one per visit"
+    ProviderSubscription ||--o{ SubscriptionItem : "billable categories"
+    ProviderSubscription ||--o{ Invoice : "one per period"
+    Invoice ||--o{ InvoiceLine : lines
+    Invoice ||--o{ SubscriptionPayment : "declared / verified"
+    OutboxEvent }o--|| User : "email to"

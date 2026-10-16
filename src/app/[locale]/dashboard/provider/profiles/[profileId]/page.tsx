@@ -13,15 +13,14 @@ import { formatDate, formatDzd } from "@/lib/format";
 import { publicMediaUrl } from "@/lib/storage/urls";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { getEditorData, submissionChecklist, type ChecklistItem } from "@/server/services/provider-profiles";
-import { PageShell } from "@/components/layout/page-shell";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
-import { ProviderNav } from "@/components/provider/provider-nav";
 import { DetailsForm } from "@/components/provider/details-form";
 import { ServicesEditor } from "@/components/provider/services-editor";
 import { MediaManager } from "@/components/provider/media-manager";
 import { Closures, ScheduleEditor } from "@/components/provider/schedule-editor";
 import { SubmitProfile } from "@/components/provider/submit-profile";
 import { cn } from "@/lib/cn";
+import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
 type Params = PageProps<"/[locale]/dashboard/provider/profiles/[profileId]">["params"];
 
@@ -32,11 +31,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function EditorPage({ params }: { params: Params }) {
   return (
-    <PageShell>
+    <>
       <Suspense fallback={<DashboardSkeleton />}>
         <Editor params={params} />
       </Suspense>
-    </PageShell>
+    </>
   );
 }
 
@@ -65,8 +64,7 @@ async function Editor({ params }: { params: Params }) {
   const checklist: ChecklistItem[] = ["emailVerified", "details", "services", "photos", "hours"];
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 pt-12 pb-24 sm:px-8 md:pt-16">
-      <ProviderNav locale={locale} active="profiles" copy={pt.nav} />
+    <div className={pageClass}>
       <Link href={`/${locale}/dashboard/provider/profiles`} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink">
         <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} />
         {e.back}

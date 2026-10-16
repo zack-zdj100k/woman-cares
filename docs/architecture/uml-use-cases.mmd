@@ -1,0 +1,41 @@
+%% Use cases by actor (owner's UML reference: client, professional, administrator).
+%% [x] implemented and tested, [ ] planned. Server policies: src/server/policies/roles.ts.
+flowchart LR
+    Client((Cliente))
+    Pro((Professionnelle))
+    Admin((Administratrice))
+    Support((Support))
+
+    subgraph Public
+      UC1[x Browse categories and profiles]
+      UC2[x Search and filter by wilaya, price, rating, distance]
+      UC3[x Sign up / sign in / verify email / reset password]
+    end
+    subgraph Bookings
+      UC4[x Request an appointment on a free slot]
+      UC5[x Cancel before the start]
+      UC6[x Accept or decline a proposed time]
+      UC7[x Review a completed visit]
+      UC8[x Accept / decline requests]
+      UC9[x Propose another time]
+      UC10[x Complete, no-show, record payment or refund]
+    end
+    subgraph Business
+      UC11[x Manage category profiles, services, media, hours]
+      UC12[x See subscription, invoices, declare a payment]
+      UC13[ ] Calendar, earnings and analytics pages]
+      UC14[ ] Favorites page, support tickets]
+    end
+    subgraph Administration
+      UC15[x Review and publish profiles, credentials, categories]
+      UC16[x Users, roles and status]
+      UC17[x Category prices and per-professional subscription price]
+      UC18[x Verify payments, run the billing cycle]
+      UC19[x Audit log]
+      UC20[ ] CMS, review moderation, support inbox, analytics, settings]
+    end
+
+    Client --- UC1 & UC2 & UC3 & UC4 & UC5 & UC6 & UC7 & UC14
+    Pro --- UC3 & UC8 & UC9 & UC10 & UC11 & UC12 & UC13
+    Admin --- UC15 & UC16 & UC17 & UC18 & UC19 & UC20
+    Support -. read only .- UC15 & UC16 & UC18

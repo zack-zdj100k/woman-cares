@@ -9,7 +9,19 @@ export type EmailTemplate =
   | "profile-changes"
   | "profile-suspended"
   | "account-update"
-  | "category-decision";
+  | "category-decision"
+  | "booking-request"
+  | "booking-received"
+  | "booking-decision"
+  | "booking-cancelled"
+  | "booking-reschedule"
+  | "booking-reschedule-reply"
+  | "billing-invoice"
+  | "billing-grace"
+  | "billing-expired"
+  | "billing-paid"
+  | "billing-refused"
+  | "billing-trial-ending";
 export type TemplateData = {
   name: string;
   url?: string;
@@ -19,6 +31,15 @@ export type TemplateData = {
   note?: string | null;
   /** For account-update / category-decision. */
   outcome?: "approved" | "rejected" | "suspended" | "reinstated";
+  /** Bookings: service name, reference, date and time (already in the recipient's language), client first name. */
+  service?: string;
+  reference?: string;
+  when?: string;
+  client?: string;
+  /** booking-cancelled: who cancelled. */
+  by?: "client" | "provider";
+  /** Billing: amount already formatted. */
+  amount?: string;
 };
 
 type Copy = { subject: string; heading: string; body: string[]; button?: string; footnote: string };
@@ -124,6 +145,218 @@ const copy: Record<EmailTemplate, Record<Locale, (d: TemplateData) => Copy>> = {
           : [`لم يتم قبول طلبك لفئة ${d.category ?? ""}.`, d.note ?? ""],
       button: "مساحتي",
       footnote: "تتحقق Woman Cares من المؤهلات بالنسبة للعلاجات المنظمة لحماية الزبونات.",
+    }),
+  },
+
+  "booking-request": {
+    fr: (d) => ({
+      subject: `Nouvelle demande : ${d.service ?? ""}, ${d.when ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body: [`${d.client ?? "Une cliente"} demande un rendez-vous pour ${d.service ?? ""}, ${d.when ?? ""}.`, `Référence ${d.reference ?? ""}. Acceptez ou refusez la demande depuis votre espace.`],
+      button: "Voir la demande",
+      footnote: "La place reste réservée tant que la demande est en attente.",
+    }),
+    ar: (d) => ({
+      subject: `طلب جديد: ${d.service ?? ""}، ${d.when ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [`${d.client ?? "زبونة"} تطلب موعدًا لـ ${d.service ?? ""}، ${d.when ?? ""}.`, `المرجع ${d.reference ?? ""}. اقبلي الطلب أو ارفضيه من مساحتك.`],
+      button: "عرض الطلب",
+      footnote: "يبقى المكان محجوزًا ما دام الطلب قيد الانتظار.",
+    }),
+  },
+  "booking-received": {
+    fr: (d) => ({
+      subject: `Demande envoyée : ${d.service ?? ""}`,
+      heading: `Merci ${d.name},`,
+      body: [`Votre demande pour ${d.service ?? ""}, ${d.when ?? ""}, a bien été envoyée.`, `Référence ${d.reference ?? ""}. La professionnelle va l’accepter ou vous répondre ; vous recevrez un e-mail.`],
+      button: "Mes rendez-vous",
+      footnote: "Le rendez-vous est confirmé seulement lorsque la professionnelle l’accepte.",
+    }),
+    ar: (d) => ({
+      subject: `تم إرسال طلبك: ${d.service ?? ""}`,
+      heading: `شكرًا ${d.name}،`,
+      body: [`تم إرسال طلبك لـ ${d.service ?? ""}، ${d.when ?? ""}.`, `المرجع ${d.reference ?? ""}. ستقبل المحترفة الطلب أو ترد عليك، وستصلك رسالة.`],
+      button: "مواعيدي",
+      footnote: "لا يُؤكَّد الموعد إلا عندما تقبله المحترفة.",
+    }),
+  },
+  "booking-decision": {
+    fr: (d) => ({
+      subject: d.outcome === "approved" ? `Rendez-vous confirmé : ${d.service ?? ""}` : `Demande non acceptée : ${d.service ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body:
+        d.outcome === "approved"
+          ? [`Votre rendez-vous pour ${d.service ?? ""}, ${d.when ?? ""}, est confirmé.`, `Référence ${d.reference ?? ""}.`, d.note ?? ""]
+          : [`Votre demande pour ${d.service ?? ""}, ${d.when ?? ""}, n’a pas pu être acceptée.`, d.note ?? "", "Vous pouvez choisir un autre créneau ou une autre professionnelle."],
+      button: "Mes rendez-vous",
+      footnote: "Le paiement se fait directement auprès de la professionnelle.",
+    }),
+    ar: (d) => ({
+      subject: d.outcome === "approved" ? `تم تأكيد الموعد: ${d.service ?? ""}` : `لم يُقبل الطلب: ${d.service ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body:
+        d.outcome === "approved"
+          ? [`تم تأكيد موعدك لـ ${d.service ?? ""}، ${d.when ?? ""}.`, `المرجع ${d.reference ?? ""}.`, d.note ?? ""]
+          : [`تعذّر قبول طلبك لـ ${d.service ?? ""}، ${d.when ?? ""}.`, d.note ?? "", "يمكنك اختيار موعد آخر أو محترفة أخرى."],
+      button: "مواعيدي",
+      footnote: "يتم الدفع مباشرة لدى المحترفة.",
+    }),
+  },
+  "booking-cancelled": {
+    fr: (d) => ({
+      subject: `Rendez-vous annulé : ${d.service ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body:
+        d.by === "provider"
+          ? [`La professionnelle a annulé votre rendez-vous pour ${d.service ?? ""}, ${d.when ?? ""}.`, d.note ?? "", `Référence ${d.reference ?? ""}. Vous pouvez choisir un autre créneau.`]
+          : [`${d.client ?? "La cliente"} a annulé son rendez-vous pour ${d.service ?? ""}, ${d.when ?? ""}.`, d.note ?? "", `Référence ${d.reference ?? ""}. Le créneau est de nouveau libre.`],
+      button: d.by === "provider" ? "Mes rendez-vous" : "Voir mes rendez-vous",
+      footnote: "Cette annulation est enregistrée dans l’historique du rendez-vous.",
+    }),
+    ar: (d) => ({
+      subject: `تم إلغاء الموعد: ${d.service ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body:
+        d.by === "provider"
+          ? [`ألغت المحترفة موعدك لـ ${d.service ?? ""}، ${d.when ?? ""}.`, d.note ?? "", `المرجع ${d.reference ?? ""}. يمكنك اختيار موعد آخر.`]
+          : [`ألغت ${d.client ?? "الزبونة"} موعدها لـ ${d.service ?? ""}، ${d.when ?? ""}.`, d.note ?? "", `المرجع ${d.reference ?? ""}. أصبح الموعد متاحًا من جديد.`],
+      button: "مواعيدي",
+      footnote: "يُسجَّل هذا الإلغاء في سجل الموعد.",
+    }),
+  },
+  "booking-reschedule": {
+    fr: (d) => ({
+      subject: `Nouvel horaire proposé : ${d.service ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body: [`La professionnelle vous propose un autre horaire pour ${d.service ?? ""} : ${d.when ?? ""}.`, d.note ?? "", `Référence ${d.reference ?? ""}. Acceptez ou refusez la proposition depuis votre espace.`],
+      button: "Répondre",
+      footnote: "Votre horaire initial reste réservé tant que vous n’avez pas répondu.",
+    }),
+    ar: (d) => ({
+      subject: `اقتراح موعد جديد: ${d.service ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [`تقترح عليك المحترفة موعدًا آخر لـ ${d.service ?? ""}: ${d.when ?? ""}.`, d.note ?? "", `المرجع ${d.reference ?? ""}. اقبلي الاقتراح أو ارفضيه من مساحتك.`],
+      button: "الرد",
+      footnote: "يبقى موعدك الأول محجوزًا إلى أن تردي.",
+    }),
+  },
+  "booking-reschedule-reply": {
+    fr: (d) => ({
+      subject: d.outcome === "approved" ? `Nouvel horaire accepté : ${d.service ?? ""}` : `Nouvel horaire refusé : ${d.service ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body:
+        d.outcome === "approved"
+          ? [`${d.client ?? "La cliente"} a accepté le nouvel horaire pour ${d.service ?? ""} : ${d.when ?? ""}.`, `Référence ${d.reference ?? ""}.`]
+          : [`${d.client ?? "La cliente"} n’a pas accepté le nouvel horaire pour ${d.service ?? ""}. Le rendez-vous revient à l’horaire initial : ${d.when ?? ""}.`, `Référence ${d.reference ?? ""}.`],
+      button: "Voir le rendez-vous",
+      footnote: "Vous pouvez gérer ce rendez-vous depuis votre espace.",
+    }),
+    ar: (d) => ({
+      subject: d.outcome === "approved" ? `تم قبول الموعد الجديد: ${d.service ?? ""}` : `تم رفض الموعد الجديد: ${d.service ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body:
+        d.outcome === "approved"
+          ? [`قبلت ${d.client ?? "الزبونة"} الموعد الجديد لـ ${d.service ?? ""}: ${d.when ?? ""}.`, `المرجع ${d.reference ?? ""}.`]
+          : [`لم تقبل ${d.client ?? "الزبونة"} الموعد الجديد لـ ${d.service ?? ""}. يعود الموعد إلى وقته الأول: ${d.when ?? ""}.`, `المرجع ${d.reference ?? ""}.`],
+      button: "عرض الموعد",
+      footnote: "يمكنك إدارة هذا الموعد من مساحتك.",
+    }),
+  },
+
+  "billing-invoice": {
+    fr: (d) => ({
+      subject: `Facture ${d.reference ?? ""} : ${d.amount ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body: [`Votre facture d’abonnement ${d.reference ?? ""} est disponible : ${d.amount ?? ""}, à régler avant le ${d.when ?? ""}.`, "Après votre virement, déclarez-le depuis votre espace pour que notre équipe le vérifie."],
+      button: "Voir ma facture",
+      footnote: "Vos profils restent visibles pendant le délai de paiement.",
+    }),
+    ar: (d) => ({
+      subject: `الفاتورة ${d.reference ?? ""}: ${d.amount ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [`فاتورة اشتراكك ${d.reference ?? ""} متاحة: ${d.amount ?? ""}، يجب تسديدها قبل ${d.when ?? ""}.`, "بعد التحويل، صرّحي به من مساحتك ليتحقق منه فريقنا."],
+      button: "عرض الفاتورة",
+      footnote: "تبقى ملفاتك ظاهرة خلال مهلة الدفع.",
+    }),
+  },
+  "billing-grace": {
+    fr: (d) => ({
+      subject: `Paiement en retard : ${d.reference ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body: [`La facture ${d.reference ?? ""} (${d.amount ?? ""}) n’est pas encore réglée.`, `Vos profils restent visibles jusqu’au ${d.when ?? ""}. Ensuite, ils seront masqués de l’annuaire, sans perte de données.`],
+      button: "Régler ma facture",
+      footnote: "Une question sur votre facture ? Écrivez-nous depuis votre espace.",
+    }),
+    ar: (d) => ({
+      subject: `دفع متأخر: ${d.reference ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [`لم تُسدَّد بعد الفاتورة ${d.reference ?? ""} (${d.amount ?? ""}).`, `تبقى ملفاتك ظاهرة حتى ${d.when ?? ""}، ثم تُخفى من الدليل دون فقدان أي بيانات.`],
+      button: "تسديد الفاتورة",
+      footnote: "سؤال حول فاتورتك؟ راسلينا من مساحتك.",
+    }),
+  },
+  "billing-expired": {
+    fr: (d) => ({
+      subject: "Vos profils sont masqués",
+      heading: `Bonjour ${d.name},`,
+      body: [`La facture ${d.reference ?? ""} (${d.amount ?? ""}) n’a pas été réglée dans le délai. Vos profils sont masqués de l’annuaire.`, "Votre compte, vos rendez-vous et votre historique sont conservés. Dès votre paiement vérifié, vos profils réapparaissent."],
+      button: "Régler ma facture",
+      footnote: "Woman Cares ne supprime jamais vos données pour un retard de paiement.",
+    }),
+    ar: (d) => ({
+      subject: "ملفاتك مخفية",
+      heading: `مرحبًا ${d.name}،`,
+      body: [`لم تُسدَّد الفاتورة ${d.reference ?? ""} (${d.amount ?? ""}) في الأجل. ملفاتك مخفية من الدليل.`, "حسابك ومواعيدك وسجلك محفوظة. بمجرد التحقق من دفعك، تعود ملفاتك للظهور."],
+      button: "تسديد الفاتورة",
+      footnote: "لا تحذف Woman Cares بياناتك أبدًا بسبب تأخر الدفع.",
+    }),
+  },
+  "billing-paid": {
+    fr: (d) => ({
+      subject: `Paiement confirmé : ${d.reference ?? ""}`,
+      heading: `Merci ${d.name},`,
+      body: [`Votre paiement de ${d.amount ?? ""} pour la facture ${d.reference ?? ""} est confirmé.`],
+      button: "Mon abonnement",
+      footnote: "Vos factures restent disponibles dans votre espace.",
+    }),
+    ar: (d) => ({
+      subject: `تم تأكيد الدفع: ${d.reference ?? ""}`,
+      heading: `شكرًا ${d.name}،`,
+      body: [`تم تأكيد دفعك بقيمة ${d.amount ?? ""} للفاتورة ${d.reference ?? ""}.`],
+      button: "اشتراكي",
+      footnote: "تبقى فواتيرك متاحة في مساحتك.",
+    }),
+  },
+  "billing-refused": {
+    fr: (d) => ({
+      subject: `Paiement non confirmé : ${d.reference ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body: [`Nous n’avons pas pu confirmer votre paiement pour la facture ${d.reference ?? ""}.`, d.note ?? "", "Vous pouvez déclarer à nouveau votre virement avec la bonne référence."],
+      button: "Ma facture",
+      footnote: "Une question ? Écrivez-nous depuis votre espace.",
+    }),
+    ar: (d) => ({
+      subject: `لم يتم تأكيد الدفع: ${d.reference ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [`لم نتمكن من تأكيد دفعك للفاتورة ${d.reference ?? ""}.`, d.note ?? "", "يمكنك التصريح بالتحويل من جديد بالمرجع الصحيح."],
+      button: "فاتورتي",
+      footnote: "سؤال؟ راسلينا من مساحتك.",
+    }),
+  },
+  "billing-trial-ending": {
+    fr: (d) => ({
+      subject: "Votre période d’essai se termine bientôt",
+      heading: `Bonjour ${d.name},`,
+      body: [`Votre période d’essai gratuite se termine le ${d.when ?? ""}. Votre première facture sera alors émise selon vos catégories publiées.`],
+      button: "Mon abonnement",
+      footnote: "Le montant applicable est toujours affiché dans votre espace avant facturation.",
+    }),
+    ar: (d) => ({
+      subject: "فترتك التجريبية تنتهي قريبًا",
+      heading: `مرحبًا ${d.name}،`,
+      body: [`تنتهي فترتك التجريبية المجانية في ${d.when ?? ""}. ستصدر حينها فاتورتك الأولى حسب فئاتك المنشورة.`],
+      button: "اشتراكي",
+      footnote: "يُعرض المبلغ المطبق دائمًا في مساحتك قبل الفوترة.",
     }),
   },
 

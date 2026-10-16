@@ -5,6 +5,7 @@ import type { PagesDictionary } from "./dictionaries/pages.fr";
 import type { AuthDictionary } from "./dictionaries/auth.fr";
 import type { ProviderDictionary } from "./dictionaries/provider.fr";
 import type { AdminDictionary } from "./dictionaries/admin.fr";
+import type { DashboardDictionary } from "./dictionaries/dashboard.fr";
 
 const loaders: Record<Locale, () => Promise<Dictionary>> = {
   fr: () => import("./dictionaries/fr").then((m) => m.default),
@@ -55,4 +56,14 @@ export function getAdminDictionary(locale: Locale): Promise<AdminDictionary> {
   return adminLoaders[locale]();
 }
 
-export type { Dictionary, PagesDictionary, AuthDictionary, ProviderDictionary, AdminDictionary };
+const dashboardLoaders: Record<Locale, () => Promise<DashboardDictionary>> = {
+  fr: () => import("./dictionaries/dashboard.fr").then((m) => m.default),
+  ar: () => import("./dictionaries/dashboard.ar").then((m) => m.default),
+};
+
+/** Copy for the shared dashboard shell and the dashboard modules. */
+export function getDashboardDictionary(locale: Locale): Promise<DashboardDictionary> {
+  return dashboardLoaders[locale]();
+}
+
+export type { Dictionary, PagesDictionary, AuthDictionary, ProviderDictionary, AdminDictionary, DashboardDictionary };

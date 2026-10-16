@@ -1,16 +1,17 @@
 import { Suspense } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { connection } from "next/server";
-import { ArrowUpRight, BadgeCheck, Star } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import { isCategorySlug } from "@/config/categories";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/fr";
 import { getFeaturedProfiles } from "@/server/services/discovery";
 import { formatDzd } from "@/lib/format";
 import { buttonClass } from "@/components/ui/button";
 import { Reveal } from "./reveal";
+import { SoftCard } from "@/components/directory/soft-card";
 
-type Props = { locale: Locale; copy: Dictionary["featured"] };
+type Props = { locale: Locale; copy: Dictionary["featured"]; categories: Dictionary["categories"] };
 
 export function FeaturedProfessionals(props: Props) {
   return (
@@ -25,7 +26,7 @@ export function FeaturedProfessionals(props: Props) {
   );
 }
 
-async function FeaturedList({ locale, copy }: Props) {
+async function FeaturedList({ locale, copy, categories }: Props) {
   await connection(); // request-time data: never baked into the static shell
   const profiles = await getFeaturedProfiles();
 
@@ -51,46 +52,24 @@ async function FeaturedList({ locale, copy }: Props) {
   }
 
   return (
-    <ul className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-4 sm:-mx-8 sm:px-8 lg:-mx-14 lg:px-14 [scrollbar-width:thin]">
-      {profiles.map((p) => (
-        <li key={p.slug} className="w-[min(20rem,78vw)] shrink-0 snap-start">
-          <Link href={`/${locale}/profiles/${p.slug}`} className="group block">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-media) bg-surface-2">
-              {p.imageUrl && (
-                <Image
-                  src={p.imageUrl}
-                  alt=""
-                  fill
-                  sizes="20rem"
-                  className="object-cover transition-transform duration-[1.2s] ease-(--ease-soft) group-hover:scale-[1.05]"
-                />
-              )}
-            </div>
-            <div className="mt-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="flex items-center gap-1.5 text-lg font-medium">
-                  {p.businessName}
-                  {p.verified && <BadgeCheck className="size-4 text-rose" strokeWidth={1.75} aria-label="Vérifiée" />}
-                </p>
-                <p className="text-sm text-ink-2">
-                  {[locale === "ar" ? p.communeAr : p.communeFr, locale === "ar" ? p.wilayaAr : p.wilayaFr]
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
-              </div>
-              {p.rating !== null && p.reviewCount > 0 && (
-                <p className="flex items-center gap-1 text-sm">
-                  <Star className="size-3.5 fill-current text-rose" strokeWidth={1.5} />
-                  {p.rating.toFixed(1)} ({p.reviewCount})
-                </p>
-              )}
-            </div>
-            {p.startingPrice && (
-              <p className="mt-2 text-sm text-ink-2">
-                {copy.from} {formatDzd(p.startingPrice, locale)}
-              </p>
-            )}
-          </Link>
+    <ul className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pt-2 pb-8 sm:-mx-8 sm:px-8 lg:-mx-14 lg:px-14 [scrollbar-width:none]">
+      {profiles.map((p, i) => (
+        <li key={p.slug} className="flex w-[min(21rem,82vw)] shrink-0 snap-start">
+          <SoftCard
+            href={`/${locale}/profiles/${p.slug}`}
+            name={p.businessName}
+            verified={p.verified}
+            verifiedLabel={copy.verified}
+            place={[locale === "ar" ? p.communeAr : p.communeFr, locale === "ar" ? p.wilayaAr : p.wilayaFr].filter(Boolean).join(", ")}
+            meta={isCategorySlug(p.categorySlug) ? categories[p.categorySlug].name : undefined}
+            headline={p.headline}
+            priceLabel={p.startingPrice ? `${copy.from} ${formatDzd(p.startingPrice, locale)}` : null}
+            imageUrl={p.imageUrl}
+            rating={p.rating !== null && p.reviewCount > 0 ? { value: p.rating, label: `${p.rating.toFixed(1)} / 5 (${p.reviewCount})` } : null}
+            bookLabel={copy.book}
+            imageFirst={i % 2 === 1}
+            sizes="21rem"
+          />
         </li>
       ))}
     </ul>

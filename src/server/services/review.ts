@@ -9,6 +9,7 @@ import { ForbiddenError } from "./admin-users";
 import { LockedError } from "./provider-profiles";
 import { enqueueEmail } from "./outbox";
 import { hasValidCredential } from "./credentials";
+import { ensureSubscription } from "./billing";
 
 /** The decision cannot be taken in the current state (the reason says why). */
 export class ReviewBlocked extends Error {
@@ -213,6 +214,8 @@ export async function approveProfile(actor: Actor, profileId: string) {
     await tx.providerServiceProfile.update({ where: { id: p.id }, data: { status: "PUBLISHED", publishedAt: p.publishedAt ?? now, reviewNote: null, reviewedAt: now } });
     if (approvesAccount) {
       await tx.providerAccount.update({ where: { id: p.provider.id }, data: { status: "APPROVED", reviewNote: null } });
+      // The free trial starts when the account is approved.
+      await ensureSubscription(tx, p.provider.id, now);
       await tx.auditLog.create({ data: { actorId: actor.id, action: "provider.approve", entityType: "ProviderAccount", entityId: p.provider.id, metadata: { via: "profile.approve" } } });
     }
     await tx.auditLog.create({ data: { actorId: actor.id, action: "profile.approve", entityType: "ProviderServiceProfile", entityId: p.id } });
@@ -289,6 +292,7 @@ export async function setProviderStatus(actor: Actor, providerId: string, action
   const now = new Date();
   await db.$transaction(async (tx) => {
     await tx.providerAccount.update({ where: { id: account.id }, data: { status: rule.to, reviewNote: rule.needsNote ? note.trim() : null } });
+    if (rule.to === "APPROVED") await ensureSubscription(tx, account.id, now);
     await tx.auditLog.create({ data: { actorId: actor.id, action: `provider.${action}`, entityType: "ProviderAccount", entityId: account.id, metadata: { from: account.status, note: note || null } } });
     await notifyProvider(tx, account.user, "account-update", { outcome: rule.outcome, note: rule.needsNote ? note.trim() : null }, `account:${account.id}:${action}:${now.getTime()}`);
   });

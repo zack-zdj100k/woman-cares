@@ -7,10 +7,9 @@ import { getDictionary, getProviderDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { listMyProfiles } from "@/server/services/provider-profiles";
-import { PageShell } from "@/components/layout/page-shell";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
-import { ProviderNav } from "@/components/provider/provider-nav";
 import { buttonClass } from "@/components/ui/button";
+import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
 export async function generateMetadata(): Promise<Metadata> {
   const pt = await getProviderDictionary(await getLocale());
@@ -21,11 +20,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Page() {
   const locale = await getLocale();
   return (
-    <PageShell>
+    <>
       <Suspense fallback={<DashboardSkeleton />}>
         <Index locale={locale} />
       </Suspense>
-    </PageShell>
+    </>
   );
 }
 
@@ -33,8 +32,7 @@ async function Index({ locale }: { locale: Locale }) {
   const user = await requireArea(locale, "provider", `/${locale}/dashboard/provider/schedule`);
   const [dict, pt, profiles] = await Promise.all([getDictionary(locale), getProviderDictionary(locale), listMyProfiles(user)]);
   return (
-    <div className="mx-auto max-w-[1100px] px-5 pt-12 pb-24 sm:px-8 md:pt-16">
-      <ProviderNav locale={locale} active="profiles" copy={pt.nav} />
+    <div className={pageClass}>
       <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)]">{pt.index.scheduleTitle}</h1>
       <p className="mt-4 max-w-[44rem] text-lg text-ink-2">{pt.index.scheduleIntro}</p>
       <ul className="mt-10 grid gap-3">

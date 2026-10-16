@@ -1,16 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
-import { completeAndSubmitProfile, newSuperAdmin, newVerifiedProvider } from "./flows";
+import { expect, test } from "@playwright/test";
+import { completeAndSubmitProfile, newSuperAdmin, newVerifiedProvider, openInQueue } from "./flows";
 
 const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
-
-async function openInQueue(admin: Page, business: string) {
-  await admin.goto("/fr/dashboard/admin/providers");
-  await admin.getByRole("textbox", { name: "Nom, établissement ou e-mail" }).fill(business);
-  await admin.getByRole("button", { name: "Rechercher" }).click();
-  await expect(admin).toHaveURL(/q=/);
-  await admin.getByRole("listitem").filter({ hasText: business }).getByRole("link", { name: "Examiner" }).click();
-  await expect(admin.getByRole("heading", { name: business, level: 1 })).toBeVisible();
-}
 
 test("staff approval publishes a submitted profile in the directory", async ({ page, browser }) => {
   const business = `Atelier Revue ${Date.now()}`;

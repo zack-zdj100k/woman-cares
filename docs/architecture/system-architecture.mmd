@@ -1,0 +1,37 @@
+%% System architecture (owner's reference: client devices -> web app -> services -> data).
+flowchart TB
+    subgraph Devices
+      B[Browser / phone\nFR LTR, AR RTL]
+    end
+    subgraph NextJS["Next.js 16 App Router (Node runtime)"]
+      RSC[Server Components\ncacheComponents, use cache + cacheTag]
+      SA[Server Actions\nforms, mutations, updateTag/refresh]
+      API[Route handlers /api/v1\navailability, views, media, credential files]
+      PX[proxy.ts\nlocale + security headers]
+    end
+    subgraph Domain["src/server"]
+      POL[policies/roles.ts\nroles, ownership]
+      SVC[services\nbookings, booking-lifecycle, billing,\nreview, admin-*, notifications, outbox]
+    end
+    subgraph Data
+      PG[(PostgreSQL\nPrisma 7)]
+      FS[(Media storage\nlocal driver; public + private roots)]
+    end
+    subgraph Jobs["Scheduled (npm run daily)"]
+      J1[expire unanswered requests]
+      J2[billing cycle: invoices, grace, visibility]
+      J3[deliver outbox emails]
+    end
+    SMTP[[SMTP or log transport]]
+
+    B --> PX --> RSC
+    B --> SA
+    B --> API
+    RSC --> SVC
+    SA --> POL --> SVC
+    API --> POL
+    SVC --> PG
+    SVC --> FS
+    J1 & J2 --> PG
+    J3 --> SMTP
+    SVC -- outbox rows in the same transaction --> PG

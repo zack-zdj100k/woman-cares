@@ -12,11 +12,10 @@ import { listMyCredentials } from "@/server/services/credentials";
 import { CredentialUpload } from "@/components/provider/credential-upload";
 import { formatDate } from "@/lib/format";
 import { archiveProfileAction } from "../actions";
-import { PageShell } from "@/components/layout/page-shell";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
-import { ProviderNav } from "@/components/provider/provider-nav";
 import { AddCategoryForm } from "@/components/provider/add-category-form";
 import { buttonClass } from "@/components/ui/button";
+import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
 export async function generateMetadata(): Promise<Metadata> {
   const pt = await getProviderDictionary(await getLocale());
@@ -26,11 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ProfilesPage() {
   const locale = await getLocale();
   return (
-    <PageShell>
+    <>
       <Suspense fallback={<DashboardSkeleton />}>
         <Profiles locale={locale} />
       </Suspense>
-    </PageShell>
+    </>
   );
 }
 
@@ -58,8 +57,7 @@ async function Profiles({ locale }: { locale: Locale }) {
   const addable = categorySlugs.filter((s) => !taken.has(s)).map((s) => ({ slug: s, label: name(s) }));
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 pt-12 pb-24 sm:px-8 md:pt-16">
-      <ProviderNav locale={locale} active="profiles" copy={pt.nav} />
+    <div className={pageClass}>
       <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)]">{pt.profiles.title}</h1>
       <p className="mt-4 max-w-[44rem] text-lg leading-relaxed text-ink-2">{pt.profiles.intro}</p>
 
