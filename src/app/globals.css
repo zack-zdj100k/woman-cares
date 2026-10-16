@@ -1,26 +1,168 @@
 @import "tailwindcss";
 
+/*
+ * Woman Cares design tokens. See docs/DESIGN.md for the reasoning.
+ * Palette drawn from the owner's references: blush filigree, lavender garland,
+ * parchment lilies and noir roses. One accent (rose); lavender is a tint only.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --ground: #fbf4f2;
+  --surface: #f5e6e4;
+  --surface-2: #eddad7;
+  --parchment: #f4eadf;
+  --ink: #25161d;
+  --ink-2: #5b4550;
+  --line: rgb(37 22 29 / 0.12);
+  --rose: #a8445c;
+  --rose-ink: #8e3249;
+  --on-rose: #fff7f8;
+  --wine: #3a1420;
+  --on-wine: #f8eaec;
+  --lavender: #8b79a8;
+  --focus: #a8445c;
+  --scrim: 22 10 16;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --ground: #160e12;
+    --surface: #21151b;
+    --surface-2: #2c1d24;
+    --parchment: #2a1f1f;
+    --ink: #f6e9ec;
+    --ink-2: #cbb4bc;
+    --line: rgb(246 233 236 / 0.14);
+    --rose: #e07d96;
+    --rose-ink: #f0a3b6;
+    --on-rose: #2a0e17;
+    --wine: #0f080b;
+    --on-wine: #f8eaec;
+    --focus: #f0a3b6;
+    color-scheme: dark;
   }
 }
 
+:root[data-theme="dark"] {
+  --ground: #160e12;
+  --surface: #21151b;
+  --surface-2: #2c1d24;
+  --parchment: #2a1f1f;
+  --ink: #f6e9ec;
+  --ink-2: #cbb4bc;
+  --line: rgb(246 233 236 / 0.14);
+  --rose: #e07d96;
+  --rose-ink: #f0a3b6;
+  --on-rose: #2a0e17;
+  --wine: #0f080b;
+  --on-wine: #f8eaec;
+  --focus: #f0a3b6;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-parchment: var(--parchment);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-rose: var(--rose);
+  --color-rose-ink: var(--rose-ink);
+  --color-on-rose: var(--on-rose);
+  --color-wine: var(--wine);
+  --color-on-wine: var(--on-wine);
+  --color-lavender: var(--lavender);
+  /* Text and controls placed over photography/video; never theme-switched. */
+  --color-on-media: #fff8f6;
+  --color-media-ink: #25161d;
+  --color-on-media-accent: #f6c9d3;
+
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
+
+  --radius-media: 28px;
+  --radius-field: 14px;
+
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-press: cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+/* Latin: Cormorant Garamond + Outfit. Arabic: Amiri + IBM Plex Sans Arabic. */
+:root {
+  --font-heading: var(--font-cormorant), "Times New Roman", serif;
+  --font-body: var(--font-outfit), system-ui, sans-serif;
+}
+:root:lang(ar) {
+  --font-heading: var(--font-amiri), var(--font-cormorant), serif;
+  --font-body: var(--font-plex-arabic), var(--font-outfit), system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--rose);
+  color: var(--on-rose);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Display type: tight, generous size, slightly negative tracking in Latin only. */
+.type-display {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+:lang(ar) .type-display {
+  letter-spacing: 0;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+/* Native <dialog> entrance (find-care search). */
+.find-care-dialog[open] {
+  animation: dialog-in 0.45s var(--ease-soft);
+}
+.find-care-dialog[open]::backdrop {
+  animation: backdrop-in 0.3s ease-out;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

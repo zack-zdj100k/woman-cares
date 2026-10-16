@@ -1,0 +1,1003 @@
+// Woman Cares data model. Documented in docs/DATABASE_ERD.md; keep both in sync.
+// Conventions:
+//   - UUID primary keys, timestamptz everywhere (stored UTC, displayed in Africa/Algiers).
+//   - Money is Decimal(12,2) in DZD. Never floats.
+//   - Schedules use minutes from local midnight (Africa/Algiers) to avoid DST/zone drift.
+//   - Nothing financial or historical is hard-deleted; status fields + snapshots instead.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum UserRole {
+  CLIENT
+  PROVIDER
+  SUPPORT
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum ProviderStatus {
+  ONBOARDING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ProfileStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  RESTRICTED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WorkplaceType {
+  SALON
+  STUDIO
+  HOME
+  MOBILE
+}
+
+enum LocationVisibility {
+  EXACT
+  APPROXIMATE
+  COMMUNE_ONLY
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum MediaVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_PROVIDER
+  RESCHEDULE_PROPOSED
+  COMPLETED
+  NO_SHOW
+  EXPIRED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  GRACE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+  EXEMPT
+}
+
+enum BillingBasis {
+  PER_CATEGORY
+  PACKAGE
+  NEGOTIATED
+  PROMOTIONAL
+  EXEMPT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum SubscriptionPaymentMethod {
+  MANUAL_TRANSFER
+  CCP
+  BARIDIMOB
+  CASH
+  GATEWAY
+}
+
+enum ReviewStatus {
+  PENDING_MODERATION
+  PUBLISHED
+  HIDDEN
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum SupportType {
+  GENERAL
+  PROMOTION_REQUEST
+  BILLING
+  TECHNICAL
+  REPORT
+  CATEGORY_REQUEST
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum EmailStatus {
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+enum LegalKind {
+  PRIVACY
+  TERMS
+}
+
+// ───────────────────────────── Identity ─────────────────────────────
+
+model User {
+  id                  String     @id @default(uuid()) @db.Uuid
+  email               String     @unique // stored lower-cased
+  emailVerifiedAt     DateTime?  @db.Timestamptz
+  phone               String?
+  passwordHash        String
+  fullName            String
+  role                UserRole   @default(CLIENT)
+  status              UserStatus @default(PENDING_VERIFICATION)
+  locale              String     @default("fr")
+  preferredWilayaCode Int?
+  failedLoginCount    Int        @default(0)
+  lockedUntil         DateTime?  @db.Timestamptz
+  lastLoginAt         DateTime?  @db.Timestamptz
+  termsAcceptedAt     DateTime?  @db.Timestamptz
+  createdAt           DateTime   @default(now()) @db.Timestamptz
+  updatedAt           DateTime   @updatedAt @db.Timestamptz
+
+  preferredWilaya       Wilaya?                  @relation(fields: [preferredWilayaCode], references: [code])
+  sessions              Session[]
+  tokens                VerificationToken[]
+  preferences           NotificationPreference?
+  provider              ProviderAccount?
+  bookings              Booking[]                @relation("ClientBookings")
+  favorites             Favorite[]
+  reviews               Review[]
+  notifications         Notification[]
+  supportRequests       SupportRequest[]         @relation("SupportRequester")
+  assignedSupport       SupportRequest[]         @relation("SupportAssignee")
+  auditLogs             AuditLog[]
+  reviewReports         ReviewReport[]
+  bookingStatusChanges  BookingStatusHistory[]
+  recordedPayments      BookingPayment[]
+  verifiedSubPayments   SubscriptionPayment[]
+  decidedCategoryReqs   ProviderCategoryRequest[]
+  reviewedCredentials   ProviderCredential[]
+  uploadedAssets        MediaAsset[]
+  pricingChanges        CategorySubscriptionPricing[]
+  contentEdits          ContentPage[]
+
+  @@index([role, status])
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique // SHA-256 of the opaque cookie token; the raw token is never stored
+  expiresAt DateTime @db.Timestamptz
+  userAgent String?
+  ipHash    String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model VerificationToken {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @db.Uuid
+  purpose   TokenPurpose
+  tokenHash String       @unique
+  expiresAt DateTime     @db.Timestamptz
+  usedAt    DateTime?    @db.Timestamptz
+  createdAt DateTime     @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}
+
+model NotificationPreference {
+  userId            String   @id @db.Uuid
+  emailBookings     Boolean  @default(true)
+  emailReminders    Boolean  @default(true)
+  emailBilling      Boolean  @default(true)
+  emailProductNews  Boolean  @default(false)
+  updatedAt         DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String // e.g. "user.role.change", "subscription.price.update"
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipHash     String?
+  createdAt  DateTime @default(now()) @db.Timestamptz
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+}
+
+// ───────────────────────────── Geography ─────────────────────────────
+
+model Wilaya {
+  code   Int    @id
+  nameFr String
+  nameAr String
+
+  communes  Commune[]
+  users     User[]
+  providers ProviderAccount[]
+}
+
+model Commune {
+  id         Int      @id @default(autoincrement())
+  wilayaCode Int
+  nameFr     String
+  nameAr     String
+  latitude   Decimal? @db.Decimal(9, 6)
+  longitude  Decimal? @db.Decimal(9, 6)
+
+  wilaya    Wilaya            @relation(fields: [wilayaCode], references: [code])
+  providers ProviderAccount[]
+
+  @@unique([wilayaCode, nameFr])
+  @@index([wilayaCode])
+}
+
+// ───────────────────────────── Catalogue ─────────────────────────────
+
+model Category {
+  id                       String   @id @default(uuid()) @db.Uuid
+  slug                     String   @unique
+  nameFr                   String
+  nameAr                   String
+  descriptionFr            String?
+  descriptionAr            String?
+  imageKey                 String?
+  sortOrder                Int      @default(0)
+  active                   Boolean  @default(true)
+  requiresCredentialReview Boolean  @default(false)
+  /// JSON schema of category-specific profile fields (specialties, techniques, aftercare…).
+  profileFields            Json?
+  createdAt                DateTime @default(now()) @db.Timestamptz
+  updatedAt                DateTime @updatedAt @db.Timestamptz
+
+  profiles          ProviderServiceProfile[]
+  categoryRequests  ProviderCategoryRequest[]
+  pricing           CategorySubscriptionPricing[]
+  subscriptionItems SubscriptionItem[]
+  credentials       ProviderCredential[]
+  invoiceLines      InvoiceLine[]
+
+  @@index([active, sortOrder])
+}
+
+// ───────────────────────────── Professionals ─────────────────────────────
+
+model ProviderAccount {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @unique @db.Uuid
+  businessName       String
+  slug               String             @unique
+  status             ProviderStatus     @default(ONBOARDING)
+  workplaceType      WorkplaceType      @default(SALON)
+  bio                String?
+  publicPhone        String?
+  wilayaCode         Int
+  communeId          Int?
+  /// Private. Only revealed to a client after an accepted booking, per provider settings.
+  addressLine        String?
+  latitude           Decimal?           @db.Decimal(9, 6)
+  longitude          Decimal?           @db.Decimal(9, 6)
+  locationVisibility LocationVisibility @default(APPROXIMATE)
+  verifiedAt         DateTime?          @db.Timestamptz
+  createdAt          DateTime           @default(now()) @db.Timestamptz
+  updatedAt          DateTime           @updatedAt @db.Timestamptz
+
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wilaya           Wilaya                    @relation(fields: [wilayaCode], references: [code])
+  commune          Commune?                  @relation(fields: [communeId], references: [id])
+  profiles         ProviderServiceProfile[]
+  categoryRequests ProviderCategoryRequest[]
+  credentials      ProviderCredential[]
+  subscriptions    ProviderSubscription[]
+  bookings         Booking[]
+  invoices         Invoice[]
+  supportRequests  SupportRequest[]
+
+  @@index([status])
+  @@index([wilayaCode, communeId])
+  @@index([latitude, longitude])
+}
+
+/// One per (provider, category). Each carries its own services, media, schedule and analytics.
+model ProviderServiceProfile {
+  id                 String        @id @default(uuid()) @db.Uuid
+  providerId         String        @db.Uuid
+  categoryId         String        @db.Uuid
+  slug               String        @unique
+  headline           String
+  description        String?
+  experienceYears    Int?
+  startingPrice      Decimal?      @db.Decimal(12, 2)
+  specialties        String[]
+  categoryFields     Json?
+  hygieneNotes       String?
+  productNotes       String?
+  cancellationPolicy String?
+  socialLinks        Json?
+  status             ProfileStatus @default(DRAFT)
+  /// False when the subscription lapses past grace; set by the billing service, never by the provider.
+  billingVisible     Boolean       @default(true)
+  restrictionReason  String?
+  publishedAt        DateTime?     @db.Timestamptz
+  createdAt          DateTime      @default(now()) @db.Timestamptz
+  updatedAt          DateTime      @updatedAt @db.Timestamptz
+
+  provider          ProviderAccount          @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  category          Category                 @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  services          ProviderService[]
+  media             PortfolioMedia[]
+  schedules         WorkingSchedule[]
+  exceptions        ScheduleException[]
+  bookings          Booking[]
+  reviews           Review[]
+  favorites         Favorite[]
+  views             ProfileViewEvent[]
+  dailyStats        AnalyticsDailyAggregate[]
+  subscriptionItems SubscriptionItem[]
+
+  @@unique([providerId, categoryId])
+  @@index([categoryId, status, billingVisible])
+}
+
+model ProviderCategoryRequest {
+  id          String        @id @default(uuid()) @db.Uuid
+  providerId  String        @db.Uuid
+  categoryId  String        @db.Uuid
+  status      RequestStatus @default(PENDING)
+  note        String?
+  decidedById String?       @db.Uuid
+  decidedAt   DateTime?     @db.Timestamptz
+  createdAt   DateTime      @default(now()) @db.Timestamptz
+
+  provider  ProviderAccount @relation(fields: [providerId], references: [id])
+  category  Category        @relation(fields: [categoryId], references: [id])
+  decidedBy User?           @relation(fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([providerId])
+}
+
+model ProviderCredential {
+  id           String             @id @default(uuid()) @db.Uuid
+  providerId   String             @db.Uuid
+  categoryId   String?            @db.Uuid
+  type         String // diploma, license, insurance, …
+  /// Private storage key; served only through short-lived signed URLs to admins.
+  storageKey   String
+  issuer       String?
+  issuedAt     DateTime?          @db.Date
+  expiresAt    DateTime?          @db.Date
+  status       VerificationStatus @default(PENDING)
+  reviewedById String?            @db.Uuid
+  reviewedAt   DateTime?          @db.Timestamptz
+  notes        String?
+  createdAt    DateTime           @default(now()) @db.Timestamptz
+
+  provider   ProviderAccount @relation(fields: [providerId], references: [id])
+  category   Category?       @relation(fields: [categoryId], references: [id])
+  reviewedBy User?           @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([providerId, status])
+}
+
+model ProviderService {
+  id              String   @id @default(uuid()) @db.Uuid
+  profileId       String   @db.Uuid
+  name            String
+  description     String?
+  durationMinutes Int
+  bufferMinutes   Int      @default(0)
+  priceMin        Decimal  @db.Decimal(12, 2)
+  priceMax        Decimal? @db.Decimal(12, 2)
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  profile  ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  bookings Booking[]
+
+  @@index([profileId, active])
+}
+
+model PortfolioMedia {
+  id          String    @id @default(uuid()) @db.Uuid
+  profileId   String    @db.Uuid
+  type        MediaType
+  storageKey  String
+  mimeType    String
+  width       Int?
+  height      Int?
+  durationSec Int?
+  altText     String?
+  sortOrder   Int       @default(0)
+  isCardImage Boolean   @default(false)
+  isCover     Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  profile ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, sortOrder])
+}
+
+/// Recurring weekly window. Several rows per weekday express split shifts (breaks are the gaps).
+model WorkingSchedule {
+  id          String   @id @default(uuid()) @db.Uuid
+  profileId   String   @db.Uuid
+  weekday     Int // 0 = Sunday … 6 = Saturday (Africa/Algiers)
+  startMinute Int // minutes from local midnight
+  endMinute   Int
+  capacity    Int      @default(1) // simultaneous appointments (workstations)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  profile ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, weekday])
+}
+
+/// Date-specific override: closure, special hours or reduced capacity.
+model ScheduleException {
+  id          String   @id @default(uuid()) @db.Uuid
+  profileId   String   @db.Uuid
+  date        DateTime @db.Date
+  isClosed    Boolean  @default(true)
+  startMinute Int?
+  endMinute   Int?
+  capacity    Int?
+  note        String?
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  profile ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, date])
+}
+
+model Favorite {
+  clientId  String   @db.Uuid
+  profileId String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  client  User                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  profile ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, profileId])
+  @@index([profileId])
+}
+
+// ───────────────────────────── Bookings ─────────────────────────────
+
+model Booking {
+  id                 String        @id @default(uuid()) @db.Uuid
+  reference          String        @unique // short human-readable code, e.g. WC-7K3P9Q
+  clientId           String        @db.Uuid
+  providerId         String        @db.Uuid // denormalised for ownership checks
+  profileId          String        @db.Uuid
+  serviceId          String        @db.Uuid
+  startAt            DateTime      @db.Timestamptz
+  endAt              DateTime      @db.Timestamptz
+  requestedStartAt   DateTime      @db.Timestamptz
+  proposedStartAt    DateTime?     @db.Timestamptz
+  proposedEndAt      DateTime?     @db.Timestamptz
+  status             BookingStatus @default(PENDING)
+  paymentStatus      PaymentStatus @default(UNPAID)
+  // Snapshots: later edits to the service never rewrite past bookings.
+  serviceNameSnap    String
+  durationMinSnap    Int
+  priceMinSnap       Decimal       @db.Decimal(12, 2)
+  priceMaxSnap       Decimal?      @db.Decimal(12, 2)
+  agreedPrice        Decimal?      @db.Decimal(12, 2)
+  clientNote         String?
+  providerNote       String?
+  idempotencyKey     String?       @unique
+  pendingExpiresAt   DateTime?     @db.Timestamptz
+  cancelledAt        DateTime?     @db.Timestamptz
+  completedAt        DateTime?     @db.Timestamptz
+  createdAt          DateTime      @default(now()) @db.Timestamptz
+  updatedAt          DateTime      @updatedAt @db.Timestamptz
+
+  client     User                   @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Restrict)
+  provider   ProviderAccount        @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  profile    ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  service    ProviderService        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  history    BookingStatusHistory[]
+  references BookingReferenceMedia[]
+  payments   BookingPayment[]
+  review     Review?
+
+  @@index([profileId, startAt])
+  @@index([profileId, status, startAt])
+  @@index([clientId, createdAt])
+  @@index([providerId, status])
+}
+
+model BookingStatusHistory {
+  id         String         @id @default(uuid()) @db.Uuid
+  bookingId  String         @db.Uuid
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  actorId    String?        @db.Uuid
+  reason     String?
+  createdAt  DateTime       @default(now()) @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, createdAt])
+}
+
+/// Always private. Visible only to the booking's client and provider through signed URLs.
+model BookingReferenceMedia {
+  id         String   @id @default(uuid()) @db.Uuid
+  bookingId  String   @db.Uuid
+  storageKey String   @unique
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now()) @db.Timestamptz
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+}
+
+/// Client → professional money. Separate from subscription billing.
+model BookingPayment {
+  id           String        @id @default(uuid()) @db.Uuid
+  bookingId    String        @db.Uuid
+  amount       Decimal       @db.Decimal(12, 2)
+  status       PaymentStatus
+  method       String? // cash, transfer… (recorded by the provider)
+  note         String?
+  recordedById String?       @db.Uuid
+  recordedAt   DateTime      @default(now()) @db.Timestamptz
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  recordedBy User?   @relation(fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+}
+
+// ───────────────────────────── Subscriptions (professional → Woman Cares) ─────────────────────────────
+
+model SubscriptionPlan {
+  id           String       @id @default(uuid()) @db.Uuid
+  code         String       @unique
+  name         String
+  billingBasis BillingBasis
+  trialDays    Int          @default(30)
+  graceDays    Int          @default(7)
+  packagePrice Decimal?     @db.Decimal(12, 2)
+  maxCategories Int?
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now()) @db.Timestamptz
+  updatedAt    DateTime     @updatedAt @db.Timestamptz
+
+  subscriptions ProviderSubscription[]
+}
+
+/// Price history per category. The row whose window contains a date is the price for that date.
+model CategorySubscriptionPricing {
+  id            String    @id @default(uuid()) @db.Uuid
+  categoryId    String    @db.Uuid
+  monthlyPrice  Decimal   @db.Decimal(12, 2)
+  effectiveFrom DateTime  @db.Timestamptz
+  effectiveTo   DateTime? @db.Timestamptz
+  createdById   String?   @db.Uuid
+  createdAt     DateTime  @default(now()) @db.Timestamptz
+
+  category  Category @relation(fields: [categoryId], references: [id])
+  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([categoryId, effectiveFrom])
+}
+
+model ProviderSubscription {
+  id                     String             @id @default(uuid()) @db.Uuid
+  providerId             String             @db.Uuid
+  planId                 String?            @db.Uuid
+  status                 SubscriptionStatus @default(TRIALING)
+  billingBasis           BillingBasis       @default(PER_CATEGORY)
+  negotiatedMonthlyPrice Decimal?           @db.Decimal(12, 2)
+  exemptReason           String?
+  trialEndsAt            DateTime?          @db.Timestamptz
+  currentPeriodStart     DateTime?          @db.Timestamptz
+  currentPeriodEnd       DateTime?          @db.Timestamptz
+  graceEndsAt            DateTime?          @db.Timestamptz
+  cancelledAt            DateTime?          @db.Timestamptz
+  createdAt              DateTime           @default(now()) @db.Timestamptz
+  updatedAt              DateTime           @updatedAt @db.Timestamptz
+
+  provider ProviderAccount    @relation(fields: [providerId], references: [id])
+  plan     SubscriptionPlan?  @relation(fields: [planId], references: [id])
+  items    SubscriptionItem[]
+  invoices Invoice[]
+
+  @@index([providerId, status])
+  @@index([status, currentPeriodEnd])
+}
+
+model SubscriptionItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @db.Uuid
+  categoryId     String   @db.Uuid
+  profileId      String?  @db.Uuid
+  priceSnapshot  Decimal  @db.Decimal(12, 2)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  subscription ProviderSubscription    @relation(fields: [subscriptionId], references: [id])
+  category     Category                @relation(fields: [categoryId], references: [id])
+  profile      ProviderServiceProfile? @relation(fields: [profileId], references: [id])
+
+  @@index([subscriptionId])
+}
+
+model Invoice {
+  id                   String        @id @default(uuid()) @db.Uuid
+  number               String        @unique
+  subscriptionId       String        @db.Uuid
+  providerId           String        @db.Uuid
+  periodStart          DateTime      @db.Timestamptz
+  periodEnd            DateTime      @db.Timestamptz
+  subtotal             Decimal       @db.Decimal(12, 2)
+  total                Decimal       @db.Decimal(12, 2)
+  currency             String        @default("DZD")
+  status               InvoiceStatus @default(OPEN)
+  /// Frozen description of how the total was computed (basis, prices, categories).
+  pricingBasisSnapshot Json
+  issuedAt             DateTime      @default(now()) @db.Timestamptz
+  dueAt                DateTime      @db.Timestamptz
+  paidAt               DateTime?     @db.Timestamptz
+
+  subscription ProviderSubscription  @relation(fields: [subscriptionId], references: [id])
+  provider     ProviderAccount       @relation(fields: [providerId], references: [id])
+  lines        InvoiceLine[]
+  payments     SubscriptionPayment[]
+
+  @@index([providerId, status])
+  @@index([status, dueAt])
+}
+
+model InvoiceLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  invoiceId   String   @db.Uuid
+  categoryId  String?  @db.Uuid
+  description String
+  amount      Decimal  @db.Decimal(12, 2)
+
+  invoice  Invoice   @relation(fields: [invoiceId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+}
+
+model SubscriptionPayment {
+  id                String                    @id @default(uuid()) @db.Uuid
+  invoiceId         String                    @db.Uuid
+  amount            Decimal                   @db.Decimal(12, 2)
+  status            PaymentStatus             @default(PENDING)
+  method            SubscriptionPaymentMethod
+  externalReference String?
+  proofStorageKey   String? // private
+  idempotencyKey    String?                   @unique
+  verifiedById      String?                   @db.Uuid
+  verifiedAt        DateTime?                 @db.Timestamptz
+  createdAt         DateTime                  @default(now()) @db.Timestamptz
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  verifiedBy User?   @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([status])
+}
+
+/// Raw, de-duplicated events from a payment gateway (when one is configured).
+model PaymentEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  gateway     String
+  externalId  String
+  type        String
+  payload     Json
+  processedAt DateTime? @db.Timestamptz
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([gateway, externalId])
+}
+
+// ───────────────────────────── Reviews & analytics ─────────────────────────────
+
+model Review {
+  id        String       @id @default(uuid()) @db.Uuid
+  bookingId String       @unique @db.Uuid // one review per completed booking
+  clientId  String       @db.Uuid
+  profileId String       @db.Uuid
+  rating    Int // 1..5, enforced by a CHECK constraint in the migration
+  comment   String?
+  status    ReviewStatus @default(PUBLISHED)
+  createdAt DateTime     @default(now()) @db.Timestamptz
+  updatedAt DateTime     @updatedAt @db.Timestamptz
+
+  booking Booking                @relation(fields: [bookingId], references: [id])
+  client  User                   @relation(fields: [clientId], references: [id])
+  profile ProviderServiceProfile @relation(fields: [profileId], references: [id])
+  reports ReviewReport[]
+
+  @@index([profileId, status, createdAt])
+}
+
+model ReviewReport {
+  id         String       @id @default(uuid()) @db.Uuid
+  reviewId   String       @db.Uuid
+  reporterId String       @db.Uuid
+  reason     String
+  status     ReportStatus @default(OPEN)
+  resolvedAt DateTime?    @db.Timestamptz
+  createdAt  DateTime     @default(now()) @db.Timestamptz
+
+  review   Review @relation(fields: [reviewId], references: [id])
+  reporter User   @relation(fields: [reporterId], references: [id])
+
+  @@unique([reviewId, reporterId])
+  @@index([status])
+}
+
+/// One row per (profile, anonymous visitor, day): refreshes never count twice.
+/// visitorHash = HMAC(daily salt, ip + user agent); the salt rotates daily so hashes cannot be joined across days.
+model ProfileViewEvent {
+  id          BigInt   @id @default(autoincrement())
+  profileId   String   @db.Uuid
+  visitorHash String
+  day         DateTime @db.Date
+  referrer    String?
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  profile ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, visitorHash, day])
+  @@index([profileId, day])
+}
+
+model AnalyticsDailyAggregate {
+  profileId       String   @db.Uuid
+  day             DateTime @db.Date
+  views           Int      @default(0)
+  uniqueVisitors  Int      @default(0)
+  bookingRequests Int      @default(0)
+
+  profile ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, day])
+}
+
+// ───────────────────────────── Notifications ─────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+/// Transactional outbox: written in the same transaction as the business change,
+/// then delivered (email, etc.) by a worker. Email failures never roll back bookings.
+model OutboxEvent {
+  id          String       @id @default(uuid()) @db.Uuid
+  type        String
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  availableAt DateTime     @default(now()) @db.Timestamptz
+  lastError   String?
+  createdAt   DateTime     @default(now()) @db.Timestamptz
+  processedAt DateTime?    @db.Timestamptz
+
+  emails EmailDeliveryLog[]
+
+  @@index([status, availableAt])
+}
+
+model EmailDeliveryLog {
+  id                String      @id @default(uuid()) @db.Uuid
+  outboxEventId     String?     @db.Uuid
+  dedupeKey         String      @unique
+  toEmail           String
+  template          String
+  subject           String
+  status            EmailStatus @default(QUEUED)
+  providerMessageId String?
+  attempts          Int         @default(0)
+  lastError         String?
+  createdAt         DateTime    @default(now()) @db.Timestamptz
+  sentAt            DateTime?   @db.Timestamptz
+
+  outboxEvent OutboxEvent? @relation(fields: [outboxEventId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model SupportRequest {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String?       @db.Uuid
+  providerId   String?       @db.Uuid
+  type         SupportType   @default(GENERAL)
+  name         String?
+  email        String?
+  subject      String
+  message      String
+  status       SupportStatus @default(OPEN)
+  assignedToId String?       @db.Uuid
+  createdAt    DateTime      @default(now()) @db.Timestamptz
+  updatedAt    DateTime      @updatedAt @db.Timestamptz
+
+  user       User?            @relation("SupportRequester", fields: [userId], references: [id], onDelete: SetNull)
+  provider   ProviderAccount? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  assignedTo User?            @relation("SupportAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([type, status])
+}
+
+// ───────────────────────────── CMS & settings ─────────────────────────────
+
+model ContentPage {
+  id             String        @id @default(uuid()) @db.Uuid
+  slug           String // "home", "about-platform", "about-services", …
+  locale         String
+  title          String
+  seoDescription String?
+  status         ContentStatus @default(DRAFT)
+  updatedById    String?       @db.Uuid
+  publishedAt    DateTime?     @db.Timestamptz
+  createdAt      DateTime      @default(now()) @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @db.Timestamptz
+
+  updatedBy User?            @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  sections  ContentSection[]
+
+  @@unique([slug, locale])
+}
+
+model ContentSection {
+  id        String        @id @default(uuid()) @db.Uuid
+  pageId    String        @db.Uuid
+  key       String // "hero", "faq", "pro-cta", …
+  sortOrder Int           @default(0)
+  visible   Boolean       @default(true)
+  status    ContentStatus @default(DRAFT)
+  data      Json
+  updatedAt DateTime      @updatedAt @db.Timestamptz
+
+  page ContentPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, key])
+}
+
+model MediaAsset {
+  id           String          @id @default(uuid()) @db.Uuid
+  storageKey   String          @unique
+  mimeType     String
+  sizeBytes    Int
+  width        Int?
+  height       Int?
+  alt          String?
+  visibility   MediaVisibility @default(PUBLIC)
+  uploadedById String?         @db.Uuid
+  createdAt    DateTime        @default(now()) @db.Timestamptz
+
+  uploadedBy User? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+}
+
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @db.Timestamptz
+}
+
+model LegalDocumentVersion {
+  id          String    @id @default(uuid()) @db.Uuid
+  kind        LegalKind
+  locale      String
+  version     Int
+  body        String
+  publishedAt DateTime? @db.Timestamptz
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  @@unique([kind, locale, version])
+}
