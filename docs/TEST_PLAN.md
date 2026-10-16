@@ -51,7 +51,14 @@ node scripts/page-shot.mjs http://localhost:3000/fr 375 812 .playwright-mcp/m-fu
 node scripts/console-check.mjs http://localhost:3000/fr/coiffeuses 375
 ```
 
-### Verified (2026-10-16, Phase 3)
+### Verified (2026-10-16, Phase 4)
+
+- Unit: 63 tests, adding magic-byte sniffing, image re-encoding (EXIF/GPS stripped, orientation applied, 2400 px cap, corrupt files rejected), schedule/closure/service/profile/settings validation, editing policies, Algiers time helpers.
+- Integration: 43 tests, adding cross-provider isolation for every operation, specialty filtering, automatic starting price, history-safe service deletion with booking snapshots intact, schedule replacement and booking-conflict confirmation, closures, media storage/order/card image/deletion, submission checklist and audit, restricted-profile lock, categories on one account (Botox request, archive and restore).
+- End-to-end: 10 tests, adding a professional completing every editor section (real upload) and sending for review, and a second professional refused on the first one's editor page and upload API.
+- `scripts/page-shot.mjs` accepts `SESSION_TOKEN` to capture signed-in pages in development.
+
+### Verified (Phase 3)
 
 - Unit: 49 tests, adding role policies (areas, privilege changes, ownership, bookings), open-redirect guard, scrypt hashing, password policy, tokens, phone normalisation, sign-up schemas, email template escaping and RTL.
 - Integration: 29 tests, adding sign-up (client, duplicate, multi-category professional), sign-in and lockout, sessions (valid, expired, unknown, suspended), single-use verification, password reset (session revocation, old link invalidation), outbox delivery and retry on SMTP failure, audited role and status changes.

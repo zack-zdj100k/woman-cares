@@ -84,7 +84,7 @@ Coordinates are rounded to two decimals (~1 km) before entering the URL.
 | Area | Routes | Status |
 |---|---|---|
 | Client | `/dashboard/client` 🚧 (guarded overview) · `/appointments`, `/favorites`, `/profile`, `/notifications`, `/settings` ⬜ | |
-| Provider | `/dashboard/provider` 🚧 (guarded overview: account status, profiles, pending categories) · `/profiles`, `/services`, `/bookings`, `/schedule`, `/analytics`, `/earnings`, `/billing`, `/settings`, `/notifications`, `/support` ⬜ | |
+| Provider | `/dashboard/provider` ✅ overview · `/profiles` ✅ (list, add/archive categories) · `/profiles/[profileId]` ✅ editor (presentation, services, portfolio, hours, closures, submit) · `/settings` ✅ (business, location, visibility) · `/services` ✅ and `/schedule` ✅ (index into each profile's editor) · `/bookings`, `/analytics`, `/earnings`, `/billing`, `/notifications`, `/support` ⬜ | |
 | Admin | `/dashboard/admin` 🚧 (guarded overview with live counts) · `/users`, `/providers`, `/categories`, `/pricing`, `/subscriptions`, `/payments`, `/content`, `/moderation`, `/analytics`, `/support`, `/audit`, `/settings` ⬜ | |
 
 Access: `src/proxy.ts` sends visitors without a session cookie to sign-in (optimistic, no database).
@@ -92,4 +92,5 @@ Every dashboard page then calls `requireArea()` on the server: wrong role or sus
 
 ### API
 
-`/api/v1/*`, see [API_SPECIFICATION.md](API_SPECIFICATION.md). Implemented: `POST /api/v1/profiles/{slug}/views`.
+`/api/v1/*`, see [API_SPECIFICATION.md](API_SPECIFICATION.md). Implemented: `POST /api/v1/profiles/{slug}/views`,
+`POST /api/v1/provider/profiles/{profileId}/media`. Public media: `GET /uploads/*`.

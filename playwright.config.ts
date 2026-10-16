@@ -36,6 +36,7 @@ export default defineConfig({
       EMAIL_TRANSPORT: "log",
       ALLOW_LOG_TRANSPORT: "1",
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-secret",
+      STORAGE_LOCAL_DIR: ".storage-e2e",
     },
   },
 });

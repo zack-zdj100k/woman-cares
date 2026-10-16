@@ -2,7 +2,8 @@
  * LOCAL DEMO DATA. Never run in production.
  *
  * Creates a handful of clearly labelled demo businesses ("Démo · …") so the directories and
- * profile pages can be developed and tested before real professionals join. It creates no
+ * profile pages can be developed and tested before real professionals join. Portfolio images are
+ * frames from the hero film (prisma/demo-media), copied into local storage. It creates no
  * reviews, no bookings and no payments: those only ever come from real activity.
  * Demo accounts cannot sign in (their password hash is not a valid hash).
  *
@@ -10,6 +11,8 @@
  *        ALLOW_DEMO_SEED=1 npx tsx prisma/seed-demo.ts --remove   (delete demo data)
  */
 import "dotenv/config";
+import { copyFile, mkdir, readdir } from "node:fs/promises";
+import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
@@ -224,9 +227,18 @@ async function remove() {
   console.log(`Removed ${providerIds.length} demo providers.`);
 }
 
+/** Copies the committed demo frames into public local storage (served at /uploads/demo/…). */
+async function copyDemoMedia() {
+  const from = path.resolve("prisma/demo-media");
+  const to = path.resolve(process.env.STORAGE_LOCAL_DIR ?? ".storage", "public", "demo");
+  await mkdir(to, { recursive: true });
+  for (const f of await readdir(from)) await copyFile(path.join(from, f), path.join(to, f));
+}
+
 async function main() {
   await remove();
   if (process.argv.includes("--remove")) return;
+  await copyDemoMedia();
 
   const communeIds = new Map<string, { id: number; lat: number; lng: number; wilayaCode: number }>();
   for (const c of communes) {

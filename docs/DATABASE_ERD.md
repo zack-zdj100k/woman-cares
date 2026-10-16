@@ -102,6 +102,24 @@ stateDiagram-v2
 Every transition writes a `BookingStatusHistory` row and an `OutboxEvent` in the same transaction.
 `EXPIRED` was added to the owner's list so unanswered requests release capacity cleanly.
 
+## Profile lifecycle (provider side)
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT: sign-up or category added
+    DRAFT --> PENDING_REVIEW: provider submits (checklist complete)
+    PENDING_REVIEW --> PUBLISHED: staff approve (Phase 10)
+    PENDING_REVIEW --> DRAFT: staff request changes (Phase 10)
+    PUBLISHED --> RESTRICTED: staff decision
+    PUBLISHED --> SUSPENDED: staff decision
+    DRAFT --> ARCHIVED: provider removes category
+    PUBLISHED --> ARCHIVED: provider removes category
+    ARCHIVED --> DRAFT: provider adds the category again
+```
+
+Media files live under `profiles/{profileId}/{uuid}.webp|mp4|mov` in public storage; `PortfolioMedia`
+holds the key, type, dimensions, order and the single card image.
+
 ## Integrity rules in SQL
 
 - `Review.rating` between 1 and 5; one review per booking (unique `bookingId`).

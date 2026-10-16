@@ -4,7 +4,8 @@ Beauty and self-care marketplace for women in Algeria. French (LTR) and Arabic (
 
 > Status: the public website and authentication are built (homepage, six directories with filters,
 > profiles, content pages, sign-up/sign-in, email verification, password reset, role-guarded dashboards).
-> Profile editing, booking, billing, the admin tools and the CMS are next. See [docs/ROADMAP.md](docs/ROADMAP.md) for the honest per-phase status.
+> Professionals can complete their category profiles (services, photos, hours) and send them for review.
+> The admin review queue, booking, billing and the CMS are next. See [docs/ROADMAP.md](docs/ROADMAP.md) for the honest per-phase status.
 
 ## Requirements
 
@@ -55,6 +56,8 @@ npm run db:seed:demo
 ```
 
 Remove them with `ALLOW_DEMO_SEED=1 npx tsx prisma/seed-demo.ts --remove`.
+
+Uploaded media are stored under `.storage/` (`public/` is served at `/uploads/*`, `private/` never is).
 
 ## Scripts
 

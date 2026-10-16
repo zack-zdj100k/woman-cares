@@ -1,9 +1,14 @@
 // Visual QA: full-page screenshot below the pinned hero (reveals triggered first).
-// Usage: CHROMIUM_PATH=... node scripts/page-shot.mjs <url> <width> <height> <out.jpg>
+// Usage: CHROMIUM_PATH=... [SESSION_TOKEN=...] node scripts/page-shot.mjs <url> <width> <height> <out.jpg>
+// SESSION_TOKEN (optional) signs the capture in, for dashboard pages in local development.
 import { chromium } from "@playwright/test";
 const [url, w, h, out] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
-const page = await browser.newPage({ viewport: { width: +w, height: +h } });
+const context = await browser.newContext({ viewport: { width: +w, height: +h } });
+if (process.env.SESSION_TOKEN) {
+  await context.addCookies([{ name: "wc_session", value: process.env.SESSION_TOKEN, url: new URL(url).origin, httpOnly: true, sameSite: "Lax" }]);
+}
+const page = await context.newPage();
 await page.goto(url, { waitUntil: "load" });
 await page.waitForTimeout(1500);
 await page.evaluate(async () => {

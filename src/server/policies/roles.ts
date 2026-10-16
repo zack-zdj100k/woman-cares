@@ -84,3 +84,17 @@ export function canViewBooking(actor: Actor, booking: { clientId: string; provid
 export function canVerifyProvider(actor: Actor) {
   return canSignIn(actor.status) && actor.emailVerified && hasStaffRank(actor.role, "ADMIN");
 }
+
+export type ProfileStatus = "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "RESTRICTED" | "SUSPENDED" | "ARCHIVED";
+export type ProviderStatus = "ONBOARDING" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+
+/** Restricted, suspended or archived profiles (and suspended/rejected accounts) cannot be edited by the provider. */
+export function canEditProfile(profile: ProfileStatus, account: ProviderStatus) {
+  if (account === "SUSPENDED" || account === "REJECTED") return false;
+  return profile === "DRAFT" || profile === "PENDING_REVIEW" || profile === "PUBLISHED";
+}
+
+/** Only drafts go to review; publishing itself is a staff decision. */
+export function canSubmitProfile(profile: ProfileStatus, account: ProviderStatus) {
+  return profile === "DRAFT" && canEditProfile(profile, account);
+}

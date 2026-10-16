@@ -2,7 +2,10 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import type { CategorySlug } from "@/config/categories";
 import type { Locale } from "@/i18n/config";
-import { getAuthDictionary, getDictionary } from "@/i18n/get-dictionary";
+import { getAuthDictionary, getDictionary, getProviderDictionary } from "@/i18n/get-dictionary";
+import Link from "next/link";
+import { ProviderNav } from "@/components/provider/provider-nav";
+import { buttonClass } from "@/components/ui/button";
 import { getLocale } from "@/i18n/server";
 import { db } from "@/lib/db";
 import { requireArea } from "@/lib/auth/session";
@@ -28,7 +31,7 @@ export default async function ProviderDashboardPage() {
 
 async function ProviderDashboard({ locale }: { locale: Locale }) {
   const user = await requireArea(locale, "provider", `/${locale}/dashboard/provider`);
-  const [t, dict] = await Promise.all([getAuthDictionary(locale), getDictionary(locale)]);
+  const [t, dict, pt] = await Promise.all([getAuthDictionary(locale), getDictionary(locale), getProviderDictionary(locale)]);
   // Ownership comes from the session, never from the URL.
   const account = await db.providerAccount.findUnique({
     where: { userId: user.id },
@@ -44,6 +47,7 @@ async function ProviderDashboard({ locale }: { locale: Locale }) {
 
   return (
     <div className="mx-auto max-w-[1100px] px-5 pt-12 pb-24 sm:px-8 md:pt-16">
+      <ProviderNav locale={locale} active="overview" copy={pt.nav} />
       {!user.emailVerified && <UnverifiedBanner locale={locale} t={t} />}
       <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)]">{p.title(user.fullName.split(" ")[0])}</h1>
       <p className="mt-4 max-w-[40rem] text-lg leading-relaxed text-ink-2">{p.intro}</p>
@@ -75,7 +79,9 @@ async function ProviderDashboard({ locale }: { locale: Locale }) {
                 <p className="mt-1 text-ink-2">{account.categoryRequests.map((r) => name(r.category.slug)).join(", ")}</p>
               </>
             )}
-            <p className="mt-6 text-sm text-ink-2">{p.editorSoon}</p>
+            <Link href={`/${locale}/dashboard/provider/profiles`} className={buttonClass({ variant: "outline", size: "sm", className: "mt-6" })}>
+              {pt.nav.profiles}
+            </Link>
           </section>
         </div>
       )}

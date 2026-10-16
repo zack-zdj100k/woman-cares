@@ -61,13 +61,18 @@ Zod-validated): `signUpAction`, `signInAction`, `signOutAction`, `verifyEmailAct
 
 ## Provider
 
+The professional space currently uses Server Actions (`src/app/[locale]/dashboard/provider/actions.ts`)
+over the services in `src/server/services/provider-profiles.ts` and `media.ts`; every one re-checks
+ownership from the session. The REST routes below will wrap the same services.
+
 | Method | Path | Notes |
 |---|---|---|
 | GET/PATCH | `/provider/account` | |
 | GET/POST | `/provider/profiles` | One per category; creating a new category profile requires an approved category request. |
 | PATCH | `/provider/profiles/{id}` | Submit for review, save draft, reorder media, choose card image. |
 | CRUD | `/provider/profiles/{id}/services` | Price changes never touch existing bookings (snapshots). |
-| POST/DELETE/PATCH | `/provider/profiles/{id}/media` | Signed upload, validation, ordering. |
+| POST | `/provider/profiles/{id}/media` ✅ | Multipart `file` (+ `alt`). Owner only (404 otherwise), same-origin, ≤ 50 MB body, 60 uploads/h. Type sniffed from bytes: JPEG/PNG/WebP re-encoded to WebP (≤ 2400 px, metadata stripped), MP4/MOV container-checked. 201 `{ data: { id } }`; 422 `TYPE`/`SIZE`/`LIMIT`/`CORRUPT`; 409 `LOCKED`. |
+| — | ordering, card image, alt text, delete | Server Actions in `src/app/[locale]/dashboard/provider/actions.ts` (REST equivalents to follow). |
 | GET/PUT | `/provider/profiles/{id}/schedule` | Weekly windows + exceptions. Returns conflicts with confirmed bookings instead of silently changing them. |
 | GET | `/provider/bookings` | Filters: profile, status, date range, payment status. |
 | POST | `/provider/bookings/{id}/accept` · `/reject` · `/propose` · `/cancel` · `/complete` · `/no-show` | |
