@@ -1,11 +1,132 @@
 import type { Locale } from "@/i18n/config";
 
-export type EmailTemplate = "verify-email" | "reset-password" | "password-changed" | "account-exists";
-export type TemplateData = { name: string; url?: string };
+export type EmailTemplate =
+  | "verify-email"
+  | "reset-password"
+  | "password-changed"
+  | "account-exists"
+  | "profile-published"
+  | "profile-changes"
+  | "profile-suspended"
+  | "account-update"
+  | "category-decision";
+export type TemplateData = {
+  name: string;
+  url?: string;
+  /** Category name in the recipient's language. */
+  category?: string;
+  /** Staff message. */
+  note?: string | null;
+  /** For account-update / category-decision. */
+  outcome?: "approved" | "rejected" | "suspended" | "reinstated";
+};
 
 type Copy = { subject: string; heading: string; body: string[]; button?: string; footnote: string };
 
 const copy: Record<EmailTemplate, Record<Locale, (d: TemplateData) => Copy>> = {
+  "profile-published": {
+    fr: (d) => ({
+      subject: `Votre profil ${d.category ?? ""} est publié`,
+      heading: `Bonne nouvelle, ${d.name} !`,
+      body: [`Votre profil ${d.category ?? ""} a été vérifié par notre équipe et il est maintenant visible sur Woman Cares.`],
+      button: "Voir mon espace",
+      footnote: "Vous pouvez continuer à modifier vos prestations, photos et horaires à tout moment.",
+    }),
+    ar: (d) => ({
+      subject: `تم نشر ملف ${d.category ?? ""}`,
+      heading: `أخبار سارة يا ${d.name}!`,
+      body: [`تحقق فريقنا من ملف ${d.category ?? ""} وأصبح الآن ظاهرًا على Woman Cares.`],
+      button: "عرض مساحتي",
+      footnote: "يمكنك مواصلة تعديل خدماتك وصورك وأوقات عملك في أي وقت.",
+    }),
+  },
+  "profile-changes": {
+    fr: (d) => ({
+      subject: `Votre profil ${d.category ?? ""} : modifications demandées`,
+      heading: `Bonjour ${d.name},`,
+      body: [`Avant de publier votre profil ${d.category ?? ""}, notre équipe vous demande quelques modifications :`, d.note ?? ""],
+      button: "Modifier mon profil",
+      footnote: "Une fois les changements faits, renvoyez le profil pour vérification depuis votre espace.",
+    }),
+    ar: (d) => ({
+      subject: `ملف ${d.category ?? ""}: تعديلات مطلوبة`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [`قبل نشر ملف ${d.category ?? ""}، يطلب منك فريقنا بعض التعديلات:`, d.note ?? ""],
+      button: "تعديل ملفي",
+      footnote: "بعد إجراء التعديلات، أعيدي إرسال الملف للتحقق من مساحتك.",
+    }),
+  },
+  "profile-suspended": {
+    fr: (d) => ({
+      subject: `Votre profil ${d.category ?? ""} est suspendu`,
+      heading: `Bonjour ${d.name},`,
+      body: [`Votre profil ${d.category ?? ""} n’est plus visible sur Woman Cares pour la raison suivante :`, d.note ?? ""],
+      button: "Mon espace",
+      footnote: "Pour toute question, répondez via la page Contact. Vos données et votre historique sont conservés.",
+    }),
+    ar: (d) => ({
+      subject: `تم تعليق ملف ${d.category ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [`لم يعد ملف ${d.category ?? ""} ظاهرًا على Woman Cares للسبب التالي:`, d.note ?? ""],
+      button: "مساحتي",
+      footnote: "لأي سؤال، تواصلي معنا عبر صفحة الاتصال. تبقى بياناتك وسجلك محفوظة.",
+    }),
+  },
+  "account-update": {
+    fr: (d) => ({
+      subject:
+        d.outcome === "approved" || d.outcome === "reinstated"
+          ? "Votre compte professionnel est actif"
+          : d.outcome === "rejected"
+            ? "Votre inscription professionnelle"
+            : "Votre compte professionnel est suspendu",
+      heading: `Bonjour ${d.name},`,
+      body:
+        d.outcome === "approved" || d.outcome === "reinstated"
+          ? ["Votre compte professionnel est actif. Vos profils validés peuvent apparaître sur Woman Cares."]
+          : [d.outcome === "rejected" ? "Votre inscription n’a pas été retenue." : "Votre compte professionnel est suspendu et vos profils ne sont plus visibles.", d.note ?? ""],
+      button: "Mon espace",
+      footnote: "Pour toute question, écrivez-nous depuis la page Contact.",
+    }),
+    ar: (d) => ({
+      subject:
+        d.outcome === "approved" || d.outcome === "reinstated"
+          ? "حسابك المهني مفعّل"
+          : d.outcome === "rejected"
+            ? "تسجيلك المهني"
+            : "تم تعليق حسابك المهني",
+      heading: `مرحبًا ${d.name}،`,
+      body:
+        d.outcome === "approved" || d.outcome === "reinstated"
+          ? ["حسابك المهني مفعّل. يمكن لملفاتك المقبولة أن تظهر على Woman Cares."]
+          : [d.outcome === "rejected" ? "لم يتم قبول تسجيلك." : "تم تعليق حسابك المهني ولم تعد ملفاتك ظاهرة.", d.note ?? ""],
+      button: "مساحتي",
+      footnote: "لأي سؤال، راسلينا من صفحة الاتصال.",
+    }),
+  },
+  "category-decision": {
+    fr: (d) => ({
+      subject: `Votre demande ${d.category ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body:
+        d.outcome === "approved"
+          ? [`Votre demande pour la catégorie ${d.category ?? ""} est acceptée. Un profil brouillon vous attend dans votre espace.`]
+          : [`Votre demande pour la catégorie ${d.category ?? ""} n’a pas été acceptée.`, d.note ?? ""],
+      button: "Mon espace",
+      footnote: "Woman Cares vérifie les qualifications pour les soins réglementés afin de protéger les clientes.",
+    }),
+    ar: (d) => ({
+      subject: `طلبك لفئة ${d.category ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body:
+        d.outcome === "approved"
+          ? [`تم قبول طلبك لفئة ${d.category ?? ""}. ينتظرك ملف مسودة في مساحتك.`]
+          : [`لم يتم قبول طلبك لفئة ${d.category ?? ""}.`, d.note ?? ""],
+      button: "مساحتي",
+      footnote: "تتحقق Woman Cares من المؤهلات بالنسبة للعلاجات المنظمة لحماية الزبونات.",
+    }),
+  },
+
   "account-exists": {
     fr: (d) => ({
       subject: "Vous avez déjà un compte Woman Cares",
@@ -95,12 +216,12 @@ export function renderEmail(template: EmailTemplate, locale: Locale, data: Templ
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;padding:36px;text-align:${align}" dir="${dir}">
 <tr><td style="font-family:Georgia,serif;font-size:22px;letter-spacing:4px;padding-bottom:28px" dir="ltr">WOMAN CARES</td></tr>
 <tr><td style="font-family:Georgia,serif;font-size:26px;padding-bottom:16px">${esc(c.heading)}</td></tr>
-${c.body.map((p) => `<tr><td style="font-size:16px;line-height:1.6;padding-bottom:16px">${esc(p)}</td></tr>`).join("")}
+${c.body.filter(Boolean).map((p) => `<tr><td style="font-size:16px;line-height:1.6;padding-bottom:16px;white-space:pre-line">${esc(p)}</td></tr>`).join("")}
 ${button}
 <tr><td style="font-size:13px;line-height:1.5;color:#5b4550;border-top:1px solid #eddad7;padding-top:20px">${esc(c.footnote)}</td></tr>
 </table>
 <p style="font-family:Georgia,serif;font-style:italic;color:#8e3249;font-size:14px" dir="ltr">Lady, we care about your beauty.</p>
 </td></tr></table></body></html>`;
-  const text = [c.heading, "", ...c.body, "", ...(c.button && data.url ? [`${c.button}: ${data.url}`, ""] : []), c.footnote, "", "Woman Cares"].join("\n");
+  const text = [c.heading, "", ...c.body.filter(Boolean), "", ...(c.button && data.url ? [`${c.button}: ${data.url}`, ""] : []), c.footnote, "", "Woman Cares"].join("\n");
   return { subject: c.subject, html, text };
 }

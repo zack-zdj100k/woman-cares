@@ -97,6 +97,11 @@ async function Editor({ params }: { params: Params }) {
 
       <Section id="publication" title={e.sections.publication}>
         <p className="text-lg">{statusText}</p>
+        {profile.reviewNote && (profile.status === "DRAFT" || profile.status === "SUSPENDED" || profile.status === "RESTRICTED") && (
+          <p role="status" className="mt-4 rounded-(--radius-field) bg-surface p-4 leading-relaxed">
+            {profile.status === "DRAFT" ? pt.review.changesRequested : pt.review.suspended} {profile.reviewNote}
+          </p>
+        )}
         <ul className="mt-5 grid gap-2">
           {checklist.map((item) => {
             const ok = !missing.includes(item);

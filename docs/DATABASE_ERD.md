@@ -17,15 +17,15 @@ Owner's reference diagram: [assets/erd-reference.webp](assets/erd-reference.webp
 ```mermaid
 classDiagram
     class User { UUID id; String email; String fullName; UserRole role; UserStatus status }
-    class ProviderAccount { UUID id; UUID userId; String businessName; ProviderStatus status; LocationVisibility locationVisibility }
+    class ProviderAccount { UUID id; UUID userId; String businessName; ProviderStatus status; LocationVisibility locationVisibility; DateTime verifiedAt; String reviewNote }
     class Category { UUID id; String slug; Boolean active; Boolean requiresCredentialReview }
-    class ProviderServiceProfile { UUID id; UUID providerId; UUID categoryId; String slug; Decimal startingPrice; ProfileStatus status; Boolean billingVisible }
+    class ProviderServiceProfile { UUID id; UUID providerId; UUID categoryId; String slug; Decimal startingPrice; ProfileStatus status; Boolean billingVisible; String reviewNote; DateTime reviewedAt }
     class ProviderService { UUID id; UUID profileId; String name; Int durationMinutes; Int bufferMinutes; Decimal priceMin; Decimal priceMax; Boolean active }
     class PortfolioMedia { UUID id; UUID profileId; MediaType type; String storageKey; Boolean isCardImage; Boolean isCover }
     class WorkingSchedule { UUID id; UUID profileId; Int weekday; Int startMinute; Int endMinute; Int capacity }
     class ScheduleException { UUID id; UUID profileId; Date date; Boolean isClosed }
-    class ProviderCredential { UUID id; UUID providerId; String storageKey; VerificationStatus status }
-    class ProviderCategoryRequest { UUID id; UUID providerId; UUID categoryId; RequestStatus status }
+    class ProviderCredential { UUID id; UUID providerId; UUID categoryId; String storageKey; VerificationStatus status; DateTime expiresAt }
+    class ProviderCategoryRequest { UUID id; UUID providerId; UUID categoryId; RequestStatus status; String decisionNote }
     class Booking { UUID id; String reference; UUID clientId; UUID profileId; UUID serviceId; DateTime startAt; DateTime endAt; BookingStatus status; PaymentStatus paymentStatus; Decimal priceMinSnap }
     class BookingStatusHistory { UUID id; UUID bookingId; BookingStatus fromStatus; BookingStatus toStatus; UUID actorId }
     class BookingReferenceMedia { UUID id; UUID bookingId; String storageKey }
@@ -108,14 +108,38 @@ Every transition writes a `BookingStatusHistory` row and an `OutboxEvent` in the
 stateDiagram-v2
     [*] --> DRAFT: sign-up or category added
     DRAFT --> PENDING_REVIEW: provider submits (checklist complete)
-    PENDING_REVIEW --> PUBLISHED: staff approve (Phase 10)
-    PENDING_REVIEW --> DRAFT: staff request changes (Phase 10)
+    PENDING_REVIEW --> PUBLISHED: ADMIN publishes (complete, owner active, credential for Botox)
+    PENDING_REVIEW --> DRAFT: ADMIN requests changes (reviewNote)
     PUBLISHED --> RESTRICTED: staff decision
-    PUBLISHED --> SUSPENDED: staff decision
+    DRAFT --> SUSPENDED: ADMIN suspends (reviewNote)
+    PENDING_REVIEW --> SUSPENDED: ADMIN suspends (reviewNote)
+    PUBLISHED --> SUSPENDED: ADMIN suspends (reviewNote)
+    SUSPENDED --> PUBLISHED: ADMIN reinstates (was published before)
+    SUSPENDED --> DRAFT: ADMIN reinstates (never published)
     DRAFT --> ARCHIVED: provider removes category
     PUBLISHED --> ARCHIVED: provider removes category
     ARCHIVED --> DRAFT: provider adds the category again
 ```
+
+## Provider account lifecycle (staff side)
+
+```mermaid
+stateDiagram-v2
+    [*] --> ONBOARDING: professional sign-up
+    ONBOARDING --> APPROVED: ADMIN approves, or first profile published
+    PENDING_REVIEW --> APPROVED: ADMIN approves, or first profile published
+    ONBOARDING --> REJECTED: ADMIN refuses (reviewNote)
+    PENDING_REVIEW --> REJECTED: ADMIN refuses (reviewNote)
+    APPROVED --> SUSPENDED: ADMIN suspends (reviewNote), every profile hidden
+    SUSPENDED --> APPROVED: ADMIN reinstates
+    REJECTED --> APPROVED: ADMIN reinstates
+```
+
+`verifiedAt` (the public "verified" badge) can be set only on an APPROVED account, by ADMIN+.
+Accepting a `ProviderCategoryRequest` creates (or reopens) a DRAFT profile; for Botox it first needs an
+APPROVED `ProviderCredential` for that category whose `expiresAt` is empty or in the future. Credential
+files live under `credentials/{providerId}/{uuid}.pdf|webp` in **private** storage. Every decision writes
+an `AuditLog` row, a `Notification` and an `OutboxEvent` in the same transaction.
 
 Media files live under `profiles/{profileId}/{uuid}.webp|mp4|mov` in public storage; `PortfolioMedia`
 holds the key, type, dimensions, order and the single card image.

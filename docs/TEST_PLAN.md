@@ -51,6 +51,13 @@ node scripts/page-shot.mjs http://localhost:3000/fr 375 812 .playwright-mcp/m-fu
 node scripts/console-check.mjs http://localhost:3000/fr/coiffeuses 375
 ```
 
+### Verified (2026-10-16, Phase 10 first slice: review queue)
+
+- Unit: 66 tests, adding review policies (who reads the queue, who decides, what can be published).
+- Integration: 57 tests, adding SUPPORT read-only and provider refusal on every review operation, queue filters/search/counts, publication into the directory with account approval, audit, notification and outbox email, incomplete profile and unverified owner refusals, change requests (note required, back to DRAFT), profile and account suspension hiding profiles and reinstatement, verified badge, Botox: PDF header detection, uploads limited to requested categories and stored privately (absent from the public root), ADMIN-only audited file access, expired or revoked credentials blocking both the request and publication, rejection notes.
+- End-to-end: 12 tests, adding a professional's submitted profile published by a CLI-created Super Admin and then visible in `/fr/nails`, and a Botox credential upload: the request is refused before validation, the file is served `no-store` as an attachment to staff and 404 to the professional, then validation and acceptance create the Botox draft.
+- Screenshots of the overview, queue and review page at 375/768/1440 in FR and AR (no horizontal overflow).
+
 ### Verified (2026-10-16, Phase 4)
 
 - Unit: 63 tests, adding magic-byte sniffing, image re-encoding (EXIF/GPS stripped, orientation applied, 2400 px cap, corrupt files rejected), schedule/closure/service/profile/settings validation, editing policies, Algiers time helpers.

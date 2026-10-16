@@ -98,3 +98,21 @@ export function canEditProfile(profile: ProfileStatus, account: ProviderStatus) 
 export function canSubmitProfile(profile: ProfileStatus, account: ProviderStatus) {
   return profile === "DRAFT" && canEditProfile(profile, account);
 }
+
+/** Staff (SUPPORT and above, verified) can open the review queue and read provider files. */
+export function canViewModeration(actor: Actor) {
+  return canSignIn(actor.status) && actor.emailVerified && isStaff(actor.role);
+}
+
+/**
+ * Publication, rejection, suspension, verification and category decisions: ADMIN and above.
+ * Credential documents (identity and diplomas) are also limited to ADMIN+ (least privilege).
+ */
+export function canReview(actor: Actor) {
+  return canVerifyProvider(actor);
+}
+
+/** A profile can be published only from review, by staff, never by its owner. */
+export function canPublishProfile(actor: Actor, profile: ProfileStatus) {
+  return canReview(actor) && profile === "PENDING_REVIEW";
+}

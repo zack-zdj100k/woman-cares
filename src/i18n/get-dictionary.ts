@@ -4,6 +4,7 @@ import type { Dictionary } from "./dictionaries/fr";
 import type { PagesDictionary } from "./dictionaries/pages.fr";
 import type { AuthDictionary } from "./dictionaries/auth.fr";
 import type { ProviderDictionary } from "./dictionaries/provider.fr";
+import type { AdminDictionary } from "./dictionaries/admin.fr";
 
 const loaders: Record<Locale, () => Promise<Dictionary>> = {
   fr: () => import("./dictionaries/fr").then((m) => m.default),
@@ -44,4 +45,14 @@ export function getProviderDictionary(locale: Locale): Promise<ProviderDictionar
   return providerLoaders[locale]();
 }
 
-export type { Dictionary, PagesDictionary, AuthDictionary, ProviderDictionary };
+const adminLoaders: Record<Locale, () => Promise<AdminDictionary>> = {
+  fr: () => import("./dictionaries/admin.fr").then((m) => m.default),
+  ar: () => import("./dictionaries/admin.ar").then((m) => m.default),
+};
+
+/** Copy for the staff area (review queue, decisions, audit labels). */
+export function getAdminDictionary(locale: Locale): Promise<AdminDictionary> {
+  return adminLoaders[locale]();
+}
+
+export type { Dictionary, PagesDictionary, AuthDictionary, ProviderDictionary, AdminDictionary };

@@ -82,13 +82,15 @@ ownership from the session. The REST routes below will wrap the same services.
 | GET | `/provider/billing` | Subscription, invoices, payment instructions. |
 | POST | `/provider/billing/invoices/{id}/payments` | Manual payment declaration with reference/proof. |
 | POST | `/provider/category-requests` · `/provider/support` | |
+| POST | `/provider/credentials` ✅ | Multipart `file`, `category`, `type` (diploma, training, license, other), optional `issuer`, `expiresAt`. Same-origin, ≤ 10 MB, 20 per hour, 12 per account. Only for categories with a pending request or an existing profile. PDF (header checked) stored as uploaded; JPEG/PNG/WebP re-encoded (metadata stripped). Private storage only. 201 `{ data: { id } }`; 422 `TYPE`/`SIZE`/`LIMIT`/`CORRUPT`; 404 `NOT_FOUND`; 409 `LOCKED`. |
 
 ## Admin (roles: SUPPORT ⊂ ADMIN ⊂ SUPER_ADMIN)
 
 | Method | Path | Notes |
 |---|---|---|
 | GET/PATCH | `/admin/users`, `/admin/users/{id}` | Suspend, restore. Role changes to ADMIN/SUPER_ADMIN: SUPER_ADMIN only. Audited. |
-| GET/PATCH | `/admin/providers/{id}` | Approve/reject, verify, add/remove categories, restrict a single profile. Audited. |
+| GET/PATCH | `/admin/providers/{id}` | Approve/reject, verify, add/remove categories, restrict a single profile. Audited. Today these decisions are Server Actions (`src/app/[locale]/dashboard/admin/actions.ts`) over `src/server/services/review.ts`; the REST routes will wrap the same services. |
+| GET | `/admin/credentials/{id}/file` ✅ | ADMIN+ only (404 otherwise, same as unknown ids). Streams the private document; PDFs as attachments, photos inline; `Cache-Control: private, no-store`, `nosniff`, sandbox CSP, `Referrer-Policy: no-referrer`. Each opening writes `credential.view` to the audit log. |
 | CRUD | `/admin/categories` | Deactivate, reorder, verification requirements, profile field schema. |
 | GET/POST | `/admin/pricing` | New price rows apply to future periods only. Audited. |
 | GET/PATCH | `/admin/subscriptions/{id}` | Negotiated price, exemption, grace extension. Audited. |

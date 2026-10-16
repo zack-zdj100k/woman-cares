@@ -38,6 +38,7 @@ function root(visibility: Visibility) {
   return path.resolve(process.env.STORAGE_LOCAL_DIR ?? ".storage", visibility);
 }
 
+// Storage lives outside the app bundle (STORAGE_LOCAL_DIR), so file tracing must skip these runtime paths.
 function fileFor(visibility: Visibility, key: string) {
   assertSafeKey(key);
   const base = root(visibility);
@@ -48,18 +49,18 @@ function fileFor(visibility: Visibility, key: string) {
 
 export async function putObject(visibility: Visibility, key: string, data: Buffer) {
   const file = fileFor(visibility, key);
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, data, { flag: "wx" }); // never overwrite: keys are random and unique
+  await mkdir(/*turbopackIgnore: true*/ path.dirname(file), { recursive: true });
+  await writeFile(/*turbopackIgnore: true*/ file, data, { flag: "wx" }); // never overwrite: keys are random and unique
 }
 
 export async function getObject(visibility: Visibility, key: string): Promise<Buffer | null> {
   try {
-    return await readFile(fileFor(visibility, key));
+    return await readFile(/*turbopackIgnore: true*/ fileFor(visibility, key));
   } catch {
     return null;
   }
 }
 
 export async function deleteObject(visibility: Visibility, key: string) {
-  await rm(fileFor(visibility, key), { force: true });
+  await rm(/*turbopackIgnore: true*/ fileFor(visibility, key), { force: true });
 }

@@ -13,5 +13,5 @@ export function formatDzd(amount: string | number, locale: Locale) {
 }
 
 export function formatDate(date: Date, locale: Locale, opts: Intl.DateTimeFormatOptions = { dateStyle: "long" }) {
-  return new Intl.DateTimeFormat(intlLocale[locale], { timeZone: TIMEZONE, numberingSystem: "latn", ...opts }).format(date);
+  return new Intl.DateTimeFormat(intlLocale[locale], { timeZone: TIMEZONE, numberingSystem: "latn", hourCycle: "h23", ...opts }).format(date);
 }

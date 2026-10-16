@@ -73,11 +73,19 @@ sequenceDiagram
     participant UI as Admin dashboard
     participant API
     participant DB
-    Admin->>UI: Open pending application
-    UI->>API: GET /admin/providers/{id}
-    API->>DB: Load account, profiles, credentials (signed URLs)
-    Admin->>UI: Approve (or reject with reason)
-    UI->>API: PATCH /admin/providers/{id}
-    API->>DB: Update status + AuditLog + OutboxEvent (same transaction)
-    API-->>UI: Updated state
+    Admin->>UI: Open the queue (/dashboard/admin/providers?filter=pending)
+    UI->>API: Load account, profiles, requests, credentials, audit (server render)
+    opt Regulated category (Botox)
+        Admin->>API: GET /api/v1/admin/credentials/{id}/file
+        API->>DB: AuditLog credential.view
+        Admin->>UI: Validate the document
+    end
+    Admin->>UI: Publish (or request changes / reject with a written reason)
+    UI->>API: Server Action reviewAction (ADMIN+ re-checked)
+    API->>DB: Status + AuditLog + Notification + OutboxEvent (one transaction)
+    API-->>UI: Cache tags invalidated, page refreshed, decision announced
 ```
+
+SUPPORT can open the queue and the review page but every decision button is replaced by a read-only notice,
+and the server refuses the decision anyway. A change request sends the profile back to DRAFT with the note,
+which the professional sees above her profile and in her email.

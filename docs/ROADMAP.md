@@ -42,16 +42,16 @@ flowchart TD
 | 7 | Provider dashboard | Not started. Profile view events are already recorded (privacy-conscious, one per visitor per day). |
 | 8 | Client dashboard | Not started. |
 | 9 | Subscriptions and payments | Not started (tables exist). |
-| 10 | Admin dashboard and CMS | Not started (tables exist). |
+| 10 | Admin dashboard and CMS | **Started** (2026-10-16): provider review queue. Queue with filters (to review, approved, suspended, rejected, all), search and pagination; one review page per professional (account, private address, profiles with services/media/hours, category requests, credentials, last 30 audit entries). Decisions (ADMIN+; SUPPORT reads only): publish a profile (re-checks completeness, owner account and, for Botox, an approved unexpired credential; approves the account on first publication), request changes (note, back to DRAFT), suspend/reinstate a profile, approve/reject/suspend/reinstate an account, verified badge on/off, accept/reject category requests (accepting creates a DRAFT profile), validate/reject credentials. Every decision is transactional, audited, notifies the professional in-app and by email (her language), and invalidates the public cache. Botox credential upload: PDF or photo into private storage, opened by ADMIN+ only, each opening audited. Verified: 66 unit, 57 integration, 12 end-to-end tests; FR/AR at 375/768/1440. Remaining: users, categories, pricing, subscriptions, payments, CMS, moderation of reviews, analytics, audit browser, settings. |
 | 11 | Email, media, background jobs | **Started.** Outbox, SMTP/log transports, delivery log, retries, worker, 4 auth templates. Media: storage adapter (local driver; public and private roots), `/uploads/*` route, upload pipeline. Remaining: S3-compatible driver, video transcoding/poster frames, booking/subscription email templates. |
 | 12 | Security and QA | Ongoing per phase. |
 | 13 | Deployment | Not started. |
 
 ## Next session
 
-1. Phase 10 (first slice): admin review queue to approve or reject submitted profiles and accounts, verify providers, approve Botox requests with credential upload (private storage), all audited. Without it nothing new can reach the public directory.
-2. Phase 6: booking engine (slot generation from the weekly hours, closures and capacity; transactional booking requests with concurrency tests); then the profile page's booking panel goes live.
+1. Phase 6: booking engine (slot generation from the weekly hours, closures and capacity; transactional booking requests with concurrency tests); then the profile page's booking panel goes live.
 3. Phase 5 remainder: import the full commune dataset with coordinates.
+4. Phase 10 next slices: user management screen, category and pricing management, audit log browser.
 
 ## Known limitations
 
@@ -59,7 +59,8 @@ flowchart TD
 - Rate limiting (contact, sign-up, sign-in, reset) is in-memory: correct for one instance; production with several instances needs a shared store.
 - Client and admin dashboards are minimal live overviews; their tools arrive in Phases 7, 8 and 10.
 - Only the local storage driver exists; `STORAGE_DRIVER=s3` fails loudly until the S3 driver is written. Videos are stored as uploaded (container checked, not transcoded).
-- Botox credential upload arrives with the admin review queue; today a Botox category request records the intent only.
+- Credentials are not re-checked when they expire after publication: a published Botox profile stays visible until staff suspend it. An expiry job belongs with Phase 11 background jobs.
+- The review queue uses Server Actions; the `/api/v1/admin/providers` REST routes are not written yet (only the credential file route exists).
 - A "not found" inside a streamed section (unknown profile, wrong dashboard role) shows the 404 page with `noindex` but an HTTP 200 status.
 - Emails use the `log` transport locally (printed to the server console). Real delivery needs SMTP credentials plus SPF/DKIM/DMARC, then a delivery test.
 - In development, Next.js may flag the profile gallery's first image as LCP without `loading="eager"`: the large image is eager; the warning comes from its small thumbnail sharing the same URL.

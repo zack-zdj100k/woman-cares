@@ -8,6 +8,9 @@ import { getLocale } from "@/i18n/server";
 import { db } from "@/lib/db";
 import { requireArea } from "@/lib/auth/session";
 import { listMyProfiles } from "@/server/services/provider-profiles";
+import { listMyCredentials } from "@/server/services/credentials";
+import { CredentialUpload } from "@/components/provider/credential-upload";
+import { formatDate } from "@/lib/format";
 import { archiveProfileAction } from "../actions";
 import { PageShell } from "@/components/layout/page-shell";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
@@ -34,10 +37,20 @@ export default async function ProfilesPage() {
 async function Profiles({ locale }: { locale: Locale }) {
   const user = await requireArea(locale, "provider", `/${locale}/dashboard/provider/profiles`);
   const [dict, t, pt, profiles] = await Promise.all([getDictionary(locale), getAuthDictionary(locale), getProviderDictionary(locale), listMyProfiles(user)]);
-  const requests = await db.providerCategoryRequest.findMany({
-    where: { provider: { userId: user.id }, status: "PENDING" },
-    select: { id: true, category: { select: { slug: true } } },
-  });
+  const [requests, rejectedRequests, credentials, account] = await Promise.all([
+    db.providerCategoryRequest.findMany({
+      where: { provider: { userId: user.id }, status: "PENDING" },
+      select: { id: true, category: { select: { slug: true, requiresCredentialReview: true } } },
+    }),
+    db.providerCategoryRequest.findMany({
+      where: { provider: { userId: user.id }, status: "REJECTED" },
+      orderBy: { decidedAt: "desc" },
+      take: 3,
+      select: { id: true, decisionNote: true, category: { select: { slug: true } } },
+    }),
+    listMyCredentials(user),
+    db.providerAccount.findUnique({ where: { userId: user.id }, select: { status: true, reviewNote: true } }),
+  ]);
   const name = (slug: string) => dict.categories[slug as CategorySlug]?.name ?? slug;
   const active = profiles.filter((p) => p.status !== "ARCHIVED");
   const archived = profiles.filter((p) => p.status === "ARCHIVED");
@@ -50,6 +63,12 @@ async function Profiles({ locale }: { locale: Locale }) {
       <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)]">{pt.profiles.title}</h1>
       <p className="mt-4 max-w-[44rem] text-lg leading-relaxed text-ink-2">{pt.profiles.intro}</p>
 
+      {account && (account.status === "REJECTED" || account.status === "SUSPENDED") && (
+        <p role="status" className="mt-8 rounded-(--radius-field) bg-surface p-5 leading-relaxed">
+          {account.status === "REJECTED" ? pt.review.accountRejected : pt.review.accountSuspended} {account.reviewNote}
+        </p>
+      )}
+
       <ul className="mt-10 grid gap-4">
         {active.map((p) => (
           <li key={p.id} className="flex flex-col gap-4 rounded-(--radius-media) border border-line p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -59,6 +78,11 @@ async function Profiles({ locale }: { locale: Locale }) {
                 <span className="rounded-full bg-surface px-3 py-1 text-sm">{t.dashboard.provider.profileStatuses[p.status]}</span>
               </p>
               <p className="mt-2 text-sm text-ink-2">{pt.profiles.counts(p._count.services, p._count.media, p._count.schedules > 0)}</p>
+              {p.reviewNote && (p.status === "DRAFT" || p.status === "SUSPENDED") && (
+                <p className="mt-2 text-sm text-rose-ink">
+                  {p.status === "SUSPENDED" ? pt.review.suspended : pt.review.changesRequested} {p.reviewNote}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Link href={`/${locale}/dashboard/provider/profiles/${p.id}`} className={buttonClass({ variant: "solid", size: "sm" })}>
@@ -87,6 +111,49 @@ async function Profiles({ locale }: { locale: Locale }) {
         <p className="mt-6 text-ink-2">
           {pt.profiles.pendingRequests} : {requests.map((r) => name(r.category.slug)).join(", ")}
         </p>
+      )}
+
+      {rejectedRequests.length > 0 && (
+        <ul className="mt-4 grid gap-1 text-sm text-ink-2">
+          {rejectedRequests.map((r) => (
+            <li key={r.id}>{pt.review.requestRejected(name(r.category.slug), r.decisionNote)}</li>
+          ))}
+        </ul>
+      )}
+
+      {(requests.some((r) => r.category.requiresCredentialReview) || credentials.length > 0) && (
+        <section aria-labelledby="credentials-title" className="mt-14 rounded-(--radius-media) border border-line p-6 md:p-8">
+          <h2 id="credentials-title" className="type-display text-3xl">
+            {pt.credentials.title}
+          </h2>
+          <p className="mt-2 mb-6 max-w-[44rem] text-ink-2">{pt.credentials.intro}</p>
+          {credentials.length === 0 ? (
+            <p className="mb-6 text-sm text-ink-2">{pt.credentials.none}</p>
+          ) : (
+            <ul className="mb-8 divide-y divide-line border-y border-line">
+              {credentials.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                  <span>
+                    {pt.credentials.types[c.type] ?? c.type} · {name(c.category?.slug ?? "")}
+                    {c.issuer && <span className="text-ink-2"> · {c.issuer}</span>}
+                    <span className="block text-ink-2">{formatDate(c.createdAt, locale)}</span>
+                    {c.status === "REJECTED" && c.notes && <span className="block text-rose-ink">{c.notes}</span>}
+                  </span>
+                  <span className="rounded-full bg-surface px-3 py-1">{pt.credentials.statuses[c.status]}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <CredentialUpload
+            copy={pt.credentials}
+            categories={[
+              ...requests.filter((r) => r.category.requiresCredentialReview).map((r) => r.category.slug),
+              ...active.filter((p) => p.category.slug === "botox").map((p) => p.category.slug),
+            ]
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .map((slug) => ({ slug, label: name(slug) }))}
+          />
+        </section>
       )}
 
       <section className="mt-14 rounded-(--radius-media) bg-surface p-6 md:p-8">

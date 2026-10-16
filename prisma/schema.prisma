@@ -373,6 +373,8 @@ model ProviderAccount {
   longitude          Decimal?           @db.Decimal(9, 6)
   locationVisibility LocationVisibility @default(APPROXIMATE)
   verifiedAt         DateTime?          @db.Timestamptz
+  /// Last staff message about the account (rejection or suspension reason).
+  reviewNote         String?
   createdAt          DateTime           @default(now()) @db.Timestamptz
   updatedAt          DateTime           @updatedAt @db.Timestamptz
 
@@ -412,6 +414,9 @@ model ProviderServiceProfile {
   /// False when the subscription lapses past grace; set by the billing service, never by the provider.
   billingVisible     Boolean       @default(true)
   restrictionReason  String?
+  /// Last staff message to the provider (changes requested, suspension reason). Shown in the editor.
+  reviewNote         String?
+  reviewedAt         DateTime?     @db.Timestamptz
   publishedAt        DateTime?     @db.Timestamptz
   createdAt          DateTime      @default(now()) @db.Timestamptz
   updatedAt          DateTime      @updatedAt @db.Timestamptz
@@ -439,6 +444,8 @@ model ProviderCategoryRequest {
   categoryId  String        @db.Uuid
   status      RequestStatus @default(PENDING)
   note        String?
+  /// Staff explanation sent to the provider with the decision.
+  decisionNote String?
   decidedById String?       @db.Uuid
   decidedAt   DateTime?     @db.Timestamptz
   createdAt   DateTime      @default(now()) @db.Timestamptz
@@ -456,7 +463,7 @@ model ProviderCredential {
   providerId   String             @db.Uuid
   categoryId   String?            @db.Uuid
   type         String // diploma, license, insurance, …
-  /// Private storage key; served only through short-lived signed URLs to admins.
+  /// Private storage key; streamed only to ADMIN+ by /api/v1/admin/credentials/{id}/file (audited).
   storageKey   String
   issuer       String?
   issuedAt     DateTime?          @db.Date

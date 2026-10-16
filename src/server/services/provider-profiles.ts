@@ -66,6 +66,7 @@ export async function listMyProfiles(actor: Actor) {
       status: true,
       headline: true,
       startingPrice: true,
+      reviewNote: true,
       category: { select: { slug: true } },
       _count: { select: { services: { where: { active: true } }, media: true, schedules: true } },
     },
@@ -268,7 +269,7 @@ export async function submitForReview(actor: Actor, profileId: string): Promise<
   if (!canSubmitProfile(profile.status as ProfileStatus, profile.provider.status as ProviderStatus)) return { status: "not-draft" };
   if (missing.length) return { status: "incomplete", missing };
   await db.$transaction([
-    db.providerServiceProfile.update({ where: { id: profile.id }, data: { status: "PENDING_REVIEW" } }),
+    db.providerServiceProfile.update({ where: { id: profile.id }, data: { status: "PENDING_REVIEW", reviewNote: null } }),
     db.providerAccount.updateMany({ where: { id: profile.provider.id, status: "ONBOARDING" }, data: { status: "PENDING_REVIEW" } }),
     db.auditLog.create({ data: { actorId: actor.id, action: "profile.submit", entityType: "ProviderServiceProfile", entityId: profile.id } }),
   ]);

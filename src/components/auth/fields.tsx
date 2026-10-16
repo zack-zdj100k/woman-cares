@@ -3,9 +3,9 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { fieldClass } from "@/components/ui/field-class";
 
-export const fieldClass =
-  "h-12 w-full rounded-(--radius-field) border bg-ground px-4 text-[0.95rem] text-ink transition-colors placeholder:text-ink-2/70 focus:border-rose focus:outline-none";
+export { fieldClass };
 
 export function Field({
   label,

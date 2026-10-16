@@ -85,7 +85,7 @@ Coordinates are rounded to two decimals (~1 km) before entering the URL.
 |---|---|---|
 | Client | `/dashboard/client` 🚧 (guarded overview) · `/appointments`, `/favorites`, `/profile`, `/notifications`, `/settings` ⬜ | |
 | Provider | `/dashboard/provider` ✅ overview · `/profiles` ✅ (list, add/archive categories) · `/profiles/[profileId]` ✅ editor (presentation, services, portfolio, hours, closures, submit) · `/settings` ✅ (business, location, visibility) · `/services` ✅ and `/schedule` ✅ (index into each profile's editor) · `/bookings`, `/analytics`, `/earnings`, `/billing`, `/notifications`, `/support` ⬜ | |
-| Admin | `/dashboard/admin` 🚧 (guarded overview with live counts) · `/users`, `/providers`, `/categories`, `/pricing`, `/subscriptions`, `/payments`, `/content`, `/moderation`, `/analytics`, `/support`, `/audit`, `/settings` ⬜ | |
+| Admin | `/dashboard/admin` ✅ overview with live counts and the review summary · `/providers` ✅ review queue (filters, search, pagination) · `/providers/[providerId]` ✅ review page (decisions ADMIN+, read-only for SUPPORT) · `/users`, `/categories`, `/pricing`, `/subscriptions`, `/payments`, `/content`, `/moderation`, `/analytics`, `/support`, `/audit`, `/settings` ⬜ | |
 
 Access: `src/proxy.ts` sends visitors without a session cookie to sign-in (optimistic, no database).
 Every dashboard page then calls `requireArea()` on the server: wrong role or suspended account → 404.
