@@ -14,6 +14,9 @@ import { priceRange, StatusBadge, when } from "@/components/dashboard/booking-ui
 import { Input } from "@/components/ui/input";
 import { buttonClass } from "@/components/ui/button";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 const FILTERS: ProviderBookingFilter[] = ["pending", "today", "upcoming", "past", "cancelled", "all"];
 
 export async function generateMetadata(): Promise<Metadata> {

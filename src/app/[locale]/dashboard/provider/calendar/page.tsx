@@ -17,6 +17,9 @@ import { StatusBadge } from "@/components/dashboard/booking-ui";
 import { buttonClass } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
   return { title: d.calendar.title, robots: { index: false } };

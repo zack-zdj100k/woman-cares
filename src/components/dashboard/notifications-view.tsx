@@ -11,7 +11,7 @@ import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** Notification centre shared by the client and professional dashboards. */
-export async function NotificationsView({ user, locale, area, page }: { user: SessionUser; locale: Locale; area: "client" | "provider"; page: number }) {
+export async function NotificationsView({ user, locale, area, page }: { user: SessionUser; locale: Locale; area: "client" | "provider" | "admin"; page: number }) {
   const [d, data] = await Promise.all([getDashboardDictionary(locale), listMyNotifications(user, page)]);
   const n = d.notifications;
   return (
@@ -46,7 +46,7 @@ export async function NotificationsView({ user, locale, area, page }: { user: Se
                 <p className="mt-1 text-xs text-muted-foreground">{formatDate(row.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Link href={notificationHref(locale, area, row.type)} className="rounded-lg px-2.5 py-1.5 text-sm text-chart-1 hover:bg-white/6">
+                <Link href={notificationHref(locale, area, row.type, row.data)} className="rounded-lg px-2.5 py-1.5 text-sm text-chart-1 hover:bg-white/6">
                   {n.open}
                 </Link>
                 {!row.readAt && (

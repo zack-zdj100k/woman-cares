@@ -11,6 +11,9 @@ import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-ta
 import { priceRange, StatusBadge, when } from "@/components/dashboard/booking-ui";
 import { FindCareButton } from "@/components/marketing/find-care-button";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 const FILTERS: ClientBookingFilter[] = ["upcoming", "pending", "past", "all"];
 
 export async function generateMetadata(): Promise<Metadata> {

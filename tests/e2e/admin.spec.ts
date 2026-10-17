@@ -8,6 +8,9 @@ test("a CLI-created Super Admin schedules a category price and finds it in the h
 
   const nails = page.getByRole("region", { name: "Ongles" });
   await nails.getByLabel("Prix mensuel (DA)").fill("41250");
+  // Tomorrow (Algiers), so the new price is scheduled rather than in force at once.
+  const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Algiers" }).format(new Date(Date.now() + 86_400_000));
+  await nails.getByLabel("À partir du").fill(tomorrow);
   await nails.getByRole("button", { name: "Programmer" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Modification enregistrée." })).toBeVisible();
 
@@ -16,14 +19,14 @@ test("a CLI-created Super Admin schedules a category price and finds it in the h
   await expect(row.getByText("À venir")).toBeVisible();
   await expect(nails.getByText(/À partir du .* : 41\s250\sDA/)).toBeVisible();
 
-  // A date in the past is refused by the server, whatever the browser allows.
+  // A date before 2020 is refused by the server, whatever the browser allows.
   await nails.getByLabel("Prix mensuel (DA)").fill("39000");
   await nails.getByLabel("À partir du").evaluate((el: HTMLInputElement) => {
     el.removeAttribute("min");
-    el.value = "2026-01-01";
+    el.value = "2019-01-01";
   });
   await nails.getByRole("button", { name: "Programmer" }).click();
-  await expect(nails.getByRole("alert")).toHaveText("Choisissez une date à partir de demain (deux ans au plus).");
+  await expect(nails.getByRole("alert")).toHaveText("Choisissez une date valide (à partir de 2020, deux ans à l’avance au plus).");
   await expect(nails.getByRole("row").filter({ hasText: /39\s000\sDA/ })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Journal" }).click();

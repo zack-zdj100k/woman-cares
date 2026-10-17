@@ -24,7 +24,7 @@ const client: Group[] = [
     label: (g) => g.account,
     modules: [
       { key: "notifications", path: "/notifications", icon: "notifications", label: (n) => n.notifications, ready: true, badge: "unread" },
-      { key: "profile", path: "/profile", icon: "profile", label: (n) => n.profile, ready: false },
+      { key: "profile", path: "/profile", icon: "profile", label: (n) => n.profile, ready: true },
       { key: "support", path: "/support", icon: "support", label: (n) => n.support, ready: false },
     ],
   },
@@ -96,13 +96,14 @@ const admin: Group[] = [
     modules: [
       { key: "content", path: "/content", icon: "content", label: (n) => n.content, ready: false },
       { key: "moderation", path: "/moderation", icon: "moderation", label: (n) => n.moderation, ready: false },
-      { key: "support", path: "/support", icon: "support", label: (n) => n.adminSupport, ready: false, badge: "support" },
+      { key: "messages", path: "/messages", icon: "support", label: (n) => n.messages, ready: true, badge: "messages" },
     ],
   },
   {
     label: (g) => g.system,
     modules: [
       { key: "analytics", path: "/analytics", icon: "analytics", label: (n) => n.adminAnalytics, ready: false },
+      { key: "notifications", path: "/notifications", icon: "notifications", label: (n) => n.notifications, ready: true, badge: "unread" },
       { key: "audit", path: "/audit-logs", icon: "audit", label: (n) => n.audit, ready: true },
       { key: "settings", path: "/settings", icon: "settings", label: (n) => n.platformSettings, ready: false },
     ],

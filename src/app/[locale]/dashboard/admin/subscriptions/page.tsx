@@ -6,11 +6,14 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
 import { canReview } from "@/server/policies/roles";
-import { listSubscriptions, type SubscriptionFilter } from "@/server/services/billing";
+import { getTrialDefault, listSubscriptions, type SubscriptionFilter } from "@/server/services/billing";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
-import { RunCycleButton } from "@/components/dashboard/billing-forms";
+import { RunCycleButton, TrialDefaultForm } from "@/components/dashboard/billing-forms";
 import { Badge } from "@/components/ui/badge";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 const FILTERS: SubscriptionFilter[] = ["all", "TRIALING", "ACTIVE", "GRACE", "EXPIRED", "EXEMPT", "NEGOTIATED"];
 
@@ -32,7 +35,7 @@ async function Subscriptions({ params, searchParams }: PageProps<"/[locale]/dash
   const sp = await searchParams;
   const filter = (FILTERS as string[]).includes(String(sp.filter)) ? (sp.filter as SubscriptionFilter) : "all";
   const page = Math.max(1, Math.min(500, Number(sp.page) || 1));
-  const [d, result] = await Promise.all([getDashboardDictionary(locale), listSubscriptions(user, filter, undefined, page)]);
+  const [d, result, trialDays] = await Promise.all([getDashboardDictionary(locale), listSubscriptions(user, filter, undefined, page), getTrialDefault(user)]);
   const b = d.billing;
   const base = `/${locale}/dashboard/admin/subscriptions`;
   const href = (f: string, p = 1) => `${base}?filter=${f}${p > 1 ? `&page=${p}` : ""}`;
@@ -44,6 +47,14 @@ async function Subscriptions({ params, searchParams }: PageProps<"/[locale]/dash
         description={b.adminDescription}
         actions={canReview(user) ? <RunCycleButton locale={locale} labels={{ run: b.runCycle, errors: b.errors }} /> : undefined}
       />
+      {canReview(user) && (
+        <div className="mb-6 rounded-2xl border border-border bg-card p-5">
+          <TrialDefaultForm
+            days={trialDays}
+            labels={{ title: b.trialDefaultTitle, help: b.trialDefaultHelp, days: b.trialDefaultDays, save: b.trialDefaultSave, done: b.trialDefaultDone, errors: b.errors }}
+          />
+        </div>
+      )}
       <FilterTabs active={filter} items={FILTERS.map((f) => ({ key: f, label: b.filters[f], href: href(f) }))} />
       <DataTable head={[b.provider, b.status, b.basis, b.period, b.outstanding, ""]} empty={result.rows.length === 0 ? b.empty : undefined}>
         {result.rows.map((s) => {

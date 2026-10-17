@@ -5,7 +5,7 @@ import type { Locale } from "@/i18n/config";
 import { getAdminDictionary, getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDzd } from "@/lib/format";
 import { canViewAudit } from "@/server/policies/roles";
 import { getAdminOverview } from "@/server/services/admin-overview";
 import { queueCounts } from "@/server/services/review";
@@ -15,6 +15,9 @@ import { TrendChart } from "@/components/dashboard/trend-chart";
 import { Badge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
@@ -33,6 +36,7 @@ async function AdminDashboard({ locale }: { locale: Locale }) {
   const [d, at, o, q] = await Promise.all([getDashboardDictionary(locale), getAdminDictionary(locale), getAdminOverview(user), queueCounts(user)]);
   const c = d.adminOverview;
   const nf = new Intl.NumberFormat(locale === "ar" ? "ar-DZ" : "fr-FR", { numberingSystem: "latn" } as Intl.NumberFormatOptions);
+  const monthFmt = new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ-u-nu-latn" : "fr-FR", { month: "short", timeZone: "UTC" });
   const dayFmt = new Intl.DateTimeFormat(locale === "ar" ? "ar-DZ-u-nu-latn" : "fr-FR", { day: "numeric", month: "short", timeZone: "UTC" });
   const series = o.series.map((s) => ({ ...s, label: dayFmt.format(new Date(`${s.week}T12:00:00Z`)) }));
   const queue = [
@@ -51,6 +55,32 @@ async function AdminDashboard({ locale }: { locale: Locale }) {
         <StatCard icon="providers" label={c.stats.published} value={nf.format(o.published)} />
         <StatCard icon="appointments" label={c.stats.bookings} value={nf.format(o.bookingsMonth)} hint={c.stats.pending(o.pendingBookings)} />
       </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon="earnings" label={c.money.thisMonth} value={formatDzd(String(o.money.thisMonth), locale)} hint={c.money.vsLast(formatDzd(String(o.money.lastMonth), locale))} />
+        <StatCard icon="payments" label={c.money.total} value={formatDzd(String(o.money.total), locale)} />
+        <StatCard icon="invoices" label={c.money.outstanding} value={formatDzd(String(o.money.outstanding), locale)} hint={c.money.outstandingHint(o.money.outstandingCount)} />
+        <StatCard icon="bookings" label={c.money.pending} value={nf.format(o.money.pendingCount)} hint={c.money.pendingHint(formatDzd(String(o.money.pending), locale))} />
+      </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{c.money.title}</CardTitle>
+          <CardDescription>{c.money.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TrendChart
+            data={o.money.series.map((m) => ({ ...m, label: monthFmt.format(new Date(`${m.month}-15T12:00:00Z`)) }))}
+            xKey="label"
+            rtl={locale === "ar"}
+            money={{ locale: locale === "ar" ? "ar-DZ" : "fr-FR", currency: "DZD" }}
+            series={[
+              { key: "collected", label: c.money.collected, color: "var(--chart-1)" },
+              { key: "invoiced", label: c.money.invoiced, color: "var(--chart-2)" },
+            ]}
+          />
+        </CardContent>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>
@@ -78,7 +108,7 @@ async function AdminDashboard({ locale }: { locale: Locale }) {
               <CardTitle>{c.queue}</CardTitle>
               <CardDescription>{q.providers === 0 ? c.queueEmpty : at.overview.queueCounts(q.providers, q.profiles, q.requests, q.credentials)}</CardDescription>
             </div>
-            <Link href={`/${locale}/dashboard/admin/providers`} className={buttonClass({ variant: "solid", size: "sm", className: "shrink-0" })}>
+            <Link href={`/${locale}/dashboard/admin/providers?filter=pending`} className={buttonClass({ variant: "solid", size: "sm", className: "shrink-0" })}>
               {c.openQueue}
             </Link>
           </CardHeader>

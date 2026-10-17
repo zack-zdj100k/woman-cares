@@ -7,6 +7,9 @@ import { getMyBilling } from "@/server/services/billing";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { InvoiceList } from "@/components/dashboard/invoice-list";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
   return { title: d.billing.invoicesTitle, robots: { index: false } };

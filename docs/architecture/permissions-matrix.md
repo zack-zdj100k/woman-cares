@@ -19,3 +19,7 @@ service). Hiding a link is never the protection. ✔ allowed, R read only, own =
 | Subscription terms, verify payments, run cycle | | | | R | ✔ | ✔ |
 | Audit log | | | | | ✔ | ✔ |
 | Private credential files | | | | | ✔ (each opening audited) | ✔ |
+| Trial end per professional, default trial length, payment date | | | | R | ✔ | ✔ |
+| Contact-form messages (read, sort, delete) | | | | | | ✔ |
+| Permanent deletions (accounts, categories, subscriptions, invoices, payments, journal entries) | | | | | | ✔ (not herself, not the last Super Admin) |
+| Own account settings (name, language, password) | | ✔ | ✔ | ✔ | ✔ | ✔ |

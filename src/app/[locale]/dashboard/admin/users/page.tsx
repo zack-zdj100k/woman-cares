@@ -12,6 +12,9 @@ import { AdminTitle, Chip, EmptyState, Pager, adminPage } from "@/components/adm
 import { buttonClass, segmentItem, segmentTray } from "@/components/ui/button";
 import { fieldClass } from "@/components/ui/field-class";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 const STATUSES: Status[] = ["ACTIVE", "PENDING_VERIFICATION", "SUSPENDED", "DEACTIVATED"];
 
 export async function generateMetadata(): Promise<Metadata> {

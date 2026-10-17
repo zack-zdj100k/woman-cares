@@ -12,6 +12,9 @@ import { InvoiceList } from "@/components/dashboard/invoice-list";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
   return { title: d.billing.title, robots: { index: false } };

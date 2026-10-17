@@ -8,6 +8,14 @@ import { DashboardShell } from "@/components/dashboard/shell/dashboard-shell";
 import { buildNav } from "@/components/dashboard/shell/nav";
 
 /** Every provider dashboard page sits in the shared dark shell. Pages still check access themselves. */
+
+/**
+ * Dashboard pages wait for their data on navigation instead of flashing a skeleton first: the server
+ * answers in well under 100 ms, while a skeleton costs React's 300 ms reveal delay on every click
+ * (docs/ARCHITECTURE.md › Dashboard navigation speed).
+ */
+export const instant = false;
+
 export default function Layout({ children, params }: LayoutProps<"/[locale]/dashboard/provider">) {
   return (
     <Suspense fallback={<div className="dashboard-dark min-h-dvh" />}>

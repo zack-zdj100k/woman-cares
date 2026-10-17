@@ -25,9 +25,12 @@ export function isIsoDay(value: string) {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
-/** A new price starts tomorrow at the earliest (today's price is already public), and at most two years ahead. */
+/**
+ * A price can start on any day from 2020 up to two years ahead (owner decision, 2026-10-17). A day
+ * today or earlier is in effect at once; invoices already issued keep the price they were issued with.
+ */
 export function isValidPriceStart(day: string, today: string) {
-  return isIsoDay(day) && day > today && day <= addDays(today, MAX_AHEAD_DAYS);
+  return isIsoDay(day) && day >= "2020-01-01" && day <= addDays(today, MAX_AHEAD_DAYS);
 }
 
 /** Whole dinars, above zero, below a sanity ceiling. Returns null when the input is not a valid price. */

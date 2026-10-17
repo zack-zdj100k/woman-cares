@@ -163,11 +163,17 @@ describe("users: suspension", () => {
     expect((await getUserDetail(admin, providerUserId)).history?.map((h) => h.action)).toEqual(["user.restore", "user.suspend"]);
   });
 
-  it("restores an account that never confirmed its email to PENDING_VERIFICATION", async () => {
+  it("restores an account to the status it had before the suspension", async () => {
     const pending = await person("CLIENT", "pending@test.invalid", "Sara Pending", { verified: false });
     await setUserSuspended(admin, pending.id, true, REASON);
     await setUserSuspended(admin, pending.id, false, "");
     expect((await db.user.findUniqueOrThrow({ where: { id: pending.id } })).status).toBe("PENDING_VERIFICATION");
+    // Active without a confirmed email (accounts created before verification existed): back to ACTIVE.
+    const legacy = await person("CLIENT", "legacy@test.invalid", "Lina Legacy", { verified: false });
+    await db.user.update({ where: { id: legacy.id }, data: { status: "ACTIVE" } });
+    await setUserSuspended(admin, legacy.id, true, REASON);
+    await setUserSuspended(admin, legacy.id, false, "");
+    expect((await db.user.findUniqueOrThrow({ where: { id: legacy.id } })).status).toBe("ACTIVE");
   });
 
   it("keeps staff suspensions for the Super Admin", async () => {
@@ -254,12 +260,12 @@ describe("categories", () => {
 describe("pricing", () => {
   const OCT_16 = new Date("2026-10-16T10:00:00Z");
 
-  it("adds a future price row (ADMIN+), audited, and never accepts today or the past", async () => {
+  it("adds a price row on any valid day (ADMIN+), audited", async () => {
     const nails = await category("nails");
     await expect(addCategoryPrice(support, nails.id, "35000", "2026-11-01", OCT_16)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(addCategoryPrice(client, nails.id, "35000", "2026-11-01", OCT_16)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(addCategoryPrice(admin, nails.id, "35000", "2026-10-16", OCT_16)).rejects.toMatchObject({ reason: "date" });
-    await expect(addCategoryPrice(admin, nails.id, "35000", "2026-09-01", OCT_16)).rejects.toMatchObject({ reason: "date" });
+    await expect(addCategoryPrice(admin, nails.id, "35000", "2019-12-31", OCT_16)).rejects.toMatchObject({ reason: "date" });
+    await expect(addCategoryPrice(admin, nails.id, "35000", "2029-01-01", OCT_16)).rejects.toMatchObject({ reason: "date" });
     await expect(addCategoryPrice(admin, nails.id, "35000.50", "2026-11-01", OCT_16)).rejects.toMatchObject({ reason: "price" });
     await expect(addCategoryPrice(admin, "00000000-0000-0000-0000-000000000000", "35000", "2026-11-01", OCT_16)).rejects.toBeInstanceOf(ForbiddenError);
     expect(await db.categorySubscriptionPricing.count()).toBe(0);

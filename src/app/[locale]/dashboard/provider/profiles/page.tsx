@@ -15,6 +15,9 @@ import { AddCategoryForm } from "@/components/provider/add-category-form";
 import { buttonClass } from "@/components/ui/button";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const pt = await getProviderDictionary(await getLocale());
   return { title: pt.profiles.title, robots: { index: false } };

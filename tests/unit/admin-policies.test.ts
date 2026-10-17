@@ -70,8 +70,9 @@ describe("price effective dates (Algiers days)", () => {
     const today = "2026-10-16";
     expect(isValidPriceStart("2026-10-17", today)).toBe(true);
     expect(isValidPriceStart("2028-10-15", today)).toBe(true);
-    expect(isValidPriceStart("2026-10-16", today)).toBe(false);
-    expect(isValidPriceStart("2026-01-01", today)).toBe(false);
+    expect(isValidPriceStart("2026-10-16", today)).toBe(true); // today: in effect at once
+    expect(isValidPriceStart("2026-01-01", today)).toBe(true); // back-dated
+    expect(isValidPriceStart("2019-12-31", today)).toBe(false);
     expect(isValidPriceStart("2029-01-01", today)).toBe(false);
     expect(isValidPriceStart("2026-02-30", today)).toBe(false);
     expect(isIsoDay("2026-13-01")).toBe(false);

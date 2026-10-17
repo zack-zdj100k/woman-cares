@@ -1,4 +1,5 @@
 import "server-only";
+import { notifyStaff } from "./staff-alerts";
 import { randomInt } from "node:crypto";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
@@ -15,7 +16,7 @@ const DAY = 86_400_000;
 
 /** The request cannot be done in the current state (reason for the UI). */
 export class BillingBlocked extends Error {
-  constructor(public reason: "state" | "amount" | "note" | "pending" | "basis") {
+  constructor(public reason: "state" | "amount" | "note" | "pending" | "basis" | "date") {
     super(reason);
   }
 }
@@ -231,6 +232,13 @@ export async function declarePayment(
       data: { invoiceId: invoice.id, amount: invoice.total, status: "PENDING", method: input.method, externalReference: reference, note: input.note?.trim().slice(0, 500) || null, idempotencyKey: key, declaredById: actor.id },
     });
     await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.payment.declare", entityType: "SubscriptionPayment", entityId: payment.id, metadata: { invoice: invoice.number, method: input.method } } });
+    const owner = await tx.providerAccount.findUniqueOrThrow({ where: { id: account.id }, select: { businessName: true } });
+    await notifyStaff(tx, {
+      kind: "payment",
+      path: "/dashboard/admin/payments?status=PENDING",
+      data: { client: owner.businessName, reference: invoice.number, amount: formatDzd(invoice.total.toString(), "fr") },
+      dedupeKey: `staff:payment:${payment.id}`,
+    });
     return payment;
   });
 }
@@ -348,30 +356,33 @@ export async function verifyPayment(actor: Actor, paymentId: string, approve: bo
 }
 
 /** Staff record a payment received directly (cash at an office, transfer seen on the account). */
-export async function recordPayment(actor: Actor, invoiceId: string, input: { method: "MANUAL_TRANSFER" | "CCP" | "BARIDIMOB" | "CASH"; reference: string }) {
+export async function recordPayment(actor: Actor, invoiceId: string, input: { method: "MANUAL_TRANSFER" | "CCP" | "BARIDIMOB" | "CASH"; reference: string; paidAt?: Date | null }) {
   requireBillingAdmin(actor);
   if (!UUID.test(invoiceId)) throw new ForbiddenError();
   const reference = input.reference.trim().slice(0, 120);
   if (reference.length < 3) throw new BillingBlocked("note");
+  // The day the money was received: any past day (a transfer noticed late), never the future.
+  const paidAt = input.paidAt ?? new Date();
+  if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + DAY || paidAt.getTime() < Date.UTC(2020, 0, 1)) throw new BillingBlocked("date");
   return db.$transaction(async (tx) => {
     const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
     if (!invoice) throw new ForbiddenError();
     if (invoice.status === "PAID" || invoice.status === "VOID") throw new BillingBlocked("state");
     const payment = await tx.subscriptionPayment.create({
-      data: { invoiceId, amount: invoice.total, status: "PAID", method: input.method, externalReference: reference, verifiedById: actor.id, verifiedAt: new Date() },
+      data: { invoiceId, amount: invoice.total, status: "PAID", method: input.method, externalReference: reference, verifiedById: actor.id, verifiedAt: paidAt, createdAt: paidAt },
     });
-    await settleInvoice(tx, invoiceId);
-    await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.payment.record", entityType: "SubscriptionPayment", entityId: payment.id, metadata: { invoice: invoice.number, amount: invoice.total.toString(), method: input.method } } });
+    await settleInvoice(tx, invoiceId, paidAt);
+    await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.payment.record", entityType: "SubscriptionPayment", entityId: payment.id, metadata: { invoice: invoice.number, amount: invoice.total.toString(), method: input.method, paidAt: paidAt.toISOString() } } });
     await notify(tx, invoice.providerId, "billing-paid", { reference: invoice.number, amount: invoice.total.toString() }, `payment:${payment.id}:ok`);
   });
 }
 
 /** Mark an invoice paid once verified payments cover it, then refresh the subscription. */
-async function settleInvoice(tx: Prisma.TransactionClient, invoiceId: string) {
+async function settleInvoice(tx: Prisma.TransactionClient, invoiceId: string, paidAt = new Date()) {
   const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { payments: { where: { status: "PAID" } } } });
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   if (paid >= Number(invoice.total) && invoice.status !== "PAID") {
-    await tx.invoice.update({ where: { id: invoice.id }, data: { status: "PAID", paidAt: new Date() } });
+    await tx.invoice.update({ where: { id: invoice.id }, data: { status: "PAID", paidAt } });
   }
   await refreshState(tx, invoice.subscriptionId, new Date());
 }
@@ -401,4 +412,61 @@ export async function listPayments(actor: Actor, status: "PENDING" | "PAID" | "F
     }),
   ]);
   return { total, rows, pageCount: Math.max(1, Math.ceil(total / 25)) };
+}
+
+// ───────────── Free trial (admin) ─────────────
+
+/** Default free-trial length for professionals approved from now on (0 = no free trial). */
+export async function getTrialDefault(actor: Actor) {
+  if (!canViewModeration(actor)) throw new ForbiddenError();
+  return (await settings()).trialDays;
+}
+
+export async function setTrialDefault(actor: Actor, days: number) {
+  requireBillingAdmin(actor);
+  if (!Number.isInteger(days) || days < 0 || days > 730) throw new BillingBlocked("amount");
+  const before = (await settings()).trialDays;
+  await db.$transaction([
+    db.platformSetting.upsert({ where: { key: "billing.trialDays" }, create: { key: "billing.trialDays", value: days }, update: { value: days } }),
+    db.auditLog.create({ data: { actorId: actor.id, action: "subscription.trial.default", entityType: "PlatformSetting", entityId: "billing.trialDays", metadata: { from: before, to: days } } }),
+  ]);
+}
+
+/**
+ * Sets when one professional's free trial ends, to any date. A future date gives (or gives back)
+ * free time: billing resumes at that date. Today or a past date ends the trial now, so the next
+ * period is invoiced at once. Invoices already issued are kept; delete or void them separately.
+ */
+export async function setTrialEnd(actor: Actor, providerId: string, endsAt: Date, now = new Date()) {
+  requireBillingAdmin(actor);
+  if (!UUID.test(providerId) || Number.isNaN(endsAt.getTime())) throw new ForbiddenError();
+  if (endsAt.getTime() < Date.UTC(2020, 0, 1) || endsAt.getTime() > now.getTime() + 5 * 365 * DAY) throw new BillingBlocked("date");
+  const account = await db.providerAccount.findUnique({ where: { id: providerId }, select: { id: true } });
+  if (!account) throw new ForbiddenError();
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "ProviderAccount" WHERE id = ${providerId}::uuid FOR UPDATE`;
+    const sub = await ensureSubscription(tx, providerId, now);
+    const fixed = sub.status === "EXEMPT" || sub.status === "SUSPENDED" || sub.status === "CANCELLED";
+    const future = endsAt > now;
+    await tx.providerSubscription.update({
+      where: { id: sub.id },
+      data: {
+        trialEndsAt: endsAt,
+        // Free time moves the next billing period to the end of the trial.
+        ...(future && !fixed ? { status: "TRIALING", graceEndsAt: null, ...(sub.currentPeriodEnd && sub.currentPeriodEnd < endsAt ? { currentPeriodEnd: endsAt } : {}) } : {}),
+        // Ending the trial before any billing period: periods start from the new end date.
+        ...(!future && !sub.currentPeriodEnd ? { currentPeriodEnd: null } : {}),
+      },
+    });
+    await tx.auditLog.create({
+      data: { actorId: actor.id, action: "subscription.trial.set", entityType: "ProviderSubscription", entityId: sub.id, metadata: { providerId, from: sub.trialEndsAt?.toISOString() ?? null, to: endsAt.toISOString() } },
+    });
+    if (!fixed) await issueDue(tx, sub.id, now);
+    return refreshState(tx, sub.id, now);
+  });
+}
+
+/** Recomputes a subscription's status and directory visibility (after staff deletions). */
+export function recomputeSubscription(tx: Prisma.TransactionClient, subscriptionId: string, now = new Date()) {
+  return refreshState(tx, subscriptionId, now);
 }

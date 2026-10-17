@@ -5,6 +5,9 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { NotificationsView } from "@/components/dashboard/notifications-view";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
   return { title: d.notifications.title, robots: { index: false } };

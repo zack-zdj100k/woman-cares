@@ -2,12 +2,20 @@ import { Suspense } from "react";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getSessionUser } from "@/lib/auth/session";
-import { canAccessArea, canViewAudit } from "@/server/policies/roles";
+import { canAccessArea, canReadMessages, canViewAudit } from "@/server/policies/roles";
 import { shellCounts } from "@/server/services/dashboard-shell";
 import { DashboardShell } from "@/components/dashboard/shell/dashboard-shell";
 import { buildNav } from "@/components/dashboard/shell/nav";
 
 /** Every admin dashboard page sits in the shared dark shell. Pages still check access themselves. */
+
+/**
+ * Dashboard pages wait for their data on navigation instead of flashing a skeleton first: the server
+ * answers in well under 100 ms, while a skeleton costs React's 300 ms reveal delay on every click
+ * (docs/ARCHITECTURE.md › Dashboard navigation speed).
+ */
+export const instant = false;
+
 export default function Layout({ children, params }: LayoutProps<"/[locale]/dashboard/admin">) {
   return (
     <Suspense fallback={<div className="dashboard-dark min-h-dvh" />}>
@@ -23,8 +31,8 @@ async function Shell({ children, params }: { children: React.ReactNode; params: 
   // Not allowed here: render the page alone, which redirects to sign-in or shows the 404 page.
   if (!user || !canAccessArea(user, "admin")) return <div className="dashboard-dark min-h-dvh">{children}</div>;
   const [d, counts] = await Promise.all([getDashboardDictionary(locale), shellCounts(user, "admin")]);
-  const groups = buildNav("admin", locale, d, { badges: counts.badges, allowed: (key) => key !== "audit" || canViewAudit(user) });
-  const notificationsHref = `/${locale}/dashboard/admin/providers?filter=pending`;
+  const groups = buildNav("admin", locale, d, { badges: counts.badges, allowed: (key) => (key === "audit" ? canViewAudit(user) : key === "messages" ? canReadMessages(user) : true) });
+  const notificationsHref = `/${locale}/dashboard/admin/notifications`;
   return (
     <DashboardShell locale={locale} area="admin" user={user} groups={groups} unread={counts.unread} notificationsHref={notificationsHref}>
       {children}

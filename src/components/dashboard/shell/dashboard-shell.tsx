@@ -90,6 +90,7 @@ export async function DashboardShell({
                 locale={locale}
                 firstName={initials}
                 dashboardHref={home}
+                settings={{ href: `${home}/${area === "client" ? "profile" : "account"}`, label: d.account.menu }}
                 labels={t.account}
                 pillClass="grid size-9 place-items-center rounded-full bg-secondary text-xs font-semibold text-foreground hover:bg-accent [&>svg]:hidden"
               />

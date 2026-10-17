@@ -16,6 +16,7 @@ export type EmailTemplate =
   | "booking-cancelled"
   | "booking-reschedule"
   | "booking-reschedule-reply"
+  | "staff-alert"
   | "billing-invoice"
   | "billing-grace"
   | "billing-expired"
@@ -36,6 +37,8 @@ export type TemplateData = {
   reference?: string;
   when?: string;
   client?: string;
+  /** staff-alert: what happened. */
+  kind?: "provider" | "contact" | "payment";
   /** booking-cancelled: who cancelled. */
   by?: "client" | "provider";
   /** Billing: amount already formatted. */
@@ -261,6 +264,21 @@ const copy: Record<EmailTemplate, Record<Locale, (d: TemplateData) => Copy>> = {
       button: "عرض الموعد",
       footnote: "يمكنك إدارة هذا الموعد من مساحتك.",
     }),
+  },
+
+  "staff-alert": {
+    fr: (d) =>
+      d.kind === "provider"
+        ? { subject: `Nouvelle professionnelle inscrite : ${d.client ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} vient de créer un compte professionnel (${d.note ?? ""}).`, d.category ? `Catégories : ${d.category}.` : "", "Ouvrez sa fiche pour vérifier ses informations."], button: "Voir la fiche", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
+        : d.kind === "contact"
+          ? { subject: `Nouveau message : ${d.reference ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} a écrit depuis le formulaire de contact.`, `Objet : ${d.reference ?? ""}`], button: "Lire le message", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
+          : { subject: `Paiement déclaré : ${d.reference ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} déclare avoir réglé la facture ${d.reference ?? ""} (${d.amount ?? ""}).`, "Vérifiez la réception puis validez ou refusez le paiement."], button: "Vérifier le paiement", footnote: "Alerte envoyée aux super administratrices de Woman Cares." },
+    ar: (d) =>
+      d.kind === "provider"
+        ? { subject: `محترفة جديدة مسجلة: ${d.client ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`أنشأت ${d.client ?? ""} حسابًا مهنيًا (${d.note ?? ""}).`, d.category ? `الفئات: ${d.category}.` : "", "افتحي ملفها للتحقق من معلوماتها."], button: "عرض الملف", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
+        : d.kind === "contact"
+          ? { subject: `رسالة جديدة: ${d.reference ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`كتب(ت) ${d.client ?? ""} عبر نموذج الاتصال.`, `الموضوع: ${d.reference ?? ""}`], button: "قراءة الرسالة", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
+          : { subject: `دفع مصرَّح به: ${d.reference ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`تصرّح ${d.client ?? ""} بأنها دفعت الفاتورة ${d.reference ?? ""} (${d.amount ?? ""}).`, "تحققي من الاستلام ثم اقبلي الدفع أو ارفضيه."], button: "التحقق من الدفع", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." },
   },
 
   "billing-invoice": {

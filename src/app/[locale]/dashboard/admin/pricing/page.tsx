@@ -4,7 +4,6 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getAdminDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
-import { addDays } from "@/lib/availability";
 import { formatDate, formatDzd } from "@/lib/format";
 import { algiersMidnight } from "@/lib/pricing-dates";
 import { cn } from "@/lib/cn";
@@ -15,6 +14,9 @@ import { AdminTitle, Chip, ReadOnlyNote, adminPage } from "@/components/admin/ad
 import { ManageForm } from "@/components/admin/manage-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { fieldClass } from "@/components/ui/field-class";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const at = await getAdminDictionary(await getLocale());
@@ -46,7 +48,6 @@ async function Pricing({ params }: { params: PageProps<"/[locale]/dashboard/admi
   const labels = { done: at.manage.done, errors: at.manage.errors };
   // Days are Algiers calendar days; noon keeps the formatted date on the same day in any zone.
   const day = (d: string) => formatDate(new Date(algiersMidnight(d).getTime() + 12 * 3_600_000), locale, { dateStyle: "long" });
-  const tomorrow = addDays(data.today, 1);
   const stateTone = { current: "ink", upcoming: "rose", past: "quiet", replaced: "quiet" } as const;
 
   return (
@@ -102,6 +103,7 @@ async function Pricing({ params }: { params: PageProps<"/[locale]/dashboard/admi
                             <th scope="col" className="py-2 pe-3 text-start font-normal">{p.columns.price}</th>
                             <th scope="col" className="py-2 pe-3 text-start font-normal">{p.columns.state}</th>
                             <th scope="col" className="hidden py-2 text-start font-normal sm:table-cell">{p.columns.by}</th>
+                            {manage && c.rows.length > 1 && <th scope="col" className="py-2"><span className="sr-only">{p.delete}</span></th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-line">
@@ -115,6 +117,11 @@ async function Pricing({ params }: { params: PageProps<"/[locale]/dashboard/admi
                               <td className="hidden py-2.5 text-ink-2 sm:table-cell">
                                 {r.createdBy ?? p.seed} · {formatDate(r.createdAt, locale, { dateStyle: "medium" })}
                               </td>
+                              {manage && c.rows.length > 1 && (
+                                <td className="py-2.5 text-end">
+                                  <ManageForm op="price.delete" id={r.id} label={p.delete} labels={labels} tone="danger" confirm={p.deleteConfirm(formatDzd(r.monthlyPrice, locale), day(r.day))} />
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -140,7 +147,7 @@ async function Pricing({ params }: { params: PageProps<"/[locale]/dashboard/admi
                             </label>
                             <label className="grid gap-1.5 text-sm font-medium">
                               {p.day}
-                              <input name="day" type="date" required min={tomorrow} defaultValue={tomorrow} className={cn(fieldClass, "border-ink/20 font-normal")} dir="ltr" />
+                              <input name="day" type="date" required min="2020-01-01" defaultValue={data.today} className={cn(fieldClass, "border-ink/20 font-normal")} dir="ltr" />
                             </label>
                           </div>
                         }

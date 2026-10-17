@@ -1,4 +1,5 @@
 import "server-only";
+import { notifyStaff } from "./staff-alerts";
 import { db } from "@/lib/db";
 import type { Locale } from "@/i18n/config";
 import { categoryArt } from "@/config/categories";
@@ -119,7 +120,7 @@ export async function signUpProvider(input: ProviderSignUp, locale: Locale): Pro
   const passwordHash = await hashPassword(input.password);
   const categories = await db.category.findMany({
     where: { slug: { in: input.categories }, active: true },
-    select: { id: true, slug: true, requiresCredentialReview: true },
+    select: { id: true, slug: true, nameFr: true, requiresCredentialReview: true },
   });
   if (categories.length === 0) throw new Error("No active category selected");
   const commune = input.commune
@@ -169,6 +170,13 @@ export async function signUpProvider(input: ProviderSignUp, locale: Locale): Pro
         }
       }
       await createVerification(tx, u, locale);
+      // The team hears about every new professional (in-app; email to the Super Admins).
+      await notifyStaff(tx, {
+        kind: "provider",
+        path: `/dashboard/admin/providers/${account.id}`,
+        data: { client: input.businessName, note: input.email, category: categories.map((c) => c.nameFr).join(", ") },
+        dedupeKey: `staff:provider:${account.id}`,
+      });
       return u;
     });
     return { status: "created", userId: user.id };

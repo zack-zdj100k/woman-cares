@@ -9,12 +9,16 @@ import { requireArea } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { isIsoDay } from "@/lib/pricing-dates";
 import { cn } from "@/lib/cn";
-import { canViewAudit } from "@/server/policies/roles";
+import { canDelete, canViewAudit } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { SYSTEM_ACTOR, auditFilterOptions, listAuditLog, type AuditFilters } from "@/server/services/audit";
 import { AdminTitle, Chip, EmptyState, Pager, adminPage } from "@/components/admin/admin-ui";
 import { buttonClass } from "@/components/ui/button";
+import { ManageForm } from "@/components/admin/manage-form";
 import { fieldClass } from "@/components/ui/field-class";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const at = await getAdminDictionary(await getLocale());
@@ -51,6 +55,7 @@ async function Audit({ params, searchParams }: PageProps<"/[locale]/dashboard/ad
   const locale: Locale = isLocale(l) ? l : "fr";
   const user = await requireArea(locale, "admin", `/${locale}/dashboard/admin/audit-logs`);
   if (!canViewAudit(user)) notFound();
+  const remove = canDelete(user);
   const sp = await searchParams;
   const from = str(sp.from, 10);
   const to = str(sp.to, 10);
@@ -181,6 +186,9 @@ async function Audit({ params, searchParams }: PageProps<"/[locale]/dashboard/ad
                       <span className="sr-only">{a.details} : </span>
                       <bdi>{details.join(" · ")}</bdi>
                     </p>
+                  )}
+                  {remove && (
+                    <ManageForm op="audit.delete" id={r.id} label={at.deletes.entry} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.entryConfirm} className="mt-2" />
                   )}
                 </div>
               </li>

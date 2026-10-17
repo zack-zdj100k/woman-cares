@@ -18,6 +18,9 @@ import { CloseVisitForm, ProposeTimeForm, ProviderCancelForm, RespondForm, Visit
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
   return { title: d.bookings.title, robots: { index: false } };

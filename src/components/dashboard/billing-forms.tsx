@@ -1,7 +1,16 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { declarePaymentAction, recordPaymentAction, runCycleAction, setTermsAction, verifyPaymentAction, type BillingState } from "@/app/[locale]/dashboard/billing-actions";
+import {
+  declarePaymentAction,
+  recordPaymentAction,
+  runCycleAction,
+  setTermsAction,
+  setTrialAction,
+  setTrialDefaultAction,
+  verifyPaymentAction,
+  type BillingState,
+} from "@/app/[locale]/dashboard/billing-actions";
 import { buttonClass } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAnnounce } from "@/components/ui/decision-feedback";
@@ -77,10 +86,19 @@ export function TermsForm({
 const METHODS = ["MANUAL_TRANSFER", "CCP", "BARIDIMOB", "CASH"] as const;
 
 /** Admin: record a payment seen directly. */
-export function RecordPaymentForm({ invoiceId, labels }: { invoiceId: string; labels: { method: string; reference: string; save: string; methods: Record<string, string>; errors: Errors } }) {
+export function RecordPaymentForm({
+  invoiceId,
+  today,
+  labels,
+}: {
+  invoiceId: string;
+  /** Algiers date (YYYY-MM-DD): the default and the latest day a payment can be dated. */
+  today: string;
+  labels: { method: string; reference: string; paidOn: string; save: string; methods: Record<string, string>; errors: Errors };
+}) {
   const [state, action, pending] = useActionState<BillingState, FormData>(recordPaymentAction, { status: "idle" });
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-end">
+    <form action={action} className="grid gap-3 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
       <input type="hidden" name="invoiceId" value={invoiceId} />
       <label className={field}>
         {labels.method}
@@ -93,13 +111,17 @@ export function RecordPaymentForm({ invoiceId, labels }: { invoiceId: string; la
         </select>
       </label>
       <label className={field}>
+        {labels.paidOn}
+        <Input name="paidOn" type="date" defaultValue={today} max={today} min="2020-01-01" required dir="ltr" className="w-[10.5rem]" />
+      </label>
+      <label className={field}>
         {labels.reference}
         <Input name="reference" required minLength={3} maxLength={120} />
       </label>
       <button type="submit" disabled={pending} className={buttonClass({ variant: "outline", size: "sm" })}>
         {labels.save}
       </button>
-      <div className="sm:col-span-3">
+      <div className="sm:col-span-4">
         <Feedback state={state} errors={labels.errors} />
       </div>
     </form>
@@ -207,5 +229,62 @@ export function DeclarePaymentForm({
         </div>
       </form>
     </details>
+  );
+}
+
+/** `plus` holds ready-made button texts (functions cannot cross into client components). */
+type TrialLabels = { endsOn: string; save: string; plus: { months: number; label: string }[]; none: string; noneHint: string; done: string; errors: Errors };
+
+/** Admin: when this professional's free trial ends. Any date; quick extensions; or no trial at all. */
+export function TrialForm({ providerId, endsOn, current, labels }: { providerId: string; endsOn: string; current: string | null; labels: TrialLabels }) {
+  const [state, action, pending] = useActionState<BillingState, FormData>(setTrialAction, { status: "idle" });
+  return (
+    <form action={action} className="grid gap-3">
+      <input type="hidden" name="providerId" value={providerId} />
+      <input type="hidden" name="current" value={current ?? ""} />
+      <div className="flex flex-wrap items-end gap-2">
+        <label className={field}>
+          {labels.endsOn}
+          <Input name="endsOn" type="date" defaultValue={endsOn} min="2020-01-01" dir="ltr" className="w-[11rem]" />
+        </label>
+        <button type="submit" name="mode" value="date" disabled={pending} className={buttonClass({ variant: "solid", size: "sm" })}>
+          {labels.save}
+        </button>
+        {labels.plus.map(({ months, label }) => (
+          <button key={months} type="submit" name="mode" value="plus" onClick={(e) => e.currentTarget.form?.querySelector<HTMLInputElement>("input[name=months]")?.setAttribute("value", String(months))} disabled={pending} className={buttonClass({ variant: "outline", size: "sm" })}>
+            {label}
+          </button>
+        ))}
+        <input type="hidden" name="months" defaultValue="1" />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" name="mode" value="none" disabled={pending} className={buttonClass({ variant: "ghost", size: "sm", className: "text-destructive" })}>
+          {labels.none}
+        </button>
+        <span className="text-xs text-muted-foreground">{labels.noneHint}</span>
+      </div>
+      <Feedback state={state} errors={labels.errors} done={labels.done} />
+    </form>
+  );
+}
+
+/** Admin: default trial length for professionals approved from now on. */
+export function TrialDefaultForm({ days, labels }: { days: number; labels: { title: string; help: string; days: string; save: string; done: string; errors: Errors } }) {
+  const [state, action, pending] = useActionState<BillingState, FormData>(setTrialDefaultAction, { status: "idle" });
+  return (
+    <form action={action} className="grid gap-2">
+      <p className="text-sm font-medium">{labels.title}</p>
+      <p className="text-xs text-muted-foreground">{labels.help}</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className={field}>
+          {labels.days}
+          <Input name="days" type="number" min={0} max={730} step={1} defaultValue={days} required className="w-28 tabular-nums" />
+        </label>
+        <button type="submit" disabled={pending} className={buttonClass({ variant: "outline", size: "sm" })}>
+          {labels.save}
+        </button>
+      </div>
+      <Feedback state={state} errors={labels.errors} done={labels.done} />
+    </form>
   );
 }

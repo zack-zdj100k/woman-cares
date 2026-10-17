@@ -82,6 +82,8 @@ export const QUEUE_PAGE_SIZE = 25;
 
 const pendingWhere: Prisma.ProviderAccountWhereInput = {
   OR: [
+    // New professionals not yet approved, refused or suspended: staff should look at them.
+    { status: { in: ["ONBOARDING", "PENDING_REVIEW"] }, user: { status: { not: "SUSPENDED" } } },
     { profiles: { some: { status: "PENDING_REVIEW" } } },
     { categoryRequests: { some: { status: "PENDING" } } },
     { credentials: { some: { status: "PENDING" } } },
@@ -97,7 +99,7 @@ export async function listProviderQueue(actor: Actor, filter: QueueFilter, q: st
         : filter === "approved"
           ? { status: "APPROVED" }
           : filter === "suspended"
-            ? { status: "SUSPENDED" }
+            ? { OR: [{ status: "SUSPENDED" }, { user: { status: "SUSPENDED" } }] }
             : filter === "rejected"
               ? { status: "REJECTED" }
               : {},
@@ -126,7 +128,7 @@ export async function listProviderQueue(actor: Actor, filter: QueueFilter, q: st
         verifiedAt: true,
         createdAt: true,
         wilaya: { select: { nameFr: true, nameAr: true } },
-        user: { select: { email: true, emailVerifiedAt: true } },
+        user: { select: { email: true, emailVerifiedAt: true, status: true } },
         _count: {
           select: {
             profiles: { where: { status: "PENDING_REVIEW" } },
@@ -138,6 +140,19 @@ export async function listProviderQueue(actor: Actor, filter: QueueFilter, q: st
     }),
   ]);
   return { total, rows, pageCount: Math.max(1, Math.ceil(total / QUEUE_PAGE_SIZE)) };
+}
+
+/** How many accounts each queue tab holds (same filters as the list, without the search). */
+export async function queueTabCounts(actor: Actor) {
+  if (!canViewModeration(actor)) throw new ForbiddenError();
+  const [pending, approved, suspended, rejected, all] = await Promise.all([
+    db.providerAccount.count({ where: pendingWhere }),
+    db.providerAccount.count({ where: { status: "APPROVED" } }),
+    db.providerAccount.count({ where: { OR: [{ status: "SUSPENDED" }, { user: { status: "SUSPENDED" } }] } }),
+    db.providerAccount.count({ where: { status: "REJECTED" } }),
+    db.providerAccount.count(),
+  ]);
+  return { pending, approved, suspended, rejected, all } satisfies Record<QueueFilter, number>;
 }
 
 export async function queueCounts(actor: Actor) {

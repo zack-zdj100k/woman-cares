@@ -21,6 +21,9 @@ import { SubmitProfile } from "@/components/provider/submit-profile";
 import { cn } from "@/lib/cn";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 type Params = PageProps<"/[locale]/dashboard/provider/profiles/[profileId]">["params"];
 
 export async function generateMetadata(): Promise<Metadata> {

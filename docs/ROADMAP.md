@@ -51,6 +51,10 @@ flowchart TD
 
 Owner references applied site-wide (see docs/DESIGN.md): floral parchment and blush-roses backdrop, light only, brighter hero film, glass navbar, half-circle dial menu, glossy buttons, soft cards, masked titles, new home sections, Notre histoire, Pour les pros and profile page. Checked at 390/768/1440 in FR and AR with no horizontal overflow; Impeccable critique 25/32 (detector: 0 findings). Follow-up the same day: navbar collapses to floating icons on scroll; profile hours sit under the booking card (compact) and the place card moved to the left column; footer rebuilt (marquee, photo band, glass card); Notre histoire gained the founding story and our commitments; copy no longer promises inspiration photos or reschedule proposals until they exist. Then: navbar without a bar (floating links and round buttons), scroll performance pass (no card blur, sleeping title loops, transform-only animations, brightness baked into the hero video and stills), founding story set directly on the floral page, then moved into sideways-scrolling glass cards (pinned on tablet and desktop, swipe on phones; 60 fps measured).
 
+## Admin controls (2026-10-17)
+
+Per-professional free trial (any end date, +1/2/3/6 months, or no trial) and a default trial length; prices on any date (in force at once when today or earlier) and deletable rows (never the last); payments recorded with the day they were received; suspension from Utilisateurs now shows under Suspendues and restore returns the previous status; new sign-ups listed under À vérifier, tabs Toutes → Refusées with counts; contact messages page (Super Admin) and staff notifications (new professional, message, declared payment) with email to the Super Admins; revenue cards and 12-month chart on the overview; account settings for every role from the avatar menu; Super Admin deletions across the admin. Verified: 99 unit, 114 integration (11 new), 16 end-to-end; screenshots FR 1440 and AR 375.
+
 ## Next session
 
 1. Phase 7: support requests (including promotional requests) for professionals.

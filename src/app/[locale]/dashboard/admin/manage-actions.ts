@@ -1,12 +1,15 @@
 "use server";
 
 import { refresh, updateTag } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { ROLES, type Role } from "@/server/policies/roles";
 import { AdminBlocked, ForbiddenError, changeUserRole, setUserSuspended } from "@/server/services/admin-users";
 import { moveCategory, setCategoryActive, setCategoryCredentialReview } from "@/server/services/admin-categories";
-import { addCategoryPrice } from "@/server/services/admin-pricing";
+import { addCategoryPrice, deleteCategoryPrice } from "@/server/services/admin-pricing";
+import { deleteMessage, setMessageStatus } from "@/server/services/messages";
+import { deleteAuditEntry, deleteCategory, deleteInvoice, deletePayment, deleteProvider, deleteSubscription, deleteUser } from "@/server/services/admin-delete";
 import type { ReviewState } from "./actions";
 
 const OPS = [
@@ -20,6 +23,16 @@ const OPS = [
   "category.up",
   "category.down",
   "price.add",
+  "price.delete",
+  "message.status",
+  "message.delete",
+  "user.delete",
+  "provider.delete",
+  "category.delete",
+  "subscription.delete",
+  "invoice.delete",
+  "payment.delete",
+  "audit.delete",
 ] as const;
 type Op = (typeof OPS)[number];
 
@@ -61,8 +74,44 @@ export async function manageAction(_prev: ReviewState, form: FormData): Promise<
       case "price.add":
         tags = await addCategoryPrice(user, id, text("price", 20), text("day", 10));
         break;
+      case "price.delete":
+        tags = await deleteCategoryPrice(user, id);
+        break;
+      case "message.status": {
+        const status = text("status", 20);
+        if (status !== "OPEN" && status !== "IN_PROGRESS" && status !== "RESOLVED") return { status: "error", message: "forbidden", at: Date.now() };
+        await setMessageStatus(user, id, status);
+        break;
+      }
+      case "message.delete":
+        await deleteMessage(user, id);
+        break;
+      case "user.delete":
+        tags = await deleteUser(user, id);
+        break;
+      case "provider.delete":
+        tags = await deleteProvider(user, id);
+        break;
+      case "category.delete":
+        tags = await deleteCategory(user, id);
+        break;
+      case "subscription.delete":
+        tags = await deleteSubscription(user, id);
+        break;
+      case "invoice.delete":
+        tags = await deleteInvoice(user, id);
+        break;
+      case "payment.delete":
+        tags = await deletePayment(user, id);
+        break;
+      case "audit.delete":
+        tags = await deleteAuditEntry(user, id);
+        break;
     }
     for (const tag of tags) updateTag(tag);
+    // After deleting the record a page is about, go back to its list.
+    const next = text("next", 200);
+    if (next.startsWith("/") && !next.startsWith("//")) redirect(next);
     refresh();
     return { status: "done", at: Date.now() };
   } catch (e) {

@@ -4,13 +4,16 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getAdminDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
-import { canManageCatalog } from "@/server/policies/roles";
+import { canDelete, canManageCatalog } from "@/server/policies/roles";
 import { notFound } from "next/navigation";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { listAdminCategories } from "@/server/services/admin-categories";
 import { AdminTitle, Chip, ReadOnlyNote, adminPage } from "@/components/admin/admin-ui";
 import { ManageForm } from "@/components/admin/manage-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const at = await getAdminDictionary(await getLocale());
@@ -91,6 +94,7 @@ async function Categories({ params }: { params: PageProps<"/[locale]/dashboard/a
                     ) : (
                       <ManageForm op="category.activate" id={cat.id} label={c.activate} labels={labels} tone="solid" />
                     )}
+                    {canDelete(user) && <ManageForm op="category.delete" id={cat.id} label={at.deletes.category} labels={labels} tone="danger" confirm={at.deletes.categoryConfirm} />}
                     {cat.requiresCredentialReview ? (
                       <ManageForm op="category.credentials.waive" id={cat.id} label={c.waive} labels={labels} confirm={c.waiveConfirm} />
                     ) : (

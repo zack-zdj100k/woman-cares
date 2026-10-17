@@ -9,6 +9,9 @@ import { listMyProfiles } from "@/server/services/provider-profiles";
 import { buttonClass } from "@/components/ui/button";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const pt = await getProviderDictionary(await getLocale());
   return { title: pt.index.scheduleTitle, robots: { index: false } };

@@ -13,6 +13,9 @@ import { BarList } from "@/components/dashboard/bar-list";
 import { DataTable, Td } from "@/components/dashboard/data-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
   return { title: d.analytics.title, robots: { index: false } };

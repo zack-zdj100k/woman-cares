@@ -58,5 +58,8 @@ flowchart LR
 | `/users`, `/users/[userId]` | Live | Accounts, roles, status |
 | `/categories`, `/pricing` | Live | Category order and activation, dated price history |
 | `/subscriptions`, `/invoices`, `/payments` | Live | Billing overview, invoices, payment verification, billing cycle |
-| `/audit-logs` | Live (ADMIN+) | Filtered audit log |
-| `/bookings`, `/content`, `/moderation`, `/support`, `/analytics`, `/settings` | Planned | Hidden from the sidebar until built |
+| `/audit-logs` | Live (ADMIN+) | Filtered audit log; Super Admins can delete entries (the deletion is logged) |
+| `/messages` | Live (SUPER_ADMIN) | Contact-form messages: new, in progress, handled; reply by email, delete |
+| `/notifications` | Live | Staff alerts: new professional, new message, declared payment |
+| `/account` (all areas; `/client/profile` for clients) | Live | Name, phone, language, password; opened from the avatar menu |
+| `/bookings`, `/content`, `/moderation`, `/analytics`, `/settings` | Planned | Hidden from the sidebar until built |

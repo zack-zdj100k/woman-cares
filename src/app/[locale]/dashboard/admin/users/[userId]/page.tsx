@@ -7,12 +7,15 @@ import { getAdminDictionary, getAuthDictionary } from "@/i18n/get-dictionary";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { canManageCatalog } from "@/server/policies/roles";
+import { canManageCatalog, canDelete } from "@/server/policies/roles";
 import { ForbiddenError, getUserDetail } from "@/server/services/admin-users";
 import { AdminCard, AdminTitle, Chip, ReadOnlyNote, adminPage } from "@/components/admin/admin-ui";
 import { ManageForm } from "@/components/admin/manage-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { fieldClass } from "@/components/ui/field-class";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 type Params = PageProps<"/[locale]/dashboard/admin/users/[userId]">["params"];
 
@@ -130,6 +133,20 @@ async function UserFile({ params }: { params: Params }) {
               {canRestore && <ManageForm op="user.restore" id={user.id} label={c.restore} labels={labels} tone="solid" />}
               {!canSuspend && !canRestore && <p className="text-sm text-ink-2">{self ? c.statusSelf : c.statusLocked}</p>}
             </AdminCard>
+
+            {canDelete(actor) && !self && (
+              <AdminCard title={at.deletes.action}>
+                <ManageForm
+                  op="user.delete"
+                  id={user.id}
+                  label={at.deletes.user}
+                  labels={labels}
+                  tone="danger"
+                  confirm={at.deletes.userConfirm}
+                  fields={<input type="hidden" name="next" value={`/${locale}/dashboard/admin/users`} />}
+                />
+              </AdminCard>
+            )}
           </div>
         </div>
 

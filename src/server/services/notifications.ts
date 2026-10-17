@@ -23,8 +23,10 @@ export async function markRead(actor: Actor, id: string | "all") {
   await db.notification.updateMany({ where: { userId: actor.id, readAt: null, ...(id === "all" ? {} : { id }) }, data: { readAt: new Date() } });
 }
 
-/** Where a notification leads in the dashboards (by its type). */
-export function notificationHref(locale: string, area: "client" | "provider", type: string) {
+/** Where a notification leads in the dashboards: its own path when it has one, else by its type. */
+export function notificationHref(locale: string, area: "client" | "provider" | "admin", type: string, data?: unknown) {
+  const path = (data as { path?: unknown } | null)?.path;
+  if (typeof path === "string" && path.startsWith("/dashboard/")) return `/${locale}${path}`;
   const base = `/${locale}/dashboard/${area}`;
   if (type.startsWith("billing.")) return `${base}/subscriptions`;
   if (type.startsWith("booking.")) return area === "provider" ? `${base}/bookings` : `${base}/appointments`;

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getDashboardDictionary } from "@/i18n/get-dictionary";
+import { getAdminDictionary, getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
@@ -9,7 +9,12 @@ import { listInvoices } from "@/server/services/billing";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { canDelete } from "@/server/policies/roles";
+import { ManageForm } from "@/components/admin/manage-form";
 import { Badge } from "@/components/ui/badge";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 const FILTERS = ["all", "OPEN", "OVERDUE", "PAID", "VOID"] as const;
 
@@ -31,7 +36,8 @@ async function Invoices({ params, searchParams }: PageProps<"/[locale]/dashboard
   const sp = await searchParams;
   const status = (FILTERS as readonly string[]).includes(String(sp.status)) ? (sp.status as (typeof FILTERS)[number]) : "all";
   const page = Math.max(1, Math.min(500, Number(sp.page) || 1));
-  const [d, result] = await Promise.all([getDashboardDictionary(locale), listInvoices(user, status, page)]);
+  const [d, result, at] = await Promise.all([getDashboardDictionary(locale), listInvoices(user, status, page), getAdminDictionary(locale)]);
+  const remove = canDelete(user);
   const b = d.billing;
   const base = `/${locale}/dashboard/admin/invoices`;
   const href = (s: string, p = 1) => `${base}?status=${s}${p > 1 ? `&page=${p}` : ""}`;
@@ -43,7 +49,7 @@ async function Invoices({ params, searchParams }: PageProps<"/[locale]/dashboard
         <StatCard icon="payments" label={b.collected} value={formatDzd(result.collected, locale)} />
       </div>
       <FilterTabs active={status} items={FILTERS.map((f) => ({ key: f, label: f === "all" ? b.filters.all : b.invoiceStatuses[f], href: href(f) }))} />
-      <DataTable head={[b.number, b.provider, b.periodCol, b.amount, b.due, b.status]} empty={result.rows.length === 0 ? b.noInvoices : undefined}>
+      <DataTable head={[b.number, b.provider, b.periodCol, b.amount, b.due, b.status, ...(remove ? [""] : [])]} empty={result.rows.length === 0 ? b.noInvoices : undefined}>
         {result.rows.map((i) => (
           <tr key={i.id}>
             <Td>
@@ -64,6 +70,11 @@ async function Invoices({ params, searchParams }: PageProps<"/[locale]/dashboard
             <Td>
               <Badge variant={i.status === "PAID" ? "success" : i.status === "OVERDUE" ? "destructive" : i.status === "VOID" ? "outline" : "warning"}>{b.invoiceStatuses[i.status]}</Badge>
             </Td>
+            {remove && (
+              <Td>
+                <ManageForm op="invoice.delete" id={i.id} label={at.deletes.action} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.invoiceConfirm} />
+              </Td>
+            )}
           </tr>
         ))}
       </DataTable>

@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getDashboardDictionary } from "@/i18n/get-dictionary";
+import { getAdminDictionary, getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
-import { canReview } from "@/server/policies/roles";
+import { canDelete, canReview } from "@/server/policies/roles";
 import { listPayments } from "@/server/services/billing";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
 import { VerifyPaymentForm } from "@/components/dashboard/billing-forms";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
+import { ManageForm } from "@/components/admin/manage-form";
 import { Badge } from "@/components/ui/badge";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 const FILTERS = ["PENDING", "PAID", "FAILED", "all"] as const;
 
@@ -33,7 +37,8 @@ async function Payments({ params, searchParams }: PageProps<"/[locale]/dashboard
   const sp = await searchParams;
   const status = (FILTERS as readonly string[]).includes(String(sp.status)) ? (sp.status as (typeof FILTERS)[number]) : "PENDING";
   const page = Math.max(1, Math.min(500, Number(sp.page) || 1));
-  const [d, result] = await Promise.all([getDashboardDictionary(locale), listPayments(user, status, page)]);
+  const [d, result, at] = await Promise.all([getDashboardDictionary(locale), listPayments(user, status, page), getAdminDictionary(locale)]);
+  const remove = canDelete(user);
   const b = d.billing;
   const base = `/${locale}/dashboard/admin/payments`;
   const href = (s: string, p = 1) => `${base}?status=${s}${p > 1 ? `&page=${p}` : ""}`;
@@ -74,6 +79,9 @@ async function Payments({ params, searchParams }: PageProps<"/[locale]/dashboard
               <Td>
                 {decide && p.status === "PENDING" && (
                   <VerifyPaymentForm paymentId={p.id} labels={{ verify: b.verify, refuse: b.refuse, reason: b.refuseReason, done: b.saved, errors: b.errors }} />
+                )}
+                {remove && (
+                  <ManageForm op="payment.delete" id={p.id} label={at.deletes.payment} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.paymentConfirm} className="mt-2" />
                 )}
               </Td>
             </tr>

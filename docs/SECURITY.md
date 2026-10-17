@@ -80,3 +80,12 @@ existing verified account. Each run is written to the audit log.
 - [ ] Backups encrypted, restoration tested (see deployment guide, Phase 13).
 - [ ] Dependency audit (`npm audit`) reviewed; the scaffold currently reports advisories to triage.
 - [ ] Penetration test of auth, booking and admin flows before launch.
+
+## Admin controls added 2026-10-17
+
+- **Deletions** are Super Admin only (`canDelete`), one transaction each, dependants first, with an audit entry holding a short snapshot. Nobody deletes her own account or the last active Super Admin. Categories in use cannot be deleted (deactivate instead). Stored files (portfolio, credentials) stay on disk.
+- **Journal entries can be deleted** by Super Admins (owner decision); each deletion writes an `audit.delete` entry, so the journal is no longer strictly append-only.
+- **Contact messages** are readable by Super Admins only (`canReadMessages`).
+- **Restore after suspension** returns the account to the status recorded in the `user.suspend` audit entry.
+- **Password change** requires the current password, signs out every other session and sends the security email.
+- **Prices** may start on any day from 2020; invoices keep a frozen copy of the price they were issued with.

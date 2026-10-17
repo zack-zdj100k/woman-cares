@@ -83,6 +83,7 @@ export function ManageForm({
       <form action={action} className="mt-3 grid max-w-md gap-3">
         {hidden}
         {confirm && <p className="text-sm leading-relaxed text-ink-2">{confirm}</p>}
+        {fields}
         {note && (
           <label className="grid gap-2 text-sm font-medium">
             {note.label}

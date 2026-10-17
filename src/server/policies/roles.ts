@@ -94,6 +94,16 @@ export function canManageCatalog(actor: Actor) {
 }
 
 /** The audit log holds notes about people and every staff decision: ADMIN and above only. */
+/** Contact-form messages: the Super Admins only (owner decision, 2026-10-17). */
+export function canReadMessages(actor: Actor) {
+  return canSignIn(actor.status) && actor.emailVerified && actor.role === "SUPER_ADMIN";
+}
+
+/** Permanent deletions across the admin (owner decision, 2026-10-17): the Super Admins only. */
+export function canDelete(actor: Actor) {
+  return canSignIn(actor.status) && actor.emailVerified && actor.role === "SUPER_ADMIN";
+}
+
 export function canViewAudit(actor: Actor) {
   return canManageCatalog(actor);
 }

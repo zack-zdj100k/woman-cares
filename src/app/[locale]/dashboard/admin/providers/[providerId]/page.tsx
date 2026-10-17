@@ -14,16 +14,21 @@ import {
   getProviderDictionary,
 } from "@/i18n/get-dictionary";
 import { getProviderBilling } from "@/server/services/billing";
-import { RecordPaymentForm, TermsForm } from "@/components/dashboard/billing-forms";
+import { RecordPaymentForm, TermsForm, TrialForm } from "@/components/dashboard/billing-forms";
+import { algiersDate } from "@/lib/periods";
 import { Badge } from "@/components/ui/badge";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
-import { canReview } from "@/server/policies/roles";
+import { canDelete, canReview } from "@/server/policies/roles";
+import { ManageForm } from "@/components/admin/manage-form";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { getProviderReview } from "@/server/services/review";
 import { DecisionForm } from "@/components/admin/decision-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
+
+/** Waits for its data on navigation (see the dashboard layout). */
+export const instant = false;
 
 type Params =
   PageProps<"/[locale]/dashboard/admin/providers/[providerId]">["params"];
@@ -138,6 +143,14 @@ async function Review({ params }: { params: Params }) {
           {account.reviewNote && (
             <p className="mt-4 text-sm text-rose-ink">{account.reviewNote}</p>
           )}
+          {account.user.status === "SUSPENDED" && (
+            <p className="mt-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {at.detail.userSuspended}{" "}
+              <Link href={`/${locale}/dashboard/admin/users/${account.user.id}`} className="underline underline-offset-4">
+                {at.detail.openUser}
+              </Link>
+            </p>
+          )}
           {decide && (
             <div className="mt-6 flex flex-wrap items-start gap-3">
               {(s === "ONBOARDING" || s === "PENDING_REVIEW") && (
@@ -191,6 +204,19 @@ async function Review({ params }: { params: Params }) {
               )}
             </div>
           )}
+          {canDelete(user) && (
+            <div className="mt-6 border-t border-border pt-5">
+              <ManageForm
+                op="provider.delete"
+                id={account.id}
+                label={at.deletes.provider}
+                labels={{ done: at.manage.done, errors: at.manage.errors }}
+                tone="danger"
+                confirm={at.deletes.userConfirm}
+                fields={<input type="hidden" name="next" value={`/${locale}/dashboard/admin/providers`} />}
+              />
+            </div>
+          )}
         </Block>
 
         {/* Subscription: how this professional is billed (Admin can set an agreed price). */}
@@ -230,6 +256,20 @@ async function Review({ params }: { params: Params }) {
               </dl>
               {sub.exemptReason && <p className="text-sm text-muted-foreground">{sub.exemptReason}</p>}
               {decide && (
+                <div className="grid gap-3 rounded-xl border border-border p-4">
+                  <p className="text-sm font-medium">{b.trialTitle}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {sub.trialEndsAt ? b.trialCurrent(formatDate(sub.trialEndsAt, locale), sub.trialEndsAt > new Date()) : b.trialNoneYet}
+                  </p>
+                  <TrialForm
+                    providerId={account.id}
+                    endsOn={sub.trialEndsAt ? algiersDate(new Date(sub.trialEndsAt.getTime() - 1)) : algiersDate(new Date())}
+                    current={sub.trialEndsAt?.toISOString() ?? null}
+                    labels={{ endsOn: b.trialEndsOn, save: b.trialSave, plus: [1, 2, 3, 6].map((months) => ({ months, label: b.trialPlus(months) })), none: b.trialNone, noneHint: b.trialNoneHint, done: b.trialDone, errors: b.errors }}
+                  />
+                </div>
+              )}
+              {decide && (
                 <TermsForm
                   providerId={account.id}
                   current={sub.billingBasis === "NEGOTIATED" || sub.billingBasis === "EXEMPT" ? sub.billingBasis : "PER_CATEGORY"}
@@ -250,6 +290,9 @@ async function Review({ params }: { params: Params }) {
                   }}
                 />
               )}
+              {canDelete(user) && (
+                <ManageForm op="subscription.delete" id={sub.id} label={at.deletes.subscription} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.subscriptionConfirm} />
+              )}
               <div>
                 <p className="mb-2 text-sm font-medium">{b.invoicesTitle}</p>
                 {billing.invoices.length === 0 ? (
@@ -268,8 +311,11 @@ async function Review({ params }: { params: Params }) {
                           <span className="tabular-nums">{formatDzd(inv.total.toString(), locale)}</span>
                           <Badge variant={inv.status === "PAID" ? "success" : inv.status === "OVERDUE" ? "destructive" : "warning"}>{b.invoiceStatuses[inv.status]}</Badge>
                         </div>
+                        {canDelete(user) && (
+                          <ManageForm op="invoice.delete" id={inv.id} label={at.deletes.invoice} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.invoiceConfirm} />
+                        )}
                         {decide && (inv.status === "OPEN" || inv.status === "OVERDUE") && (
-                          <RecordPaymentForm invoiceId={inv.id} labels={{ method: b.method, reference: b.reference, save: b.record, methods: b.methods, errors: b.errors }} />
+                          <RecordPaymentForm invoiceId={inv.id} today={algiersDate(new Date())} labels={{ method: b.method, reference: b.reference, paidOn: b.paidOn, save: b.record, methods: b.methods, errors: b.errors }} />
                         )}
                       </li>
                     ))}

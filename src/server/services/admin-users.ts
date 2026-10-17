@@ -21,7 +21,7 @@ export class ForbiddenError extends Error {
 
 /** The change is allowed for this actor but not in the current state (the reason says why). */
 export class AdminBlocked extends Error {
-  constructor(public reason: "state" | "note" | "date" | "price" | "order") {
+  constructor(public reason: "state" | "note" | "date" | "price" | "order" | "last" | "self" | "inUse" | "lastAdmin") {
     super(reason);
   }
 }
@@ -58,15 +58,21 @@ export async function changeUserRole(actor: Actor, targetId: string, next: Role)
 
 /**
  * Suspends or restores an account; audited; suspension signs the account out everywhere and hides
- * a professional's profiles. A restored account goes back to ACTIVE, or to PENDING_VERIFICATION
- * when its email was never confirmed.
+ * a professional's profiles. A restored account goes back to the status it had before the
+ * suspension (from the audit trail); without that record, ACTIVE when the email was confirmed,
+ * otherwise PENDING_VERIFICATION.
  */
 export async function setUserSuspended(actor: Actor, targetId: string, suspended: boolean, reason: string) {
   const t = await target(targetId);
   if (!canChangeStatus(actor, t)) throw new ForbiddenError();
   if (suspended ? !canSuspendFrom(t.status) : t.status !== "SUSPENDED") throw new AdminBlocked("state");
   if (suspended && reason.trim().length < 10) throw new AdminBlocked("note");
-  const status = suspended ? "SUSPENDED" : t.emailVerifiedAt ? "ACTIVE" : "PENDING_VERIFICATION";
+  let status: "SUSPENDED" | "ACTIVE" | "PENDING_VERIFICATION" = suspended ? "SUSPENDED" : t.emailVerifiedAt ? "ACTIVE" : "PENDING_VERIFICATION";
+  if (!suspended) {
+    const last = await db.auditLog.findFirst({ where: { action: "user.suspend", entityType: "User", entityId: t.id }, orderBy: { createdAt: "desc" }, select: { metadata: true } });
+    const before = (last?.metadata as { from?: string } | null)?.from;
+    if (before === "ACTIVE" || before === "PENDING_VERIFICATION") status = before;
+  }
   await db.$transaction([
     db.user.update({ where: { id: t.id }, data: { status } }),
     ...(suspended ? [db.session.deleteMany({ where: { userId: t.id } })] : []),

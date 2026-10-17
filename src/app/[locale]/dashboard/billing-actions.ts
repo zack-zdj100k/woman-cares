@@ -8,7 +8,8 @@ import { getSessionUser } from "@/lib/auth/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { canReview } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
-import { BillingBlocked, declarePayment, recordPayment, runBillingCycle, setSubscriptionTerms, verifyPayment } from "@/server/services/billing";
+import { addMonths } from "@/lib/billing";
+import { BillingBlocked, declarePayment, recordPayment, runBillingCycle, setSubscriptionTerms, setTrialDefault, setTrialEnd, verifyPayment } from "@/server/services/billing";
 import { deliverPendingEmails } from "@/server/services/outbox";
 
 export type BillingState = { status: "idle" } | { status: "done"; at: number; info?: string } | { status: "error"; code: string };
@@ -51,7 +52,37 @@ export async function verifyPaymentAction(_prev: BillingState, form: FormData): 
 export async function recordPaymentAction(_prev: BillingState, form: FormData): Promise<BillingState> {
   const user = await getSessionUser();
   if (!user) return { status: "error", code: "forbidden" };
-  return run(() => recordPayment(user, String(form.get("invoiceId") ?? ""), { method: method(form.get("method")), reference: String(form.get("reference") ?? "") }));
+  const day = String(form.get("paidOn") ?? "");
+  const paidAt = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T12:00:00+01:00`) : null;
+  return run(() => recordPayment(user, String(form.get("invoiceId") ?? ""), { method: method(form.get("method")), reference: String(form.get("reference") ?? ""), paidAt }));
+}
+
+/** Admin: when one professional's free trial ends (a date, a few more months, or no trial). */
+export async function setTrialAction(_prev: BillingState, form: FormData): Promise<BillingState> {
+  const user = await getSessionUser();
+  if (!user) return { status: "error", code: "forbidden" };
+  const mode = String(form.get("mode") ?? "date");
+  const day = String(form.get("endsOn") ?? "");
+  let endsAt: Date;
+  if (mode === "none") endsAt = new Date();
+  else if (mode === "plus") {
+    const months = Math.min(24, Math.max(1, Number(form.get("months")) || 1));
+    const from = new Date(String(form.get("current") ?? ""));
+    const base = Number.isNaN(from.getTime()) || from < new Date() ? new Date() : from;
+    endsAt = addMonths(base, months);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(day)) endsAt = new Date(`${day}T00:00:00+01:00`);
+  else return { status: "error", code: "date" };
+  return run(() => setTrialEnd(user, String(form.get("providerId") ?? ""), endsAt));
+}
+
+/** Admin: default free-trial length for newly approved professionals (0 = none). */
+export async function setTrialDefaultAction(_prev: BillingState, form: FormData): Promise<BillingState> {
+  const user = await getSessionUser();
+  if (!user) return { status: "error", code: "forbidden" };
+  const days = Number(String(form.get("days") ?? "").trim());
+  const state = await run(() => setTrialDefault(user, days));
+  if (state.status === "done") updateTag("pricing");
+  return state;
 }
 
 /** Admin: run the cycle now. The confirmation is written here, in the admin's language. */
