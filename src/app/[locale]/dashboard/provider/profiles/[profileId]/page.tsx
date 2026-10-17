@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,7 +13,6 @@ import { formatDate, formatDzd } from "@/lib/format";
 import { publicMediaUrl } from "@/lib/storage/urls";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { getEditorData, submissionChecklist, type ChecklistItem } from "@/server/services/provider-profiles";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { DetailsForm } from "@/components/provider/details-form";
 import { ServicesEditor } from "@/components/provider/services-editor";
 import { MediaManager } from "@/components/provider/media-manager";
@@ -32,9 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function EditorPage({ params }: { params: Params }) {
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Editor params={params} />
-      </Suspense>
+      <Editor params={params} />
     </>
   );
 }

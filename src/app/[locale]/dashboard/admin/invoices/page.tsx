@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -7,7 +6,6 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
 import { listInvoices } from "@/server/services/billing";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -22,9 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page({ params, searchParams }: PageProps<"/[locale]/dashboard/admin/invoices">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <Invoices params={params} searchParams={searchParams} />
-    </Suspense>
+    <Invoices params={params} searchParams={searchParams} />
   );
 }
 

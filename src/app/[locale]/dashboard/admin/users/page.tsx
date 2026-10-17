@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -9,7 +8,6 @@ import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ROLES, type Role, type Status } from "@/server/policies/roles";
 import { listUsers } from "@/server/services/admin-users";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { AdminTitle, Chip, EmptyState, Pager, adminPage } from "@/components/admin/admin-ui";
 import { buttonClass, segmentItem, segmentTray } from "@/components/ui/button";
 import { fieldClass } from "@/components/ui/field-class";
@@ -24,9 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function UsersPage({ params, searchParams }: PageProps<"/[locale]/dashboard/admin/users">) {
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Users params={params} searchParams={searchParams} />
-      </Suspense>
+      <Users params={params} searchParams={searchParams} />
     </>
   );
 }

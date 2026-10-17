@@ -6,7 +6,7 @@
  * API follows shadcn's SidebarProvider / Sidebar / SidebarInset / SidebarTrigger.
  */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelLeft } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -63,6 +63,12 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Shown only while a click on this link is still loading (and only after 120 ms, so fast navigations never flicker). */
+function PendingHint() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden="true" className={cn("pointer-events-none absolute inset-x-2.5 bottom-1 h-0.5 rounded-full bg-chart-1 opacity-0 transition-opacity", pending && "animate-pulse opacity-100 delay-[120ms]")} />;
+}
+
 function isActive(pathname: string, item: NavItem) {
   if (item.exact) return pathname === item.href;
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -92,6 +98,7 @@ function NavList({ groups, collapsed, label, onNavigate }: { groups: NavGroup[];
                 >
                   <Icon className="size-[1.15rem] shrink-0" strokeWidth={1.75} aria-hidden="true" />
                   <span className={cn("truncate", collapsed && "sr-only")}>{item.label}</span>
+                  <PendingHint />
                   {item.badge ? (
                     <span
                       className={cn(

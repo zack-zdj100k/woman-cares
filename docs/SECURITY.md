@@ -71,6 +71,8 @@ existing verified account. Each run is written to the audit log.
 
 ## Production hardening checklist
 
+- **Client IP for rate limits (open, found 2026-10-17):** the app reads the first `X-Forwarded-For` value (`src/lib/auth/session.ts`, contact, availability and view routes). A client that reaches the app directly can send its own header and dodge the per-IP limits on sign-up, sign-in, reset and contact. Before launch: deploy behind a proxy that overwrites the header, and read the address that proxy appends (rightmost trusted hop) behind an explicit `TRUST_PROXY` setting, falling back to the socket address.
+
 - [ ] Separate DB roles (migrate vs runtime); TLS to the database.
 - [ ] Security headers and CSP verified with an external scanner.
 - [ ] Rate limiter backed by a shared store (not in-memory) when running more than one instance.

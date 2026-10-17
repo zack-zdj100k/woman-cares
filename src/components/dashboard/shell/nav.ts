@@ -36,7 +36,7 @@ const provider: Group[] = [
     modules: [
       { key: "overview", path: "", icon: "overview", label: (n) => n.overview, ready: true, exact: true },
       { key: "bookings", path: "/bookings", icon: "bookings", label: (n) => n.bookings, ready: true, badge: "pending" },
-      { key: "calendar", path: "/calendar", icon: "calendar", label: (n) => n.calendar, ready: false },
+      { key: "calendar", path: "/calendar", icon: "calendar", label: (n) => n.calendar, ready: true },
     ],
   },
   {
@@ -50,8 +50,8 @@ const provider: Group[] = [
   {
     label: (g) => g.money,
     modules: [
-      { key: "earnings", path: "/earnings", icon: "earnings", label: (n) => n.earnings, ready: false },
-      { key: "analytics", path: "/analytics", icon: "analytics", label: (n) => n.analytics, ready: false },
+      { key: "earnings", path: "/earnings", icon: "earnings", label: (n) => n.earnings, ready: true },
+      { key: "analytics", path: "/analytics", icon: "analytics", label: (n) => n.analytics, ready: true },
       { key: "subscription", path: "/subscriptions", icon: "subscription", label: (n) => n.subscription, ready: true },
       { key: "invoices", path: "/invoices", icon: "invoices", label: (n) => n.invoices, ready: true },
     ],

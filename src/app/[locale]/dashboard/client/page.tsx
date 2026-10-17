@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,7 +9,6 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
 import { getClientOverview } from "@/server/services/client-overview";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { UnverifiedBanner } from "@/components/dashboard/unverified-banner";
 import { FindCareButton } from "@/components/marketing/find-care-button";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
@@ -26,9 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ClientDashboardPage() {
   const locale = await getLocale();
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <ClientDashboard locale={locale} />
-    </Suspense>
+    <ClientDashboard locale={locale} />
   );
 }
 

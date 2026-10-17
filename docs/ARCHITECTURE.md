@@ -169,3 +169,15 @@ sequenceDiagram
 - `src/server/policies/roles.ts`: every permission decision, as pure functions.
 - Session reads happen inside `<Suspense>` and call `connection()`, so they never run during prerendering;
   the header receives the account control as a server-rendered slot.
+
+
+## Dashboard navigation speed (2026-10-17)
+
+Dashboard pages do **not** wrap their content in their own `<Suspense>` skeleton. They render inside
+the dashboard layout's boundary, so a click keeps the current page on screen until the next one is
+ready (about 120-150 ms in production) and then swaps in one step. A page-level skeleton made every
+click slower: React shows a fallback for at least 300 ms before revealing content, so navigations took
+about 840 ms even though the server answered in under 80 ms. Sidebar links show a thin pending bar
+(`useLinkStatus`) only when a navigation lasts longer than 120 ms. In `next dev` each page is compiled
+on its first visit (1 to 4 s) and ships unminified JavaScript (about 8 MB); measure speed on
+`npm run build && npm start`.

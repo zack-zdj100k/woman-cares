@@ -2,6 +2,8 @@
 
 import { refresh, updateTag } from "next/cache";
 import { after } from "next/server";
+import { isLocale } from "@/i18n/config";
+import { getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getSessionUser } from "@/lib/auth/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { canReview } from "@/server/policies/roles";
@@ -52,7 +54,8 @@ export async function recordPaymentAction(_prev: BillingState, form: FormData): 
   return run(() => recordPayment(user, String(form.get("invoiceId") ?? ""), { method: method(form.get("method")), reference: String(form.get("reference") ?? "") }));
 }
 
-export async function runCycleAction(): Promise<BillingState> {
+/** Admin: run the cycle now. The confirmation is written here, in the admin's language. */
+export async function runCycleAction(_prev: BillingState, form: FormData): Promise<BillingState> {
   const user = await getSessionUser();
   if (!user || !canReview(user)) return { status: "error", code: "forbidden" };
   if (!rateLimit(`billing-cycle:${user.id}`, 6, 60_000).ok) return { status: "error", code: "generic" };
@@ -60,7 +63,10 @@ export async function runCycleAction(): Promise<BillingState> {
   const state = await run(async () => {
     r = await runBillingCycle();
   });
-  return state.status === "done" ? { ...state, info: `${r.invoices}:${r.changed}` } : state;
+  if (state.status !== "done") return state;
+  const locale = String(form.get("locale") ?? "");
+  const d = await getDashboardDictionary(isLocale(locale) ? locale : "fr");
+  return { ...state, info: d.billing.cycleDone(r.invoices, r.changed) };
 }
 
 /** Professional: declare a transfer for one of her invoices. */

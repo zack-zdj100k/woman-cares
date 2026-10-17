@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { CategorySlug } from "@/config/categories";
@@ -7,7 +6,6 @@ import { getDashboardDictionary, getDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { listClientBookings, type ClientBookingFilter } from "@/server/services/bookings";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
 import { priceRange, StatusBadge, when } from "@/components/dashboard/booking-ui";
@@ -22,9 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page({ params, searchParams }: PageProps<"/[locale]/dashboard/client/appointments">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <Appointments params={params} searchParams={searchParams} />
-    </Suspense>
+    <Appointments params={params} searchParams={searchParams} />
   );
 }
 

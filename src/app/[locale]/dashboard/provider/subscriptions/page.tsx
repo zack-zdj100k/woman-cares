@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { CategorySlug } from "@/config/categories";
@@ -8,7 +7,6 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
 import { getMyBilling } from "@/server/services/billing";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { InvoiceList } from "@/components/dashboard/invoice-list";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page({ params }: PageProps<"/[locale]/dashboard/provider/subscriptions">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <Billing params={params} />
-    </Suspense>
+    <Billing params={params} />
   );
 }
 

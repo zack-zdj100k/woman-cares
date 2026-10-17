@@ -145,15 +145,15 @@ export function VerifyPaymentForm({ paymentId, labels }: { paymentId: string; la
   );
 }
 
-export function RunCycleButton({ labels }: { labels: { run: string; done: (inv: number, changed: number) => string; errors: Errors } }) {
-  const [state, action, pending] = useActionState<BillingState>(runCycleAction, { status: "idle" });
-  const [inv, changed] = state.status === "done" && state.info ? state.info.split(":").map(Number) : [0, 0];
+export function RunCycleButton({ locale, labels }: { locale: string; labels: { run: string; errors: Errors } }) {
+  const [state, action, pending] = useActionState<BillingState, FormData>(runCycleAction, { status: "idle" });
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
+      <input type="hidden" name="locale" value={locale} />
       <button type="submit" disabled={pending} className={buttonClass({ variant: "outline", size: "sm" })}>
         {labels.run}
       </button>
-      {state.status === "done" && <p role="status" className="text-sm text-success">{labels.done(inv, changed)}</p>}
+      {state.status === "done" && state.info && <p role="status" className="text-sm text-success">{state.info}</p>}
       {state.status === "error" && <p role="alert" className="text-sm text-destructive">{labels.errors[state.code] ?? labels.errors.generic}</p>}
     </form>
   );

@@ -5,8 +5,19 @@ import { linkFromEmail } from "./db";
 export const PASSWORD = "Jasmin et rose 7";
 export const form = (page: Page) => page.locator("main form").filter({ visible: true }).first();
 
+/**
+ * Each test account signs up as its own visitor (a distinct client IP), as real users do. The
+ * sign-up limit (10 per IP per hour) stays in force; the suite simply no longer funnels every
+ * account through one address.
+ */
+async function asNewVisitor(page: Page) {
+  const octet = () => 1 + Math.floor(Math.random() * 254);
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": `10.${octet()}.${octet()}.${octet()}` });
+}
+
 /** Signs up a professional offering nails, confirms the email and signs in. */
 export async function newVerifiedProvider(page: Page, email: string, business: string, categories: string[] = ["Ongles"]) {
+  await asNewVisitor(page);
   await page.goto("/fr/auth/sign-up?role=provider");
   const f = form(page);
   await f.getByLabel("Nom complet").fill("Lina Kaci");
@@ -86,6 +97,7 @@ export async function openInQueue(admin: Page, business: string) {
 
 /** Signs up a client, confirms the email from the outbox link. Ends signed out. */
 export async function newVerifiedClient(page: Page, email: string, name = "Amina Benali") {
+  await asNewVisitor(page);
   await page.goto("/fr/auth/sign-up");
   const f = form(page);
   await f.getByLabel("Nom complet").fill(name);

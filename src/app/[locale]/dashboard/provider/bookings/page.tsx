@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Search } from "lucide-react";
@@ -8,7 +7,6 @@ import { getDashboardDictionary, getDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { listProviderBookingTable, providerCategories, type ProviderBookingFilter } from "@/server/services/booking-views";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { CategorySwitcher } from "@/components/dashboard/category-switcher";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
@@ -25,9 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page({ params, searchParams }: PageProps<"/[locale]/dashboard/provider/bookings">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <Bookings params={params} searchParams={searchParams} />
-    </Suspense>
+    <Bookings params={params} searchParams={searchParams} />
   );
 }
 

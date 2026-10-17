@@ -1,10 +1,8 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { NotificationsView } from "@/components/dashboard/notifications-view";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -14,9 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page({ params, searchParams }: PageProps<"/[locale]/dashboard/client/notifications">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <View params={params} searchParams={searchParams} />
-    </Suspense>
+    <View params={params} searchParams={searchParams} />
   );
 }
 

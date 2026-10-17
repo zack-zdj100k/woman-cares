@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,7 +9,6 @@ import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { canManageCatalog } from "@/server/policies/roles";
 import { ForbiddenError, getUserDetail } from "@/server/services/admin-users";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { AdminCard, AdminTitle, Chip, ReadOnlyNote, adminPage } from "@/components/admin/admin-ui";
 import { ManageForm } from "@/components/admin/manage-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
@@ -22,9 +21,7 @@ export const metadata: Metadata = { robots: { index: false } };
 export default function UserPage({ params }: { params: Params }) {
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <UserFile params={params} />
-      </Suspense>
+      <UserFile params={params} />
     </>
   );
 }

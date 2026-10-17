@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { CategorySlug } from "@/config/categories";
@@ -7,7 +6,6 @@ import { getDictionary, getProviderDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { listMyProfiles } from "@/server/services/provider-profiles";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { buttonClass } from "@/components/ui/button";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
@@ -21,9 +19,7 @@ export default async function Page() {
   const locale = await getLocale();
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Index locale={locale} />
-      </Suspense>
+      <Index locale={locale} />
     </>
   );
 }

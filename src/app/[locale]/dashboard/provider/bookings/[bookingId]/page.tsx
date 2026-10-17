@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -12,7 +11,6 @@ import { paymentSummary, providerActions } from "@/lib/booking-rules";
 import { formatDate, formatDzd } from "@/lib/format";
 import { getProviderBooking } from "@/server/services/booking-views";
 import { today } from "@/server/services/bookings";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { BookingHistory, priceRange, StatusBadge, whenLong } from "@/components/dashboard/booking-ui";
 import { bookingLabels } from "@/components/dashboard/booking-labels";
@@ -27,9 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page({ params }: PageProps<"/[locale]/dashboard/provider/bookings/[bookingId]">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <Booking params={params} />
-    </Suspense>
+    <Booking params={params} />
   );
 }
 

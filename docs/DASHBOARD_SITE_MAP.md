@@ -14,6 +14,7 @@ flowchart LR
   subgraph Provider["/dashboard/provider"]
     P0[Overview ?category ?period] --> P1[bookings ?filter ?category ?q] --> P2["bookings/[bookingId]"]
     P0 --> P3[profiles] --> P4["profiles/[profileId]"]
+    P0 --> P11[calendar ?week] & P12[earnings ?period] & P13[analytics ?period]
     P0 --> P5[services] & P6[schedule] & P7[subscriptions] & P8[invoices] & P9[notifications] & P10[settings]
   end
   subgraph Admin["/dashboard/admin"]
@@ -43,7 +44,10 @@ flowchart LR
 | `/profiles`, `/profiles/[profileId]`, `/services`, `/schedule`, `/settings` | Live | Profile editor, services, hours and closures, business settings |
 | `/subscriptions`, `/invoices` | Live | Subscription status, billable categories, invoices, payment declaration |
 | `/notifications` | Live | In-app notifications |
-| `/calendar`, `/earnings`, `/analytics`, `/support` | Planned | Hidden from the sidebar until built |
+| `/dashboard/provider/calendar` | Live | Week view (Saturday to Friday, `?week`, `?category`): time grid with opening hours, closures and appointments side by side on desktop; agenda per day on phones and tablets |
+| `/dashboard/provider/earnings` | Live | Net recorded revenue (paid minus refunds) by period and category, 12-month chart, by category and by method, completed visits still unpaid, latest payments |
+| `/dashboard/provider/analytics` | Live | Rates (request, acceptance, expiry, no-show, cancellation; shown only with data), funnel, 12-week chart, top services, busiest weekdays and hours, per-category table, outcomes |
+| `/support` | Planned | Hidden from the sidebar until built |
 
 ## Administration (SUPPORT, ADMIN, SUPER_ADMIN)
 

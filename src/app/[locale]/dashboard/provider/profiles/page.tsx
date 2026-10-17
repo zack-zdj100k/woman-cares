@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { categorySlugs, type CategorySlug } from "@/config/categories";
@@ -12,7 +11,6 @@ import { listMyCredentials } from "@/server/services/credentials";
 import { CredentialUpload } from "@/components/provider/credential-upload";
 import { formatDate } from "@/lib/format";
 import { archiveProfileAction } from "../actions";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { AddCategoryForm } from "@/components/provider/add-category-form";
 import { buttonClass } from "@/components/ui/button";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
@@ -26,9 +24,7 @@ export default async function ProfilesPage() {
   const locale = await getLocale();
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Profiles locale={locale} />
-      </Suspense>
+      <Profiles locale={locale} />
     </>
   );
 }

@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -9,7 +8,6 @@ import { canManageCatalog } from "@/server/policies/roles";
 import { notFound } from "next/navigation";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { listAdminCategories } from "@/server/services/admin-categories";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { AdminTitle, Chip, ReadOnlyNote, adminPage } from "@/components/admin/admin-ui";
 import { ManageForm } from "@/components/admin/manage-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
@@ -22,9 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function CategoriesPage({ params }: PageProps<"/[locale]/dashboard/admin/categories">) {
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Categories params={params} />
-      </Suspense>
+      <Categories params={params} />
     </>
   );
 }

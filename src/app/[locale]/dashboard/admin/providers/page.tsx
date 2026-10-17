@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -6,7 +5,6 @@ import { getAdminDictionary, getAuthDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { listProviderQueue, type QueueFilter } from "@/server/services/review";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { buttonClass } from "@/components/ui/button";
 import { fieldClass } from "@/components/ui/field-class";
 import { cn } from "@/lib/cn";
@@ -22,9 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function QueuePage({ params, searchParams }: PageProps<"/[locale]/dashboard/admin/providers">) {
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Queue params={params} searchParams={searchParams} />
-      </Suspense>
+      <Queue params={params} searchParams={searchParams} />
     </>
   );
 }

@@ -1,11 +1,9 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import type { Locale } from "@/i18n/config";
 import { getPagesDictionary, getProviderDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { getBusinessSettings } from "@/server/services/provider-profiles";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { SettingsForm } from "@/components/provider/settings-form";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
 
@@ -18,9 +16,7 @@ export default async function SettingsPage() {
   const locale = await getLocale();
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Settings locale={locale} />
-      </Suspense>
+      <Settings locale={locale} />
     </>
   );
 }

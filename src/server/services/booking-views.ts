@@ -98,23 +98,6 @@ export async function getProviderBooking(actor: Actor, bookingId: string) {
   return { ...b, client: { fullName: b.client.fullName, phone: showPhone ? b.client.phone : null } };
 }
 
-/** Bookings that overlap a date range, for the calendar (week or month view). */
-export async function listProviderCalendar(actor: Actor, from: Date, to: Date, category?: string) {
-  const account = await providerAccount(actor);
-  return db.booking.findMany({
-    where: {
-      providerId: account.id,
-      status: { in: ["PENDING", "ACCEPTED", "RESCHEDULE_PROPOSED", "COMPLETED", "NO_SHOW"] },
-      startAt: { lt: to },
-      endAt: { gt: from },
-      ...(category ? { profile: { category: { slug: category } } } : {}),
-    },
-    orderBy: { startAt: "asc" },
-    take: 500,
-    select: { id: true, startAt: true, endAt: true, status: true, serviceNameSnap: true, client: { select: { fullName: true } }, profile: { select: { category: { select: { slug: true } } } } },
-  });
-}
-
 export async function getClientBooking(actor: Actor, bookingId: string) {
   if (actor.role !== "CLIENT" || !UUID.test(bookingId)) throw new ForbiddenError();
   return db.booking.findFirst({ where: { id: bookingId, clientId: actor.id }, select: { ...detail, review: { select: { rating: true, comment: true, status: true } } } });

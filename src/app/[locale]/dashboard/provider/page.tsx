@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
@@ -10,7 +9,6 @@ import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
 import type { PeriodKey } from "@/lib/periods";
 import { getProviderOverview } from "@/server/services/provider-overview";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { UnverifiedBanner } from "@/components/dashboard/unverified-banner";
 import { CategorySwitcher } from "@/components/dashboard/category-switcher";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
@@ -26,9 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ProviderDashboardPage({ params, searchParams }: PageProps<"/[locale]/dashboard/provider">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <ProviderDashboard params={params} searchParams={searchParams} />
-    </Suspense>
+    <ProviderDashboard params={params} searchParams={searchParams} />
   );
 }
 

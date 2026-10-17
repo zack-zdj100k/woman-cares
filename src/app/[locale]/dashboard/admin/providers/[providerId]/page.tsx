@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -21,7 +21,6 @@ import { formatDate, formatDzd } from "@/lib/format";
 import { canReview } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { getProviderReview } from "@/server/services/review";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { DecisionForm } from "@/components/admin/decision-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { pageClass } from "@/components/dashboard/shell/dashboard-shell";
@@ -34,9 +33,7 @@ export const metadata: Metadata = { robots: { index: false } };
 export default function ProviderReviewPage({ params }: { params: Params }) {
   return (
     <>
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Review params={params} />
-      </Suspense>
+      <Review params={params} />
     </>
   );
 }

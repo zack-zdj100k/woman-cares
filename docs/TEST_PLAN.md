@@ -51,6 +51,17 @@ node scripts/page-shot.mjs http://localhost:3000/fr 375 812 .playwright-mcp/m-fu
 node scripts/console-check.mjs http://localhost:3000/fr/coiffeuses 375
 ```
 
+### Verified (2026-10-17, dashboard navigation speed)
+
+- Measured on a production build with Playwright (CPU profile, timers, network): sidebar clicks took about 840 ms while the server answered in 9-80 ms; the cause was a page-level Suspense skeleton plus React's 300 ms reveal throttle. After removing page-level boundaries: 116-150 ms (professional), 55-133 ms (admin).
+- Lint, 99 unit, 103 integration, 16 end-to-end tests pass after the change.
+
+### Verified (2026-10-17, calendar, earnings, analytics)
+
+- Unit: 99 tests, adding insights (rates return null without data, Algiers clock, weekday and hour histograms, 12 months across a year boundary, side-by-side layout of overlapping appointments).
+- Integration: 103 tests, adding provider-insights (net of refunds, by method and category, unpaid visits, category fallback, ownership and role refusal, null rates then real ones, week starting Saturday with hours). The tests move visits 2 hours into the past, so in the first 2 hours of a month (Algiers) the "this month" figures would legitimately be empty.
+- Screenshots: calendar, earnings and analytics at 375/768/1440 in FR and AR; one overflow found on analytics (table wrapper) and fixed.
+
 ### Verified (2026-10-17, dashboards, billing engine, booking lifecycle)
 
 - Type check, ESLint, production build: clean.

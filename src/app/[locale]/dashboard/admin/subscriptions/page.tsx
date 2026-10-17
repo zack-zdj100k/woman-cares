@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -8,7 +7,6 @@ import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
 import { canReview } from "@/server/policies/roles";
 import { listSubscriptions, type SubscriptionFilter } from "@/server/services/billing";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
 import { RunCycleButton } from "@/components/dashboard/billing-forms";
@@ -23,9 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function Page({ params, searchParams }: PageProps<"/[locale]/dashboard/admin/subscriptions">) {
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <Subscriptions params={params} searchParams={searchParams} />
-    </Suspense>
+    <Subscriptions params={params} searchParams={searchParams} />
   );
 }
 
@@ -46,7 +42,7 @@ async function Subscriptions({ params, searchParams }: PageProps<"/[locale]/dash
       <PageHeader
         title={b.adminTitle}
         description={b.adminDescription}
-        actions={canReview(user) ? <RunCycleButton labels={{ run: b.runCycle, done: b.cycleDone, errors: b.errors }} /> : undefined}
+        actions={canReview(user) ? <RunCycleButton locale={locale} labels={{ run: b.runCycle, errors: b.errors }} /> : undefined}
       />
       <FilterTabs active={filter} items={FILTERS.map((f) => ({ key: f, label: b.filters[f], href: href(f) }))} />
       <DataTable head={[b.provider, b.status, b.basis, b.period, b.outstanding, ""]} empty={result.rows.length === 0 ? b.empty : undefined}>

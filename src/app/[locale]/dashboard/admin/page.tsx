@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
@@ -10,7 +9,6 @@ import { formatDate } from "@/lib/format";
 import { canViewAudit } from "@/server/policies/roles";
 import { getAdminOverview } from "@/server/services/admin-overview";
 import { queueCounts } from "@/server/services/review";
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { TrendChart } from "@/components/dashboard/trend-chart";
@@ -26,9 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminDashboardPage() {
   const locale = await getLocale();
   return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <AdminDashboard locale={locale} />
-    </Suspense>
+    <AdminDashboard locale={locale} />
   );
 }
 
