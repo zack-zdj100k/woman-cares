@@ -28,7 +28,7 @@ export function HomeIntro({ locale, copy, categories }: { locale: Locale; copy: 
           <ul className="mt-3 divide-y divide-line">
             {categorySlugs.map((slug) => (
               <li key={slug}>
-                <Link href={`/${locale}/${slug}`} className="group flex items-center gap-4 py-3">
+                <Link prefetch href={`/${locale}/${slug}`} className="group flex items-center gap-4 py-3">
                   <span className="relative size-12 shrink-0 overflow-hidden rounded-2xl bg-surface-2 shadow-[0_6px_14px_-8px_rgb(74_32_46/0.5)]">
                     <Image src={categoryArt[slug].image} alt="" fill sizes="48px" className="object-cover" />
                   </span>

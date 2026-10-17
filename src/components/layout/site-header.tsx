@@ -123,6 +123,7 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categ
                         <li key={slug}>
                           <Link
                             href={`/${locale}/${slug}`}
+                            prefetch
                             onClick={() => setCareOpen(false)}
                             className="block rounded-2xl px-4 py-3 transition-colors hover:bg-white/10"
                           >

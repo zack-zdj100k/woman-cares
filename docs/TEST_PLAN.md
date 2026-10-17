@@ -51,6 +51,11 @@ node scripts/page-shot.mjs http://localhost:3000/fr 375 812 .playwright-mcp/m-fu
 node scripts/console-check.mjs http://localhost:3000/fr/coiffeuses 375
 ```
 
+### Verified (2026-10-17, public site performance)
+
+- Production build, Playwright with CDP (phone: 390 px, 4G, CPU x4). Home: load 2.6 s to 1.9 s, LCP 1.8 s to 1.2 s, idle main-thread time 33% to 13%, fonts 416 KB to 108 KB (French). Public navigations 130-240 ms (first visit to a profile about 580 ms while the booking panel streams).
+- Lint, 99 unit, 103 integration, 16 end-to-end tests pass; hero screenshots FR 1440 and 768, AR 375 at 0% and 50% scroll, no overflow.
+
 ### Verified (2026-10-17, dashboard navigation speed)
 
 - Measured on a production build with Playwright (CPU profile, timers, network): sidebar clicks took about 840 ms while the server answered in 9-80 ms; the cause was a page-level Suspense skeleton plus React's 300 ms reveal throttle. After removing page-level boundaries: 116-150 ms (professional), 55-133 ms (admin).

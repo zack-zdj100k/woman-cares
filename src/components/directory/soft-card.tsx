@@ -35,7 +35,8 @@ export function SoftCard(p: SoftCardProps) {
     <div className="px-3 pt-3 pb-1">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-[1.3rem] font-medium leading-snug tracking-[-0.01em]">
-          <Link href={p.href} className="after:absolute after:inset-0 after:rounded-[30px] focus-visible:outline-none">
+          {/* Profile data is cached, so prefetch the whole profile: the click opens it at once. */}
+          <Link href={p.href} prefetch className="after:absolute after:inset-0 after:rounded-[30px] focus-visible:outline-none">
             {p.name}
           </Link>
         </h3>

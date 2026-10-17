@@ -71,7 +71,7 @@ export function CategoryBento({
               transition={{ duration: 0.5, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }}
               className={cn("group relative", full ? allCells[slug] : i === 0 ? "lg:col-span-2 lg:row-span-2" : "lg:col-span-2")}
             >
-              <Link href={`/${locale}/${slug}`} className="absolute inset-0 block overflow-hidden rounded-[26px] shadow-(--shadow-soft)">
+              <Link prefetch href={`/${locale}/${slug}`} className="absolute inset-0 block overflow-hidden rounded-[26px] shadow-(--shadow-soft)">
                 <Image
                   src={categoryArt[slug].image}
                   alt=""

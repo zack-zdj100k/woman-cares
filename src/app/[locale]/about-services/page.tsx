@@ -95,7 +95,7 @@ export default async function AboutServicesPage() {
           <SnapGallery previous={s.previous} next={s.next} rtl={locale === "ar"}>
             {categorySlugs.map((slug) => (
               <li key={slug} className="w-[min(17rem,70vw)] shrink-0 snap-start">
-                <Link href={`/${locale}/${slug}`} className="group relative block aspect-[3/4] overflow-hidden rounded-[24px] shadow-(--shadow-soft)">
+                <Link prefetch href={`/${locale}/${slug}`} className="group relative block aspect-[3/4] overflow-hidden rounded-[24px] shadow-(--shadow-soft)">
                   <Image src={categoryArt[slug].image} alt="" fill sizes="17rem" className="object-cover transition-transform duration-[1.2s] ease-(--ease-soft) group-hover:scale-105" />
                   <span className="absolute inset-x-3 bottom-3 rounded-2xl bg-white/85 px-4 py-3 text-sm font-medium backdrop-blur-md">{dict.categories[slug].name}</span>
                 </Link>

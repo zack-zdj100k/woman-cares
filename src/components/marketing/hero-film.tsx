@@ -109,11 +109,12 @@ export function HeroFilm({
     if (c !== chapterRef.current) seek(c);
   });
 
-  // Keep chapter UI and the progress fill in sync with the film while it plays.
+  // Keep chapter UI and the progress fill in sync with the film while it plays. Ten checks a
+  // second are enough (the fill eases between them in CSS); a per-frame loop kept phones busy.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !inView) return;
-    let raf = 0;
+    let timer = 0;
     const tick = () => {
       const t = v.currentTime;
       let c = chapterAt(t);
@@ -127,10 +128,30 @@ export function HeroFilm({
         setChapter(c);
       }
       fill.set(progressWithin(t, c));
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    const loop = () => {
+      tick();
+      timer = window.setTimeout(loop, 100);
+    };
+    const start = () => {
+      window.clearTimeout(timer);
+      loop();
+    };
+    const stop = () => {
+      window.clearTimeout(timer);
+      tick();
+    };
+    v.addEventListener("play", start);
+    v.addEventListener("pause", stop);
+    v.addEventListener("seeked", tick);
+    if (!v.paused) start();
+    else tick();
+    return () => {
+      window.clearTimeout(timer);
+      v.removeEventListener("play", start);
+      v.removeEventListener("pause", stop);
+      v.removeEventListener("seeked", tick);
+    };
   }, [inView, fill, reduce, scrollYProgress]);
 
   // Pause the film while the hero is off screen; resume unless the visitor paused it.
@@ -283,6 +304,7 @@ export function HeroFilm({
                 <Typewriter key={active.slug} text={active.caption} className="max-w-[28rem] text-base text-on-media/90 md:text-lg" />
                 <Link
                   href={`/${locale}/${active.slug}`}
+                  prefetch
                   className={buttonClass({ variant: "mediaGhost", size: "md", className: "self-start" })}
                 >
                   {copy.explore}
@@ -363,6 +385,7 @@ export function HeroFilm({
             <div>
               <Link
                 href={`/${locale}/${active.slug}`}
+                prefetch
                 className="inline-flex items-center gap-1 text-sm underline decoration-on-media/40 underline-offset-4 transition-colors hover:decoration-on-media"
               >
                 {copy.explore}
@@ -415,7 +438,7 @@ function HeadlineLine({
 function ChapterFill({ fill, active, done }: { fill: MotionValue<number>; active: boolean; done: boolean }) {
   return (
     <motion.span
-      className="absolute inset-0 origin-left rounded-full bg-on-media rtl:origin-right"
+      className="absolute inset-0 origin-left rounded-full bg-on-media transition-transform duration-100 ease-linear rtl:origin-right motion-reduce:transition-none"
       style={{ scaleX: active ? fill : done ? 1 : 0 }}
     />
   );

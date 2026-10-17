@@ -87,7 +87,7 @@ function Profile({
   return (
     <article className="mx-auto max-w-[1400px] px-4 pt-4 pb-24 sm:px-8 lg:px-12">
       <ViewBeacon slug={profile.slug} />
-      <Link href={`/${locale}/${category}`} className="mb-5 inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5 text-sm text-ink-2 shadow-[inset_0_1px_0_white] hover:text-rose-ink">
+      <Link prefetch href={`/${locale}/${category}`} className="mb-5 inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5 text-sm text-ink-2 shadow-[inset_0_1px_0_white] hover:text-rose-ink">
         <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} />
         {dict.categories[category].name}
       </Link>

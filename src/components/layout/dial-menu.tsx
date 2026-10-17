@@ -192,6 +192,7 @@ export function DialMenu({
                       >
                         <Link
                           href={it.href}
+                          prefetch
                           tabIndex={hidden ? -1 : 0}
                           onFocus={() => setActive(i)}
                           aria-current={it.href === pathname ? "page" : undefined}

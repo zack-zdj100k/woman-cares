@@ -14,12 +14,15 @@ const cormorant = Cormorant_Garamond({
   display: "swap",
 });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
-const amiri = Amiri({ subsets: ["arabic"], weight: ["400", "700"], variable: "--font-amiri", display: "swap" });
+// Arabic fonts are not preloaded: French pages never need them (about 300 KB), and on Arabic pages
+// the browser fetches only the weights the text actually uses, through their unicode-range.
+const amiri = Amiri({ subsets: ["arabic"], weight: ["400", "700"], variable: "--font-amiri", display: "swap", preload: false });
 const plexArabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic"],
   weight: ["400", "500", "600"],
   variable: "--font-plex-arabic",
   display: "swap",
+  preload: false,
 });
 
 export function generateStaticParams() {

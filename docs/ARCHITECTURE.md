@@ -181,3 +181,16 @@ about 840 ms even though the server answered in under 80 ms. Sidebar links show 
 (`useLinkStatus`) only when a navigation lasts longer than 120 ms. In `next dev` each page is compiled
 on its first visit (1 to 4 s) and ships unminified JavaScript (about 8 MB); measure speed on
 `npm run build && npm start`.
+
+
+## Public site performance (2026-10-17)
+
+- **Fonts:** only the Latin fonts are preloaded. Amiri and IBM Plex Sans Arabic load on demand
+  through their unicode-range, so French pages download 108 KB of fonts instead of 416 KB.
+- **Hero film:** the chapter progress is synced ten times a second while the video plays (CSS eases
+  the bar between updates), not on every animation frame; idle CPU on the first screen of the home
+  page dropped from 33% to 13% on a throttled phone. Videos re-encoded at CRF 27 with one keyframe
+  per second (seeking unchanged, SSIM 0.991): 4.8 MB to 3.3 MB (desktop), 2.7 MB to 1.8 MB (phones).
+- **Prefetch:** profile cards and the main category links use `<Link prefetch>`. Profile and
+  directory data are cached (`use cache`), so the click opens the page already filled
+  (130-240 ms instead of 280 ms-1.1 s). The footer keeps the default prefetch to save mobile data.
