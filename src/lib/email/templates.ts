@@ -16,6 +16,7 @@ export type EmailTemplate =
   | "booking-cancelled"
   | "booking-reschedule"
   | "booking-reschedule-reply"
+  | "booking-updated"
   | "staff-alert"
   | "billing-invoice"
   | "billing-grace"
@@ -279,6 +280,35 @@ const copy: Record<EmailTemplate, Record<Locale, (d: TemplateData) => Copy>> = {
         : d.kind === "contact"
           ? { subject: `رسالة جديدة: ${d.reference ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`كتب(ت) ${d.client ?? ""} عبر نموذج الاتصال.`, `الموضوع: ${d.reference ?? ""}`], button: "قراءة الرسالة", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
           : { subject: `دفع مصرَّح به: ${d.reference ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`تصرّح ${d.client ?? ""} بأنها دفعت الفاتورة ${d.reference ?? ""} (${d.amount ?? ""}).`, "تحققي من الاستلام ثم اقبلي الدفع أو ارفضيه."], button: "التحقق من الدفع", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." },
+  },
+
+  "booking-updated": {
+    fr: (d) => ({
+      subject: `Rendez-vous modifié : ${d.service ?? ""}`,
+      heading: `Bonjour ${d.name},`,
+      body: [
+        `La professionnelle a modifié votre rendez-vous pour ${d.service ?? ""}.`,
+        d.when ? `Date et heure : ${d.when}.` : "",
+        d.amount ? `Prix convenu : ${d.amount}.` : "",
+        d.note ?? "",
+        `Référence ${d.reference ?? ""}. Si cela ne vous convient pas, vous pouvez annuler depuis votre espace.`,
+      ],
+      button: "Voir le rendez-vous",
+      footnote: "Le paiement se fait directement auprès de la professionnelle.",
+    }),
+    ar: (d) => ({
+      subject: `تم تعديل الموعد: ${d.service ?? ""}`,
+      heading: `مرحبًا ${d.name}،`,
+      body: [
+        `عدّلت المحترفة موعدك لـ ${d.service ?? ""}.`,
+        d.when ? `التاريخ والوقت: ${d.when}.` : "",
+        d.amount ? `السعر المتفق عليه: ${d.amount}.` : "",
+        d.note ?? "",
+        `المرجع ${d.reference ?? ""}. إن لم يناسبك ذلك يمكنك الإلغاء من مساحتك.`,
+      ],
+      button: "عرض الموعد",
+      footnote: "يتم الدفع مباشرة لدى المحترفة.",
+    }),
   },
 
   "billing-invoice": {

@@ -6,6 +6,8 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import type { PeriodKey } from "@/lib/periods";
 import { getProviderAnalytics } from "@/server/services/provider-insights";
+import { getTargets, HIGHER_IS_BETTER, meetsTarget } from "@/server/services/targets";
+import { cn } from "@/lib/utils";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { CategorySwitcher } from "@/components/dashboard/category-switcher";
 import { TrendChart } from "@/components/dashboard/trend-chart";
@@ -33,7 +35,12 @@ async function Analytics({ params, searchParams }: PageProps<"/[locale]/dashboar
   const user = await requireArea(locale, "provider", `/${locale}/dashboard/provider/analytics`);
   const sp = await searchParams;
   const period: PeriodKey = sp.period === "week" || sp.period === "year" ? sp.period : "month";
-  const [d, site, a] = await Promise.all([getDashboardDictionary(locale), getDictionary(locale), getProviderAnalytics(user, { category: typeof sp.category === "string" ? sp.category : undefined, period })]);
+  const [d, site, a, targets] = await Promise.all([
+    getDashboardDictionary(locale),
+    getDictionary(locale),
+    getProviderAnalytics(user, { category: typeof sp.category === "string" ? sp.category : undefined, period }),
+    getTargets(),
+  ]);
   const c = d.analytics;
   const name = (slug: string) => site.categories[slug as CategorySlug]?.name ?? slug;
   const intl = locale === "ar" ? "ar-DZ" : "fr-FR";
@@ -66,6 +73,12 @@ async function Analytics({ params, searchParams }: PageProps<"/[locale]/dashboar
             <CardContent>
               <p className={a.rates[k] === null ? "text-base text-muted-foreground" : "text-2xl font-semibold tabular-nums tracking-tight"}>{pct(a.rates[k])}</p>
               <p className="mt-1 text-xs text-muted-foreground">{c.ratesHint[k]}</p>
+              {targets[k] !== null && (
+                <p className={cn("mt-2 flex items-center gap-1.5 text-xs", meetsTarget(k, a.rates[k], targets[k]) === true ? "text-success" : meetsTarget(k, a.rates[k], targets[k]) === false ? "text-warning" : "text-muted-foreground")}>
+                  <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+                  {(HIGHER_IS_BETTER[k] ? c.targetMin : c.targetMax)(pct(targets[k]))}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}

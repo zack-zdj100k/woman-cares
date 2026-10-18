@@ -23,9 +23,13 @@ const minutes = (v: string) => {
   return h * 60 + m;
 };
 
+const MAX_RANGES = 10;
+const SESSIONS = [15, 20, 30, 45, 60, 90, 120];
+
 export function ScheduleEditor({
   profileId,
   windows,
+  slotMinutes,
   weekdays,
   copy,
   common,
@@ -33,6 +37,8 @@ export function ScheduleEditor({
 }: {
   profileId: string;
   windows: WindowRow[];
+  /** Session length (minutes) that drives the calendar grid; null = 15-minute grid. */
+  slotMinutes: number | null;
   weekdays: string[];
   copy: Copy;
   common: Common;
@@ -44,6 +50,9 @@ export function ScheduleEditor({
     return out;
   });
   const [state, action, pending] = useActionState<EditorState, FormData>(saveScheduleAction, { status: "idle" });
+  const [session, setSession] = useState(slotMinutes ? String(slotMinutes) : "");
+  const [all, setAll] = useState<Range>({ start: "08:00", end: "18:00", capacity: 1 });
+  const applyToAll = () => setDays(() => Object.fromEntries(ORDER.map((d) => [d, [{ ...all }]])) as Record<number, Range[]>);
   const confirmRef = useRef<HTMLInputElement>(null);
 
   const payload = JSON.stringify(
@@ -66,7 +75,67 @@ export function ScheduleEditor({
       <input type="hidden" name="profileId" value={profileId} />
       <input type="hidden" name="windows" value={payload} />
       <input ref={confirmRef} type="hidden" name="confirm" defaultValue="0" />
+      <input type="hidden" name="slotMinutes" value={session} />
       <p className="text-ink-2">{copy.intro}</p>
+      <fieldset disabled={disabled || pending} className="grid gap-4 rounded-(--radius-field) border border-line p-4 sm:grid-cols-2 disabled:opacity-70">
+        <div className="grid gap-2">
+          <p className="font-medium">{copy.allDaysTitle}</p>
+          <p className="text-xs text-ink-2">{copy.allDaysHint}</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="grid gap-1 text-xs text-ink-2">
+              {copy.from}
+              <select value={all.start} onChange={(e) => setAll((a) => ({ ...a, start: e.target.value }))} className={timeInput} dir="ltr">
+                {TIMES.slice(0, -1).map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs text-ink-2">
+              {copy.to}
+              <select value={all.end} onChange={(e) => setAll((a) => ({ ...a, end: e.target.value }))} className={timeInput} dir="ltr">
+                {TIMES.slice(1).map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs text-ink-2">
+              {copy.capacity}
+              <input type="number" min={1} max={20} value={all.capacity} onChange={(e) => setAll((a) => ({ ...a, capacity: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))} className={cn(timeInput, "w-20")} />
+            </label>
+            <button type="button" onClick={applyToAll} className={buttonClass({ variant: "outline", size: "sm", className: "mb-0.5" })}>
+              {copy.applyAll}
+            </button>
+          </div>
+        </div>
+        <label className="grid content-start gap-2">
+          <span className="font-medium">{copy.session}</span>
+          <span className="text-xs text-ink-2">{copy.sessionHint}</span>
+          <span className="flex items-center gap-2">
+            <input
+              type="number"
+              min={5}
+              max={240}
+              step={1}
+              inputMode="numeric"
+              list="session-lengths"
+              value={session}
+              placeholder={copy.sessionNone}
+              onChange={(e) => setSession(e.target.value)}
+              className="h-11 w-36 rounded-(--radius-field) border border-ink/15 bg-ground px-3 text-[0.95rem] tabular-nums focus:border-rose focus:outline-none"
+            />
+            <span className="text-sm text-ink-2">{copy.sessionUnit}</span>
+          </span>
+          <datalist id="session-lengths">
+            {SESSIONS.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+        </label>
+      </fieldset>
       <fieldset disabled={disabled || pending} className="grid gap-3 disabled:opacity-70">
         {ORDER.map((d) => (
           <div key={d} className="grid gap-3 rounded-(--radius-field) border border-line p-4 sm:grid-cols-[9rem_1fr] sm:items-start">
@@ -126,7 +195,7 @@ export function ScheduleEditor({
                     </button>
                   </div>
                 ))}
-                {days[d].length < 4 && (
+                {days[d].length < MAX_RANGES && (
                   <button type="button" onClick={() => addRange(d)} className="inline-flex items-center gap-1.5 justify-self-start text-sm text-rose-ink underline-offset-4 hover:underline">
                     <Plus className="size-3.5" strokeWidth={2} />
                     {copy.addRange}

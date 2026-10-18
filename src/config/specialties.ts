@@ -60,5 +60,6 @@ export const specialtiesByCategory: Record<CategorySlug, Specialty[]> = {
 };
 
 export function specialtyLabel(category: CategorySlug, slug: string, locale: "fr" | "ar") {
+  if (slug.startsWith("x:")) return slug.slice(2); // her own wording
   return specialtiesByCategory[category].find((s) => s.slug === slug)?.[locale] ?? slug;
 }

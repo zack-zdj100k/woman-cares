@@ -204,6 +204,8 @@ model User {
   email               String     @unique // stored lower-cased
   emailVerifiedAt     DateTime?  @db.Timestamptz
   phone               String?
+  /// Profile picture (public storage key), shown in the dashboards' avatar circle.
+  avatarKey           String?
   passwordHash        String
   fullName            String
   role                UserRole   @default(CLIENT)
@@ -365,6 +367,10 @@ model ProviderAccount {
   workplaceType      WorkplaceType      @default(SALON)
   bio                String?
   publicPhone        String?
+  /// Public contact shown on her profiles (WhatsApp number, email) and her Google Maps link.
+  whatsapp           String?
+  publicEmail        String?
+  mapsUrl            String?
   wilayaCode         Int
   communeId          Int?
   /// Private. Only revealed to a client after an accepted booking, per provider settings.
@@ -404,6 +410,10 @@ model ProviderServiceProfile {
   description        String?
   experienceYears    Int?
   startingPrice      Decimal?      @db.Decimal(12, 2)
+  /// true when the professional typed the starting price herself (services no longer overwrite it).
+  startingPriceManual Boolean      @default(false)
+  /// Session length in minutes: the calendar grid and the public start times follow it (null = 15-minute grid).
+  slotMinutes        Int?
   specialties        String[]
   categoryFields     Json?
   hygieneNotes       String?
@@ -570,10 +580,12 @@ model Favorite {
 model Booking {
   id                 String        @id @default(uuid()) @db.Uuid
   reference          String        @unique // short human-readable code, e.g. WC-7K3P9Q
-  clientId           String        @db.Uuid
+  /// Null for a client the professional added by hand (walk-in, phone call): see guestName/guestPhone.
+  clientId           String?       @db.Uuid
   providerId         String        @db.Uuid // denormalised for ownership checks
   profileId          String        @db.Uuid
-  serviceId          String        @db.Uuid
+  /// Null for a manual booking with a service she typed herself (its name is in serviceNameSnap).
+  serviceId          String?       @db.Uuid
   startAt            DateTime      @db.Timestamptz
   endAt              DateTime      @db.Timestamptz
   requestedStartAt   DateTime      @db.Timestamptz
@@ -589,6 +601,10 @@ model Booking {
   agreedPrice        Decimal?      @db.Decimal(12, 2)
   clientNote         String?
   providerNote       String?
+  /// ONLINE (requested by a client account) or MANUAL (added by the professional in her calendar).
+  source             String        @default("ONLINE")
+  guestName          String?
+  guestPhone         String?
   idempotencyKey     String?       @unique
   pendingExpiresAt   DateTime?     @db.Timestamptz
   cancelledAt        DateTime?     @db.Timestamptz
@@ -596,10 +612,10 @@ model Booking {
   createdAt          DateTime      @default(now()) @db.Timestamptz
   updatedAt          DateTime      @updatedAt @db.Timestamptz
 
-  client     User                   @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Restrict)
+  client     User?                  @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Restrict)
   provider   ProviderAccount        @relation(fields: [providerId], references: [id], onDelete: Restrict)
   profile    ProviderServiceProfile @relation(fields: [profileId], references: [id], onDelete: Restrict)
-  service    ProviderService        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  service    ProviderService?       @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   history    BookingStatusHistory[]
   references BookingReferenceMedia[]
   payments   BookingPayment[]
@@ -782,6 +798,11 @@ model SubscriptionPayment {
   declaredById      String?                   @db.Uuid
   /// Professional's message with the declaration, or the staff reason for a refusal.
   note              String?
+  /// Receipt issued by staff after accepting the payment (private file), its note and the period it covers.
+  receiptKey        String?
+  receiptNote       String?
+  coveredFrom       DateTime?                 @db.Timestamptz
+  coveredTo         DateTime?                 @db.Timestamptz
   verifiedById      String?                   @db.Uuid
   verifiedAt        DateTime?                 @db.Timestamptz
   createdAt         DateTime                  @default(now()) @db.Timestamptz

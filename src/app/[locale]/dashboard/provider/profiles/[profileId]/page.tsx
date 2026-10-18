@@ -129,7 +129,10 @@ async function Editor({ params }: { params: Params }) {
             headline: profile.headline,
             description: profile.description ?? "",
             experienceYears: profile.experienceYears,
-            specialties: profile.specialties,
+            specialties: profile.specialties.filter((s) => !s.startsWith("x:")),
+            customSpecialties: profile.specialties.filter((s) => s.startsWith("x:")).map((s) => s.slice(2)).join(", "),
+            startingPrice: profile.startingPriceManual && profile.startingPrice ? String(Number(profile.startingPrice)) : "",
+            autoPrice: !profile.startingPriceManual && profile.startingPrice ? formatDzd(profile.startingPrice.toString(), locale) : null,
             hygieneNotes: profile.hygieneNotes ?? "",
             productNotes: profile.productNotes ?? "",
             cancellationPolicy: profile.cancellationPolicy ?? "",
@@ -177,7 +180,7 @@ async function Editor({ params }: { params: Params }) {
       </Section>
 
       <Section id="hours" title={e.sections.hours}>
-        <ScheduleEditor profileId={profile.id} disabled={!editable} copy={e.hours} common={pt.common} weekdays={pages.weekdays} windows={data.schedules} />
+        <ScheduleEditor profileId={profile.id} slotMinutes={profile.slotMinutes} disabled={!editable} copy={e.hours} common={pt.common} weekdays={pages.weekdays} windows={data.schedules} />
         <div className="mt-12">
           <Closures
             profileId={profile.id}

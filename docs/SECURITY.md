@@ -89,3 +89,12 @@ existing verified account. Each run is written to the audit log.
 - **Restore after suspension** returns the account to the status recorded in the `user.suspend` audit entry.
 - **Password change** requires the current password, signs out every other session and sends the security email.
 - **Prices** may start on any day from 2020; invoices keep a frozen copy of the price they were issued with.
+
+## Calendar, contacts and receipts (2026-10-18)
+
+- **Manual bookings** store the client's name and phone typed by the professional (`guestName`, `guestPhone`) with no account; a CHECK constraint requires an account or a name. Only the owning professional sees them.
+- **Moves and agreed prices** are direct (owner decision): status-guarded, written to the booking history, and the client with an account is emailed and notified.
+- **Avatars** are public files: sniffed, cropped to 256 px, re-encoded to WebP (metadata removed); the previous file is deleted.
+- **Receipts** are private files (PDF kept as is, images re-encoded), readable by staff and by the professional the payment belongs to; downloads are `no-store`, sandboxed, attachment.
+- **Google Maps links** are accepted only from Google hosts (`maps.app.goo.gl`, `goo.gl`, `maps.google.com`, `google.*/maps`) over https; WhatsApp numbers must be Algerian.
+- **Email confirmed by staff** (ADMIN+) is audited (`user.email.confirm`).

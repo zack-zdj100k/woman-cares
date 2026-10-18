@@ -15,6 +15,7 @@ import { TrendChart } from "@/components/dashboard/trend-chart";
 import { BarList } from "@/components/dashboard/bar-list";
 import { DataTable, Td } from "@/components/dashboard/data-table";
 import { priceRange, when } from "@/components/dashboard/booking-ui";
+import { clientLabel } from "@/lib/booking-rules";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Waits for its data on navigation (see the dashboard layout). */
@@ -110,7 +111,7 @@ async function Earnings({ params, searchParams }: PageProps<"/[locale]/dashboard
                 <li key={u.id}>
                   <Link href={`/${locale}/dashboard/provider/bookings/${u.id}`} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm hover:bg-white/3">
                     <span className="min-w-0">
-                      <span className="block font-medium">{u.client.fullName}</span>
+                      <span className="block font-medium">{clientLabel(u)}</span>
                       <span className="block text-xs text-muted-foreground">
                         {u.serviceNameSnap} · {when(u.startAt, locale)}
                       </span>
@@ -131,7 +132,7 @@ async function Earnings({ params, searchParams }: PageProps<"/[locale]/dashboard
             <Td className="whitespace-nowrap tabular-nums">{formatDate(p.recordedAt, locale, { dateStyle: "medium" })}</Td>
             <Td>
               <Link href={`/${locale}/dashboard/provider/bookings/${p.booking.id}`} className="font-medium hover:underline">
-                {p.booking.client.fullName}
+                {clientLabel(p.booking)}
               </Link>
               <span className="block text-xs text-muted-foreground" dir="ltr">
                 {p.booking.reference}

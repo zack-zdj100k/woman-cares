@@ -19,6 +19,8 @@ stateDiagram-v2
     ACCEPTED --> COMPLETED: after start, professional marks done
     ACCEPTED --> NO_SHOW: after start, client absent
     COMPLETED --> COMPLETED: payments / refunds recorded,\none review by the client
+    [*] --> ACCEPTED: professional adds a client by hand\n(source MANUAL, no account)
+    ACCEPTED --> ACCEPTED: professional moves it to any day/hour\nor sets the agreed price (client told)
     REJECTED --> [*]
     EXPIRED --> [*]
     CANCELLED_BY_CLIENT --> [*]

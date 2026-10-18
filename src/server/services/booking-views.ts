@@ -22,11 +22,15 @@ const row = {
   durationMinSnap: true,
   priceMinSnap: true,
   priceMaxSnap: true,
+  agreedPrice: true,
+  source: true,
   profile: { select: { slug: true, category: { select: { slug: true } }, provider: { select: { businessName: true } } } },
 } as const;
 
 const detail = {
   ...row,
+  guestName: true,
+  guestPhone: true,
   clientId: true,
   requestedStartAt: true,
   proposedEndAt: true,
@@ -38,7 +42,7 @@ const detail = {
   history: { orderBy: { createdAt: "asc" }, select: { id: true, fromStatus: true, toStatus: true, reason: true, createdAt: true, actorId: true } },
 } as const;
 
-export type ProviderBookingFilter = "pending" | "upcoming" | "today" | "past" | "cancelled" | "all";
+export type ProviderBookingFilter = "all" | "today" | "upcoming" | "past" | "cancelled";
 
 async function providerAccount(actor: Actor) {
   if (actor.role !== "PROVIDER" || !canSignIn(actor.status)) throw new ForbiddenError();
@@ -62,21 +66,22 @@ export async function listProviderBookingTable(actor: Actor, opts: { filter: Pro
   const search: Prisma.BookingWhereInput = q ? { OR: [{ reference: { contains: q, mode: "insensitive" } }, { client: { fullName: { contains: q, mode: "insensitive" } } }] } : {};
   const today = algiersDayRange(now);
   const byFilter: Record<ProviderBookingFilter, Prisma.BookingWhereInput> = {
-    pending: { status: { in: ["PENDING", "RESCHEDULE_PROPOSED"] } },
-    upcoming: { status: "ACCEPTED", startAt: { gte: now } },
+    // Requests to answer, proposals waiting and confirmed appointments still to come.
+    upcoming: { status: { in: ["PENDING", "RESCHEDULE_PROPOSED", "ACCEPTED"] }, startAt: { gte: now } },
     today: { status: { in: ["ACCEPTED", "COMPLETED", "NO_SHOW", "RESCHEDULE_PROPOSED", "PENDING"] }, startAt: { gte: today.from, lt: today.to } },
     past: { OR: [{ status: { in: ["COMPLETED", "NO_SHOW"] } }, { status: "ACCEPTED", startAt: { lt: now } }] },
     cancelled: { status: { in: ["REJECTED", "CANCELLED_BY_CLIENT", "CANCELLED_BY_PROVIDER", "EXPIRED"] } },
     all: {},
   };
   const where: Prisma.BookingWhereInput = { AND: [base, search, byFilter[opts.filter]] };
-  const ascending = opts.filter === "pending" || opts.filter === "upcoming" || opts.filter === "today";
-  const [total, rows, counts] = await Promise.all([
+  const ascending = opts.filter === "upcoming" || opts.filter === "today";
+  const [total, rows, counts, pendingCount] = await Promise.all([
     db.booking.count({ where }),
-    db.booking.findMany({ where, orderBy: { startAt: ascending ? "asc" : "desc" }, take: PAGE, skip: (Math.max(1, opts.page) - 1) * PAGE, select: { ...row, client: { select: { fullName: true } } } }),
-    Promise.all((["pending", "upcoming", "today", "past"] as const).map((f) => db.booking.count({ where: { AND: [base, byFilter[f]] } }))),
+    db.booking.findMany({ where, orderBy: { startAt: ascending ? "asc" : "desc" }, take: PAGE, skip: (Math.max(1, opts.page) - 1) * PAGE, select: { ...row, client: { select: { fullName: true } }, guestName: true } }),
+    Promise.all((["upcoming", "today", "past"] as const).map((f) => db.booking.count({ where: { AND: [base, byFilter[f]] } }))),
+    db.booking.count({ where: { ...base, status: "PENDING" } }),
   ]);
-  return { total, rows, pageCount: Math.max(1, Math.ceil(total / PAGE)), counts: { pending: counts[0], upcoming: counts[1], today: counts[2], past: counts[3] } };
+  return { total, rows, pageCount: Math.max(1, Math.ceil(total / PAGE)), counts: { upcoming: counts[0], today: counts[1], past: counts[2] }, pending: pendingCount };
 }
 
 /** One booking for its professional: history, payments, and the client's contact while it is live. */
@@ -94,8 +99,8 @@ export async function getProviderBooking(actor: Actor, bookingId: string) {
   });
   if (!b) return null;
   // Phone only while there is an appointment to honour (or one just held).
-  const showPhone = ["ACCEPTED", "RESCHEDULE_PROPOSED", "COMPLETED"].includes(b.status);
-  return { ...b, client: { fullName: b.client.fullName, phone: showPhone ? b.client.phone : null } };
+  const showPhone = b.source === "MANUAL" || ["ACCEPTED", "RESCHEDULE_PROPOSED", "COMPLETED"].includes(b.status);
+  return { ...b, client: { fullName: b.client?.fullName ?? b.guestName ?? "-", phone: showPhone ? (b.client?.phone ?? b.guestPhone) : null } };
 }
 
 export async function getClientBooking(actor: Actor, bookingId: string) {

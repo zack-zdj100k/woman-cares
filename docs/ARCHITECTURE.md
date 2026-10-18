@@ -35,7 +35,7 @@ flowchart LR
 | Motion | `motion` 12 (`motion/react`) | Scroll-linked values only through `useScroll`/`useTransform`; no scroll listeners. |
 | Icons | `lucide-react` | Requested by the owner. |
 | Forms | React Hook Form + Zod | Zod schemas are shared by client forms and API handlers. |
-| Database | PostgreSQL 17, Prisma 7.10 (`prisma-client` generator, `@prisma/adapter-pg`) | Client generated to `src/generated/prisma` (git-ignored). Config in `prisma.config.ts`. |
+| Database | PostgreSQL 17, Prisma 7.10 (`prisma-client` generator, `@prisma/adapter-pg`) | Client generated to `src/generated/prisma` (git-ignored). Config in `prisma.config.ts`. Every connection runs with `-c TimeZone=UTC` (src/lib/db.ts, seeds, CLI scripts): the adapter sends timestamps without an offset, so a server or database set to Africa/Algiers would shift every stored time by one hour. |
 | Tests | Vitest (unit/integration), Playwright (E2E, visual) | |
 | i18n | Native dictionaries (`src/i18n`), `[locale]` root segment, `proxy.ts` redirect | French LTR, Arabic RTL, `Africa/Algiers`, DZD. |
 

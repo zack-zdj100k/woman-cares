@@ -154,9 +154,11 @@ describe("expiry and tables", () => {
   it("filters the professional table and only shows her own bookings", async () => {
     await booked(await client(), 600, false);
     await booked(await client(), 720);
-    const pending = await listProviderBookingTable(pro, { filter: "pending", page: 1 });
-    expect(pending.rows).toHaveLength(1);
-    expect(pending.counts).toMatchObject({ pending: 1, upcoming: 1 });
+    // "À venir" holds the request to answer and the confirmed appointment.
+    const pending = await listProviderBookingTable(pro, { filter: "upcoming", page: 1 });
+    expect(pending.rows.map((r) => r.status)).toEqual(["PENDING", "ACCEPTED"]);
+    expect(pending.counts).toMatchObject({ upcoming: 2 });
+    expect(pending.pending).toBe(1);
     const search = await listProviderBookingTable(pro, { filter: "all", q: "cliente", page: 1 });
     expect(search.total).toBe(2);
     const other = await createProvider({ name: "Autre" });

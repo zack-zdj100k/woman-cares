@@ -97,6 +97,8 @@ const pagesFr = {
     distanceNote: "Distances calculées depuis la position approximative de chaque professionnelle.",
   },
   profile: {
+    whatsapp: "Écrire sur WhatsApp",
+    openMaps: "Ouvrir dans Google Maps",
     verified: "Profil vérifié",
     experience: (n: number) => (n === 1 ? "1 an d’expérience" : `${n} ans d’expérience`),
     from: "À partir de",

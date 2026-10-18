@@ -94,6 +94,8 @@ const pagesAr: PagesDictionary = {
     distanceNote: "تُحسب المسافات انطلاقًا من الموقع التقريبي لكل محترفة.",
   },
   profile: {
+    whatsapp: "راسليني على واتساب",
+    openMaps: "فتح في خرائط Google",
     verified: "ملف موثق",
     experience: (n: number) => (n === 1 ? "سنة خبرة" : `${n} سنوات خبرة`),
     from: "ابتداءً من",

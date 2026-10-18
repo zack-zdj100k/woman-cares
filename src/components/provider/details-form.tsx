@@ -6,6 +6,7 @@ import { saveDetailsAction, type EditorState } from "@/app/[locale]/dashboard/pr
 import { Field, TextInput, fieldClass } from "@/components/auth/fields";
 import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { SpecialtyCreator } from "./specialty-creator";
 import { SaveStatus } from "./save-status";
 
 type Initial = {
@@ -13,6 +14,11 @@ type Initial = {
   description: string;
   experienceYears: number | null;
   specialties: string[];
+  /** Her own specialties, comma separated. */
+  customSpecialties: string;
+  /** "À partir de" price she typed, or "" (automatic: lowest service price). */
+  startingPrice: string;
+  autoPrice: string | null;
   hygieneNotes: string;
   productNotes: string;
   cancellationPolicy: string;
@@ -59,6 +65,9 @@ export function DetailsForm({
         <Field label={copy.experienceYears} error={err("experienceYears")}>
           {({ id }) => <TextInput id={id} name="experienceYears" type="number" min={0} max={60} inputMode="numeric" defaultValue={text("experienceYears")} className="max-w-40" />}
         </Field>
+        <Field label={copy.startingPrice} hint={initial.autoPrice ? copy.startingPriceAuto.replace("{price}", initial.autoPrice) : copy.startingPriceHint} error={err("startingPrice")}>
+          {({ id, describedBy, invalid }) => <TextInput id={id} name="startingPrice" inputMode="numeric" dir="ltr" defaultValue={text("startingPrice")} aria-describedby={describedBy} invalid={invalid} className="max-w-48" />}
+        </Field>
         {specialtyOptions.length > 0 && (
           <fieldset className="grid gap-3">
             <legend className="mb-1 text-sm font-medium">{copy.specialties}</legend>
@@ -72,6 +81,14 @@ export function DetailsForm({
             </div>
           </fieldset>
         )}
+        <fieldset className="grid gap-2">
+          <legend className="mb-1 text-sm font-medium">{copy.customSpecialties}</legend>
+          <p className="text-sm text-ink-2">{copy.customSpecialtiesHint}</p>
+          <SpecialtyCreator
+            initial={text("customSpecialties").split(",").map((x) => x.trim()).filter(Boolean)}
+            labels={{ placeholder: copy.customSpecialtyPlaceholder, add: copy.customSpecialtyAdd, remove: copy.customSpecialtyRemove, max: copy.customSpecialtyMax }}
+          />
+        </fieldset>
         <Field label={copy.hygieneNotes} hint={copy.hygieneHint}>
           {({ id, describedBy }) => <textarea id={id} name="hygieneNotes" rows={3} maxLength={1500} defaultValue={text("hygieneNotes")} aria-describedby={describedBy} className={area} />}
         </Field>

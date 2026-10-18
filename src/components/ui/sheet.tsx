@@ -24,7 +24,8 @@ export function SheetContent({
       <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-black/70 data-[state=closed]:animate-[fade-out_0.2s] data-[state=open]:animate-[fade-in_0.2s]" />
       <SheetPrimitive.Content
         className={cn(
-          "fixed inset-y-0 z-50 flex w-[18rem] max-w-[85vw] flex-col bg-sidebar text-sidebar-foreground shadow-2xl outline-none",
+          // The portal renders outside the dashboard's dark scope: carry the scope so the tokens resolve.
+          "dashboard-dark fixed inset-y-0 z-50 flex min-h-0 w-[18rem] max-w-[85vw] flex-col overflow-y-auto bg-sidebar text-sidebar-foreground shadow-2xl outline-none",
           side === "start" ? "start-0 border-e border-sidebar-border" : "end-0 border-s border-sidebar-border",
           className,
         )}

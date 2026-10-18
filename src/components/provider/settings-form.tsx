@@ -15,6 +15,9 @@ type Initial = {
   businessName: string;
   bio: string;
   publicPhone: string;
+  whatsapp: string;
+  publicEmail: string;
+  mapsUrl: string;
   wilaya: number;
   commune: string;
   addressLine: string;
@@ -75,6 +78,15 @@ export function SettingsForm({
         </Field>
         <Field label={copy.publicPhone} hint={copy.publicPhoneHint} error={err("publicPhone")}>
           {({ id, describedBy, invalid }) => <TextInput id={id} name="publicPhone" type="tel" dir="ltr" maxLength={20} defaultValue={s("publicPhone")} aria-describedby={describedBy} invalid={invalid} />}
+        </Field>
+        <Field label={copy.whatsapp} hint={copy.whatsappHint} error={err("whatsapp")}>
+          {({ id, describedBy, invalid }) => <TextInput id={id} name="whatsapp" type="tel" dir="ltr" maxLength={20} defaultValue={s("whatsapp")} aria-describedby={describedBy} invalid={invalid} />}
+        </Field>
+        <Field label={copy.publicEmail} hint={copy.publicEmailHint} error={err("publicEmail")}>
+          {({ id, describedBy, invalid }) => <TextInput id={id} name="publicEmail" type="email" dir="ltr" maxLength={200} defaultValue={s("publicEmail")} aria-describedby={describedBy} invalid={invalid} />}
+        </Field>
+        <Field label={copy.mapsUrl} hint={copy.mapsUrlHint} error={err("mapsUrl")}>
+          {({ id, describedBy, invalid }) => <TextInput id={id} name="mapsUrl" type="url" dir="ltr" maxLength={500} placeholder="https://maps.app.goo.gl/…" defaultValue={s("mapsUrl")} aria-describedby={describedBy} invalid={invalid} />}
         </Field>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label={copy.wilaya} error={err("wilaya")}>

@@ -93,10 +93,11 @@ export async function getEditorData(actor: Actor, profileId: string) {
   };
 }
 
-export async function updateProfileDetails(actor: Actor, profileId: string, input: ProfileDetails) {
+export async function updateProfileDetails(actor: Actor, profileId: string, input: Omit<ProfileDetails, "customSpecialties"> & { customSpecialties?: string[] }) {
   const p = await ownedProfile(actor, profileId);
   const allowed = new Set(specialtiesByCategory[p.category.slug as CategorySlug]?.map((s) => s.slug) ?? []);
-  const specialties = [...new Set(input.specialties)].filter((s) => allowed.has(s));
+  const specialties = [...[...new Set(input.specialties)].filter((s) => allowed.has(s)), ...(input.customSpecialties ?? []).map((s) => `x:${s}`)];
+  const manualPrice = typeof input.startingPrice === "number" ? input.startingPrice : null;
   const socialLinks = Object.fromEntries(
     (["instagram", "facebook", "tiktok"] as const).filter((k) => input[k]).map((k) => [k, input[k]]),
   );
@@ -111,15 +112,19 @@ export async function updateProfileDetails(actor: Actor, profileId: string, inpu
       productNotes: input.productNotes ?? null,
       cancellationPolicy: input.cancellationPolicy ?? null,
       socialLinks,
+      startingPriceManual: manualPrice !== null,
+      ...(manualPrice !== null ? { startingPrice: manualPrice } : {}),
     },
   });
+  if (manualPrice === null) await refreshStartingPrice(p.id);
   return tagsFor(p);
 }
 
 /** Starting price shown on cards = lowest active service price. Kept in sync after every service change. */
 async function refreshStartingPrice(profileId: string) {
   const agg = await db.providerService.aggregate({ where: { profileId, active: true }, _min: { priceMin: true } });
-  await db.providerServiceProfile.update({ where: { id: profileId }, data: { startingPrice: agg._min.priceMin } });
+  // A price she typed herself is kept.
+  await db.providerServiceProfile.updateMany({ where: { id: profileId, startingPriceManual: false }, data: { startingPrice: agg._min.priceMin } });
 }
 
 export const MAX_SERVICES = 40;
@@ -205,13 +210,16 @@ export type ScheduleResult = { status: "saved"; tags: CacheTags } | { status: "c
  * outside the new hours, nothing is saved unless the provider explicitly confirms; the bookings
  * themselves are never moved or cancelled silently.
  */
-export async function replaceWeeklySchedule(actor: Actor, profileId: string, windows: ScheduleWindow[], confirm = false): Promise<ScheduleResult> {
+export async function replaceWeeklySchedule(actor: Actor, profileId: string, windows: ScheduleWindow[], confirm = false, slotMinutes?: number | null): Promise<ScheduleResult> {
   const p = await ownedProfile(actor, profileId);
   const conflicts = await bookingsOutsideWindows(profileId, windows);
   if (conflicts.length > 0 && !confirm) return { status: "conflicts", references: conflicts.map((b) => b.reference) };
+  // Any whole number of minutes from 5 to 240 (typed by her); empty = quarter-hour grid.
+  const session = slotMinutes && Number.isInteger(slotMinutes) && slotMinutes >= 5 && slotMinutes <= 240 ? slotMinutes : null;
   await db.$transaction([
     db.workingSchedule.deleteMany({ where: { profileId } }),
     db.workingSchedule.createMany({ data: windows.map((w) => ({ ...w, profileId })) }),
+    ...(slotMinutes !== undefined ? [db.providerServiceProfile.update({ where: { id: profileId }, data: { slotMinutes: session } })] : []),
   ]);
   return { status: "saved", tags: tagsFor(p) };
 }
@@ -298,6 +306,9 @@ export async function updateBusinessSettings(actor: Actor, input: BusinessSettin
       businessName: input.businessName,
       bio: input.bio ?? null,
       publicPhone: input.publicPhone ?? null,
+      whatsapp: input.whatsapp ?? null,
+      publicEmail: input.publicEmail ?? null,
+      mapsUrl: input.mapsUrl ?? null,
       wilayaCode: input.wilaya,
       communeId: commune?.id ?? null,
       addressLine: input.addressLine ?? null,

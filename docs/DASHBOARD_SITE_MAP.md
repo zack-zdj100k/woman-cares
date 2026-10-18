@@ -39,12 +39,12 @@ flowchart LR
 | Route | Status | Purpose |
 |---|---|---|
 | `/dashboard/provider` | Live | Category switcher, period, stats, 8-week chart, next appointments, activity, profiles, subscription |
-| `/dashboard/provider/bookings` | Live | Operational table: to handle, today, upcoming, past, cancelled, all; category; search by client or reference |
+| `/dashboard/provider/bookings` | Live | Operational table: all (default), today, upcoming (includes requests to answer), past, cancelled and refused; category; search by client or reference; accept, refuse, cancel with reason, open, delete (manual, refused, cancelled, expired) per row |
 | `/dashboard/provider/bookings/[bookingId]` | Live | Accept/decline, propose a time (free slots only), cancel with reason, complete, no-show, record payments and refunds, history, client review |
 | `/profiles`, `/profiles/[profileId]`, `/services`, `/schedule`, `/settings` | Live | Profile editor, services, hours and closures, business settings |
 | `/subscriptions`, `/invoices` | Live | Subscription status, billable categories, invoices, payment declaration |
 | `/notifications` | Live | In-app notifications |
-| `/dashboard/provider/calendar` | Live | Week view (Saturday to Friday, `?week`, `?category`): time grid with opening hours, closures and appointments side by side on desktop; agenda per day on phones and tablets |
+| `/dashboard/provider/calendar` (`?new=1&day&time`) | Live | Add an appointment by hand (client name and phone, any hour, overnight); one category at a time (`?category`, no "all"); week view (Saturday to Friday, `?week`): one row per session from opening to the last session ending at closing, compact appointment chips, a "+" per open session while places (postes) remain, appointments outside hours in their own row on desktop; agenda per day with "+ time" chips and remaining places on phones and tablets |
 | `/dashboard/provider/earnings` | Live | Net recorded revenue (paid minus refunds) by period and category, 12-month chart, by category and by method, completed visits still unpaid, latest payments |
 | `/dashboard/provider/analytics` | Live | Rates (request, acceptance, expiry, no-show, cancellation; shown only with data), funnel, 12-week chart, top services, busiest weekdays and hours, per-category table, outcomes |
 | `/support` | Planned | Hidden from the sidebar until built |
@@ -61,5 +61,6 @@ flowchart LR
 | `/audit-logs` | Live (ADMIN+) | Filtered audit log; Super Admins can delete entries (the deletion is logged) |
 | `/messages` | Live (SUPER_ADMIN) | Contact-form messages: new, in progress, handled; reply by email, delete |
 | `/notifications` | Live | Staff alerts: new professional, new message, declared payment |
+| `/settings` | Live (SUPER_ADMIN) | Reference rates for the professionals' statistics |
 | `/account` (all areas; `/client/profile` for clients) | Live | Name, phone, language, password; opened from the avatar menu |
 | `/bookings`, `/content`, `/moderation`, `/analytics`, `/settings` | Planned | Hidden from the sidebar until built |

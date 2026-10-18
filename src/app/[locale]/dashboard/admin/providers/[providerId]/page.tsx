@@ -15,6 +15,7 @@ import {
 } from "@/i18n/get-dictionary";
 import { getProviderBilling } from "@/server/services/billing";
 import { RecordPaymentForm, TermsForm, TrialForm } from "@/components/dashboard/billing-forms";
+import { ReceiptForm } from "@/components/dashboard/receipt-form";
 import { algiersDate } from "@/lib/periods";
 import { Badge } from "@/components/ui/badge";
 import { requireArea } from "@/lib/auth/session";
@@ -143,6 +144,12 @@ async function Review({ params }: { params: Params }) {
           {account.reviewNote && (
             <p className="mt-4 text-sm text-rose-ink">{account.reviewNote}</p>
           )}
+          {!account.user.emailVerifiedAt && decide && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-warning/10 px-4 py-3 text-sm">
+              <span className="text-warning">{at.detail.emailPending}</span>
+              <ManageForm op="user.confirmEmail" id={account.user.id} label={at.detail.confirmEmail} labels={{ done: at.manage.done, errors: at.manage.errors }} confirm={at.detail.confirmEmailHelp} />
+            </div>
+          )}
           {account.user.status === "SUSPENDED" && (
             <p className="mt-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {at.detail.userSuspended}{" "}
@@ -219,6 +226,7 @@ async function Review({ params }: { params: Params }) {
           )}
         </Block>
 
+        <span id="abonnement" className="block scroll-mt-24" aria-hidden="true" />
         {/* Subscription: how this professional is billed (Admin can set an agreed price). */}
         <Block title={b.termsTitle}>
           {!sub ? (
@@ -311,6 +319,19 @@ async function Review({ params }: { params: Params }) {
                           <span className="tabular-nums">{formatDzd(inv.total.toString(), locale)}</span>
                           <Badge variant={inv.status === "PAID" ? "success" : inv.status === "OVERDUE" ? "destructive" : "warning"}>{b.invoiceStatuses[inv.status]}</Badge>
                         </div>
+                        {decide &&
+                          inv.payments
+                            .filter((pay) => pay.status === "PAID")
+                            .map((pay) => (
+                              <ReceiptForm
+                                key={pay.id}
+                                paymentId={pay.id}
+                                note={pay.receiptNote ?? ""}
+                                from={algiersDate(pay.coveredFrom ?? inv.periodStart)}
+                                to={algiersDate(new Date((pay.coveredTo ?? inv.periodEnd).getTime() - (pay.coveredTo ? 0 : 1)))}
+                                labels={{ title: pay.receiptKey || pay.receiptNote ? `${b.receiptTitle} ✓` : b.receiptTitle, hint: b.receiptHint, file: b.receiptFile, note: b.receiptNote, from: b.receiptFrom, to: b.receiptTo, save: b.receiptSave, saved: b.receiptSaved, errors: b.receiptErrors }}
+                              />
+                            ))}
                         {canDelete(user) && (
                           <ManageForm op="invoice.delete" id={inv.id} label={at.deletes.invoice} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.invoiceConfirm} />
                         )}

@@ -102,7 +102,7 @@ export async function saveScheduleAction(_prev: EditorState, form: FormData): Pr
   const parsed = weeklyScheduleSchema.safeParse(windows);
   if (!parsed.success) return { status: "error", message: parsed.error.issues.some((i) => i.message === "overlap") ? "overlap" : "invalid", at: Date.now() };
   return run(async (u) => {
-    const r = await replaceWeeklySchedule(u, str(form, "profileId"), parsed.data, form.get("confirm") === "1");
+    const r = await replaceWeeklySchedule(u, str(form, "profileId"), parsed.data, form.get("confirm") === "1", form.has("slotMinutes") ? Number(form.get("slotMinutes")) || null : undefined);
     if (r.status === "conflicts") return { status: "error", message: "conflicts", conflicts: r.references, at: Date.now() };
     return r.tags;
   });

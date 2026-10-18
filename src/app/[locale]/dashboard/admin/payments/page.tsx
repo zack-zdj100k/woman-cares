@@ -12,6 +12,8 @@ import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-ta
 import { VerifyPaymentForm } from "@/components/dashboard/billing-forms";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { ManageForm } from "@/components/admin/manage-form";
+import { ReceiptForm } from "@/components/dashboard/receipt-form";
+import { algiersDate } from "@/lib/periods";
 import { Badge } from "@/components/ui/badge";
 
 /** Waits for its data on navigation (see the dashboard layout). */
@@ -79,6 +81,15 @@ async function Payments({ params, searchParams }: PageProps<"/[locale]/dashboard
               <Td>
                 {decide && p.status === "PENDING" && (
                   <VerifyPaymentForm paymentId={p.id} labels={{ verify: b.verify, refuse: b.refuse, reason: b.refuseReason, done: b.saved, errors: b.errors }} />
+                )}
+                {decide && p.status === "PAID" && (
+                  <ReceiptForm
+                    paymentId={p.id}
+                    note={p.receiptNote ?? ""}
+                    from={algiersDate(p.coveredFrom ?? p.invoice.periodStart)}
+                    to={algiersDate(new Date((p.coveredTo ?? p.invoice.periodEnd).getTime() - (p.coveredTo ? 0 : 1)))}
+                    labels={{ title: p.receiptKey || p.receiptNote ? `${b.receiptTitle} ✓` : b.receiptTitle, hint: b.receiptHint, file: b.receiptFile, note: b.receiptNote, from: b.receiptFrom, to: b.receiptTo, save: b.receiptSave, saved: b.receiptSaved, errors: b.receiptErrors }}
+                  />
                 )}
                 {remove && (
                   <ManageForm op="payment.delete" id={p.id} label={at.deletes.payment} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.paymentConfirm} className="mt-2" />

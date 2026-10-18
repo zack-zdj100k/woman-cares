@@ -15,7 +15,7 @@ async function scope(actor: Actor, category?: string) {
   if (actor.role !== "PROVIDER" || !canSignIn(actor.status)) throw new ForbiddenError();
   const account = await db.providerAccount.findUnique({
     where: { userId: actor.id },
-    select: { id: true, profiles: { where: { status: { not: "ARCHIVED" } }, orderBy: { category: { sortOrder: "asc" } }, select: { id: true, category: { select: { slug: true } } } } },
+    select: { id: true, profiles: { where: { status: { not: "ARCHIVED" } }, orderBy: { category: { sortOrder: "asc" } }, select: { id: true, slotMinutes: true, category: { select: { slug: true } } } } },
   });
   if (!account) throw new ForbiddenError();
   const categories = account.profiles.map((p) => p.category.slug);
@@ -30,8 +30,14 @@ const DAY = 86_400_000;
 // ───────────── Calendar ─────────────
 
 /** One Algiers week (Saturday to Friday): appointments, opening hours and closures. */
+/**
+ * One Algiers week (Saturday to Friday) of one category: appointments, opening ranges with their
+ * places (postes) and closures. Without a valid category, her first category is shown.
+ */
 export async function getProviderWeek(actor: Actor, opts: { week?: string; category?: string }) {
-  const s = await scope(actor, opts.category);
+  let s = await scope(actor, opts.category);
+  if (!s.active && s.categories.length > 0) s = await scope(actor, s.categories[0]);
+  const profile = s.all.find((p) => p.category.slug === s.active) ?? null;
   const first = weekStart(opts.week && /^\d{4}-\d{2}-\d{2}$/.test(opts.week) ? opts.week : algiersDate(new Date()));
   const days = Array.from({ length: 7 }, (_, i) => new Date(Date.parse(`${first}T00:00:00Z`) + i * DAY).toISOString().slice(0, 10));
   const from = algiersMidnight(days[0]);
@@ -41,15 +47,17 @@ export async function getProviderWeek(actor: Actor, opts: { week?: string; categ
       where: { ...s.where, status: { in: ["PENDING", "ACCEPTED", "RESCHEDULE_PROPOSED", "COMPLETED", "NO_SHOW"] }, startAt: { lt: to }, endAt: { gt: from } },
       orderBy: { startAt: "asc" },
       take: 500,
-      select: { id: true, startAt: true, endAt: true, status: true, serviceNameSnap: true, client: { select: { fullName: true } }, profile: { select: { category: { select: { slug: true } } } } },
+      select: { id: true, startAt: true, endAt: true, status: true, source: true, serviceNameSnap: true, client: { select: { fullName: true, phone: true } }, guestName: true, guestPhone: true, profile: { select: { category: { select: { slug: true } } } } },
     }),
-    db.workingSchedule.findMany({ where: { profileId: { in: s.ids } }, select: { weekday: true, startMinute: true, endMinute: true } }),
+    db.workingSchedule.findMany({ where: { profileId: { in: s.ids } }, select: { weekday: true, startMinute: true, endMinute: true, capacity: true } }),
     db.scheduleException.findMany({
       where: { profileId: { in: s.ids }, date: { gte: new Date(`${days[0]}T00:00:00Z`), lte: new Date(`${days[6]}T00:00:00Z`) } },
-      select: { date: true, isClosed: true, startMinute: true, endMinute: true, note: true, profile: { select: { category: { select: { slug: true } } } } },
+      select: { date: true, isClosed: true, startMinute: true, endMinute: true, capacity: true, note: true, profile: { select: { category: { select: { slug: true } } } } },
     }),
   ]);
-  return { categories: s.categories, active: s.active, days, previous: addDaysIso(first, -7), next: addDaysIso(first, 7), bookings, windows, closures };
+  // The table follows the session length she set for this category (30 minutes when none is set).
+  const step = profile?.slotMinutes ?? 30;
+  return { categories: s.categories, active: s.active, profileId: profile?.id ?? null, days, previous: addDaysIso(first, -7), next: addDaysIso(first, 7), bookings, windows, closures, step, sessionSet: !!profile?.slotMinutes };
 }
 
 function addDaysIso(date: string, n: number) {
@@ -85,13 +93,13 @@ export async function getProviderEarnings(actor: Actor, opts: { category?: strin
       where: { ...s.where, status: "COMPLETED", paymentStatus: "UNPAID" },
       orderBy: { startAt: "desc" },
       take: 10,
-      select: { id: true, reference: true, startAt: true, serviceNameSnap: true, priceMinSnap: true, priceMaxSnap: true, client: { select: { fullName: true } } },
+      select: { id: true, reference: true, startAt: true, serviceNameSnap: true, priceMinSnap: true, priceMaxSnap: true, client: { select: { fullName: true } }, guestName: true },
     }),
     db.bookingPayment.findMany({
       where: { booking: s.where },
       orderBy: { recordedAt: "desc" },
       take: 15,
-      select: { id: true, amount: true, status: true, method: true, recordedAt: true, booking: { select: { id: true, reference: true, serviceNameSnap: true, client: { select: { fullName: true } }, profile: { select: { category: { select: { slug: true } } } } } } },
+      select: { id: true, amount: true, status: true, method: true, recordedAt: true, booking: { select: { id: true, reference: true, serviceNameSnap: true, client: { select: { fullName: true } }, guestName: true, profile: { select: { category: { select: { slug: true } } } } } } },
     }),
     none
       ? Promise.resolve([] as { month: string; paid: Prisma.Decimal | null; refunded: Prisma.Decimal | null }[])

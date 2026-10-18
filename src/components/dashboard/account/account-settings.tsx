@@ -6,6 +6,8 @@ import { getMyAccount } from "@/server/services/account";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordForm, ProfileForm } from "./account-forms";
+import { AvatarForm } from "./avatar-form";
+import { publicMediaUrl } from "@/lib/storage/urls";
 
 /** "Mon compte", shared by every area: profile, language and password. */
 export async function AccountSettings({ user, locale }: { user: SessionUser; locale: Locale }) {
@@ -20,6 +22,11 @@ export async function AccountSettings({ user, locale }: { user: SessionUser; loc
             <CardTitle>{a.profile}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-6">
+            <AvatarForm
+              url={user.avatarKey ? publicMediaUrl(user.avatarKey) : null}
+              initials={me.fullName.split(/[^\p{L}]+/u).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("")}
+              labels={{ change: a.avatarChange, remove: a.avatarRemove, hint: a.avatarHint, errors: a.avatarErrors }}
+            />
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-muted-foreground">{a.email}</dt>

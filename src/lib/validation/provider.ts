@@ -33,6 +33,14 @@ export const profileDetailsSchema = z.object({
   description: z.string().trim().min(40).max(3000),
   experienceYears: z.coerce.number().int().min(0).max(60).nullable().optional().catch(null),
   specialties: z.array(z.string().regex(/^[a-z0-9-]{1,40}$/)).max(12).default([]),
+  /** Her own specialties, comma separated (stored with an "x:" prefix next to the vocabulary slugs). */
+  customSpecialties: z
+    .string()
+    .max(400)
+    .optional()
+    .transform((v) => [...new Set((v ?? "").split(/[,،\n]/).map((s) => s.trim().replace(/\s+/g, " ")).filter((s) => s.length >= 2 && s.length <= 40))].slice(0, 8)),
+  /** "À partir de" price typed by her; empty = the lowest service price, kept up to date automatically. */
+  startingPrice: z.preprocess((v) => (typeof v === "string" ? v.replace(/[\s.]/g, "") : v), z.union([z.literal(""), z.coerce.number().int().min(1).max(10_000_000)]).optional()),
   hygieneNotes: optionalText(1500),
   productNotes: optionalText(1500),
   cancellationPolicy: optionalText(1500),
@@ -78,7 +86,7 @@ export type ScheduleWindow = z.infer<typeof windowSchema>;
 /** Windows of the same weekday must not overlap (breaks are the gaps between them). */
 export const weeklyScheduleSchema = z
   .array(windowSchema)
-  .max(42)
+  .max(70) // up to 10 ranges a day
   .superRefine((windows, ctx) => {
     for (let d = 0; d < 7; d++) {
       const day = windows.filter((w) => w.weekday === d).sort((a, b) => a.startMinute - b.startMinute);
@@ -111,6 +119,37 @@ export const businessSettingsSchema = z.object({
     })
     .nullable()
     .optional(),
+  /** WhatsApp number shown as a chat button on her profiles. */
+  whatsapp: z
+    .string()
+    .trim()
+    .transform((v, ctx) => {
+      if (v === "") return null;
+      const n = normalizeDzPhone(v);
+      if (!n) ctx.addIssue({ code: "custom", message: "phone" });
+      return n;
+    })
+    .nullable()
+    .optional(),
+  publicEmail: z.union([z.literal(""), z.string().trim().toLowerCase().email().max(200)]).optional().transform((v) => v || null),
+  /** A Google Maps link to her place (google.com/maps, maps.app.goo.gl, goo.gl/maps). */
+  mapsUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .transform((v, ctx) => {
+      if (!v) return null;
+      try {
+        const u = new URL(v);
+        const ok = u.protocol === "https:" && (["maps.app.goo.gl", "maps.google.com", "goo.gl"].includes(u.hostname) || (/(^|\.)google\.[a-z.]+$/.test(u.hostname) && u.pathname.startsWith("/maps")));
+        if (!ok) ctx.addIssue({ code: "custom", message: "maps" });
+        return ok ? u.toString() : null;
+      } catch {
+        ctx.addIssue({ code: "custom", message: "maps" });
+        return null;
+      }
+    }),
   wilaya: z.coerce.number().int().min(1).max(58),
   commune: optionalText(80),
   addressLine: optionalText(200),
@@ -120,3 +159,6 @@ export const businessSettingsSchema = z.object({
   longitude: z.coerce.number().min(-9).max(12.5).nullable().optional().catch(null),
 });
 export type BusinessSettings = z.infer<typeof businessSettingsSchema>;
+
+/** Session lengths suggested for the calendar grid and public start times (any 5-240 is accepted). */
+export const SESSION_LENGTHS = [15, 20, 30, 45, 60, 90, 120] as const;

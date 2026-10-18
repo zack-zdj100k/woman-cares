@@ -12,7 +12,7 @@ import { hashToken, newToken } from "./tokens";
 export const SESSION_COOKIE = "wc_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export type SessionUser = Actor & { fullName: string; email: string; locale: string };
+export type SessionUser = Actor & { fullName: string; email: string; locale: string; avatarKey?: string | null };
 
 function secureCookies() {
   return process.env.NODE_ENV === "production" || (process.env.APP_URL ?? "").startsWith("https://");
@@ -66,7 +66,7 @@ export async function userFromSessionToken(token: string | undefined, now = new 
     where: { tokenHash: hashToken(token) },
     select: {
       expiresAt: true,
-      user: { select: { id: true, fullName: true, email: true, role: true, status: true, emailVerifiedAt: true, locale: true } },
+      user: { select: { id: true, fullName: true, email: true, role: true, status: true, emailVerifiedAt: true, locale: true, avatarKey: true } },
     },
   });
   if (!session || session.expiresAt <= now) return null;
@@ -80,6 +80,7 @@ export async function userFromSessionToken(token: string | undefined, now = new 
     status: u.status as Status,
     emailVerified: u.emailVerifiedAt !== null,
     locale: u.locale,
+    avatarKey: u.avatarKey,
   };
 }
 

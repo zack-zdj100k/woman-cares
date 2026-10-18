@@ -12,7 +12,10 @@ export function CategorySwitcher({
   period,
   labels,
   keep,
+  withAll = true,
 }: {
+  /** false: one category is always selected (no "all categories" pill). */
+  withAll?: boolean;
   /** Other URL parameters to carry over (for example the table filter). */
   keep?: Record<string, string>;
   base: string;
@@ -32,9 +35,11 @@ export function CategorySwitcher({
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <nav aria-label={labels.label} className="-mx-1 flex gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
-        <Link href={href(null)} aria-current={!active ? "page" : undefined} className={pill(!active)}>
-          {labels.all}
-        </Link>
+        {withAll && (
+          <Link href={href(null)} aria-current={!active ? "page" : undefined} className={pill(!active)}>
+            {labels.all}
+          </Link>
+        )}
         {categories.map((c) => (
           <Link key={c.slug} href={href(c.slug)} aria-current={active === c.slug ? "page" : undefined} className={pill(active === c.slug)}>
             {c.name}

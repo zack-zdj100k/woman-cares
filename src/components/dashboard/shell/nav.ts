@@ -105,7 +105,7 @@ const admin: Group[] = [
       { key: "analytics", path: "/analytics", icon: "analytics", label: (n) => n.adminAnalytics, ready: false },
       { key: "notifications", path: "/notifications", icon: "notifications", label: (n) => n.notifications, ready: true, badge: "unread" },
       { key: "audit", path: "/audit-logs", icon: "audit", label: (n) => n.audit, ready: true },
-      { key: "settings", path: "/settings", icon: "settings", label: (n) => n.platformSettings, ready: false },
+      { key: "settings", path: "/settings", icon: "settings", label: (n) => n.platformSettings, ready: true },
     ],
   },
 ];

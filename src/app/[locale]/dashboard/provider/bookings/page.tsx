@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Search } from "lucide-react";
 import type { CategorySlug } from "@/config/categories";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -12,12 +11,16 @@ import { CategorySwitcher } from "@/components/dashboard/category-switcher";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
 import { priceRange, StatusBadge, when } from "@/components/dashboard/booking-ui";
 import { Input } from "@/components/ui/input";
+import { clientLabel } from "@/lib/booking-rules";
+import { formatDzd } from "@/lib/format";
+import { BookingRowActions } from "@/components/dashboard/booking-row-actions";
+import { canDeleteBooking } from "@/server/services/booking-manual";
 import { buttonClass } from "@/components/ui/button";
 
 /** Waits for its data on navigation (see the dashboard layout). */
 export const instant = false;
 
-const FILTERS: ProviderBookingFilter[] = ["pending", "today", "upcoming", "past", "cancelled", "all"];
+const FILTERS: ProviderBookingFilter[] = ["all", "today", "upcoming", "past", "cancelled"];
 
 export async function generateMetadata(): Promise<Metadata> {
   const d = await getDashboardDictionary(await getLocale());
@@ -35,7 +38,7 @@ async function Bookings({ params, searchParams }: PageProps<"/[locale]/dashboard
   const locale: Locale = isLocale(l) ? l : "fr";
   const user = await requireArea(locale, "provider", `/${locale}/dashboard/provider/bookings`);
   const sp = await searchParams;
-  const filter = FILTERS.includes(sp.filter as ProviderBookingFilter) ? (sp.filter as ProviderBookingFilter) : "pending";
+  const filter = FILTERS.includes(sp.filter as ProviderBookingFilter) ? (sp.filter as ProviderBookingFilter) : "all";
   const page = Math.max(1, Math.min(500, Number(sp.page) || 1));
   const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : "";
   const cats = await providerCategories(user);
@@ -52,6 +55,7 @@ async function Bookings({ params, searchParams }: PageProps<"/[locale]/dashboard
     return `${base}?${u}`;
   };
   const count = (f: ProviderBookingFilter) => (f in result.counts ? result.counts[f as keyof typeof result.counts] : null);
+  const now = new Date();
 
   return (
     <div className={pageClass}>
@@ -92,7 +96,7 @@ async function Bookings({ params, searchParams }: PageProps<"/[locale]/dashboard
               )}
             </Td>
             <Td>
-              <span className="block font-medium">{r.client.fullName}</span>
+              <span className="block font-medium">{clientLabel(r)}</span>
               <span className="block text-xs text-muted-foreground" dir="ltr">
                 {r.reference}
               </span>
@@ -103,15 +107,20 @@ async function Bookings({ params, searchParams }: PageProps<"/[locale]/dashboard
                 {name(r.profile.category.slug)} · {b.minutes(r.durationMinSnap)}
               </span>
             </Td>
-            <Td className="whitespace-nowrap tabular-nums">{priceRange(r.priceMinSnap, r.priceMaxSnap, locale)}</Td>
+            <Td className="whitespace-nowrap tabular-nums">{r.agreedPrice ? formatDzd(r.agreedPrice.toString(), locale) : priceRange(r.priceMinSnap, r.priceMaxSnap, locale)}</Td>
             <Td>
               <StatusBadge status={r.status} labels={b.providerStatuses} />
             </Td>
             <Td className="text-muted-foreground">{b.paymentStatuses[r.paymentStatus]}</Td>
             <Td className="text-end">
-              <Link href={`${base}/${r.id}`} className={buttonClass({ variant: r.status === "PENDING" ? "solid" : "outline", size: "sm" })}>
-                {b.open}
-              </Link>
+              <BookingRowActions
+                bookingId={r.id}
+                openHref={`${base}/${r.id}`}
+                canRespond={r.status === "PENDING" && r.startAt > now}
+                canCancel={(r.status === "ACCEPTED" || r.status === "RESCHEDULE_PROPOSED") && r.startAt > now}
+                canDelete={canDeleteBooking(r)}
+                labels={{ open: b.open, accept: b.accept, reject: b.reject, cancel: b.providerCancel, cancelConfirm: b.cancelConfirm, reason: b.reason, remove: b.remove, removeConfirm: b.removeConfirm, errors: b.errors }}
+              />
             </Td>
           </tr>
         ))}

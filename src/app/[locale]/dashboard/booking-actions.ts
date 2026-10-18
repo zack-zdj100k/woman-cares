@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh, updateTag } from "next/cache";
+import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { parseAmount } from "@/lib/booking-rules";
@@ -8,6 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { answerProposal, cancelByClient, cancelByProvider, closeVisit, freeSlotsForBooking, leaveReview, proposeTime, recordVisitPayment } from "@/server/services/booking-lifecycle";
 import { BookingBlocked } from "@/server/services/bookings";
+import { createManualBooking, deleteBooking, moveBooking, setAgreedPrice, updateGuest } from "@/server/services/booking-manual";
 import { deliverPendingEmails } from "@/server/services/outbox";
 
 export type BookingActionState = { status: "idle" } | { status: "done"; at: number } | { status: "error"; code: string };
@@ -19,7 +21,7 @@ async function run(fn: (user: NonNullable<Awaited<ReturnType<typeof getSessionUs
   try {
     await fn(user);
   } catch (e) {
-    if (e instanceof BookingBlocked) return { status: "error", code: e.reason === "slot" || e.reason === "service" ? e.reason : "state" };
+    if (e instanceof BookingBlocked) return { status: "error", code: e.reason === "slot" || e.reason === "service" || e.reason === "full" ? e.reason : "state" };
     if (e instanceof ForbiddenError) return { status: "error", code: "forbidden" };
     throw e;
   }
@@ -72,4 +74,59 @@ export async function freeSlotsAction(bookingId: string, date: string): Promise<
     if (e instanceof ForbiddenError) return [];
     throw e;
   }
+}
+
+// ───────────── Professional calendar tools ─────────────
+
+const optionalNumber = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").trim();
+  return s ? Number(s.replace(/\s/g, "")) : null;
+};
+
+export type ManualState = BookingActionState | { status: "created"; id: string; day: string };
+
+/** Adds an appointment by hand, then returns to the calendar week of that day. */
+export async function manualBookingAction(_p: ManualState, form: FormData): Promise<ManualState> {
+  const day = String(form.get("day") ?? "");
+  let created: { id: string } | null = null;
+  const state = await run(async (u) => {
+    created = await createManualBooking(u, {
+      serviceId: String(form.get("serviceId") ?? "") || null,
+      profileId: String(form.get("profileId") ?? "") || null,
+      serviceName: String(form.get("serviceName") ?? ""),
+      day,
+      time: String(form.get("time") ?? ""),
+      durationMinutes: optionalNumber(form.get("duration")),
+      guestName: String(form.get("guestName") ?? ""),
+      guestPhone: String(form.get("guestPhone") ?? ""),
+      note: text(form, "note"),
+      price: optionalNumber(form.get("price")),
+    });
+  });
+  if (state.status !== "done" || !created) return state;
+  const locale = String(form.get("locale") ?? "fr") === "ar" ? "ar" : "fr";
+  redirect(`/${locale}/dashboard/provider/calendar?week=${day}&added=${(created as { id: string }).id}`);
+}
+
+export async function updateGuestAction(_p: BookingActionState, form: FormData) {
+  return run((u) => updateGuest(u, id(form), { guestName: String(form.get("guestName") ?? ""), guestPhone: String(form.get("guestPhone") ?? "") }));
+}
+
+export async function moveBookingAction(_p: BookingActionState, form: FormData) {
+  return run((u) => moveBooking(u, id(form), { day: String(form.get("day") ?? ""), time: String(form.get("time") ?? ""), durationMinutes: optionalNumber(form.get("duration")), note: text(form, "note") }));
+}
+
+export async function agreedPriceAction(_p: BookingActionState, form: FormData) {
+  const raw = String(form.get("price") ?? "").trim();
+  const price = raw ? parseAmount(raw) : null;
+  if (raw && price === null) return { status: "error", code: "service" } as const;
+  return run((u) => setAgreedPrice(u, id(form), price, text(form, "note")));
+}
+
+/** Deletes a booking from her agenda; from its own page, returns to the list. */
+export async function deleteBookingAction(_p: BookingActionState, form: FormData): Promise<BookingActionState> {
+  const state = await run((u) => deleteBooking(u, id(form)));
+  const next = String(form.get("next") ?? "");
+  if (state.status === "done" && next.startsWith("/") && !next.startsWith("//")) redirect(next);
+  return state;
 }

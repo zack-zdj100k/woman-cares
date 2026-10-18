@@ -19,7 +19,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The request cannot be made (the reason says why; the UI maps it to a message). */
 export class BookingBlocked extends Error {
-  constructor(public reason: "slot" | "limit" | "profile" | "service" | "state" | "role") {
+  constructor(public reason: "slot" | "limit" | "profile" | "service" | "state" | "role" | "full") {
     super(reason);
   }
 }
@@ -44,7 +44,8 @@ export async function loadAvailability(
   const dates = Array.from({ length: days }, (_, i) => addDays(from, i));
   const rangeStart = new Date(`${dates[0]}T00:00:00Z`);
   const rangeEnd = new Date(`${addDays(dates[dates.length - 1], 1)}T00:00:00Z`);
-  const [windows, exceptions, busy] = await Promise.all([
+  const [profileRow, windows, exceptions, busy] = await Promise.all([
+    tx.providerServiceProfile.findUnique({ where: { id: profileId }, select: { slotMinutes: true } }),
     tx.workingSchedule.findMany({ where: { profileId }, select: { weekday: true, startMinute: true, endMinute: true, capacity: true } }),
     tx.scheduleException.findMany({ where: { profileId, date: { gte: rangeStart, lt: rangeEnd } } }),
     tx.booking.findMany({
@@ -61,8 +62,8 @@ export async function loadAvailability(
     }),
   ]);
   const held = busy.flatMap((b) => [
-    { startAt: b.startAt, endAt: b.endAt, bufferMinutes: b.service.bufferMinutes },
-    ...(b.proposedStartAt && b.proposedEndAt ? [{ startAt: b.proposedStartAt, endAt: b.proposedEndAt, bufferMinutes: b.service.bufferMinutes }] : []),
+    { startAt: b.startAt, endAt: b.endAt, bufferMinutes: (b.service?.bufferMinutes ?? 0) },
+    ...(b.proposedStartAt && b.proposedEndAt ? [{ startAt: b.proposedStartAt, endAt: b.proposedEndAt, bufferMinutes: (b.service?.bufferMinutes ?? 0) }] : []),
   ]);
   return computeDays({
     dates,
@@ -72,6 +73,7 @@ export async function loadAvailability(
     durationMinutes: service.durationMinutes,
     bufferMinutes: service.bufferMinutes,
     now: new Date(),
+    stepMinutes: profileRow?.slotMinutes,
   });
 }
 
@@ -88,7 +90,7 @@ export async function getAvailability(profileSlug: string, serviceId: string, fr
   return loadAvailability(db, profile.id, service, start, span);
 }
 
-function newReference() {
+export function newReference() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return `WC-${Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join("")}`;
 }
@@ -99,11 +101,13 @@ function localeOf(l: string): Locale {
 
 export async function notify(
   tx: Prisma.TransactionClient,
-  user: { id: string; email: string; fullName: string; locale: string },
+  /** Null for a client added by hand (no account): nobody to notify. */
+  user: { id: string; email: string; fullName: string; locale: string } | null,
   template: EmailTemplate,
   data: Omit<TemplateData, "name" | "url" | "when"> & { at: Date; path: string },
   dedupeKey: string,
 ) {
+  if (!user) return;
   const locale = localeOf(user.locale);
   const full: TemplateData = {
     ...data,

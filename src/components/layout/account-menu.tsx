@@ -11,6 +11,8 @@ type Props = {
   locale: string;
   firstName: string;
   dashboardHref: string;
+  /** Profile picture, shown in the circle instead of the name. */
+  avatarUrl?: string | null;
   /** Account settings page (name, language, password). */
   settings?: { href: string; label: string };
   labels: { menu: string; space: string; signOut: string };
@@ -18,7 +20,7 @@ type Props = {
 };
 
 /** Signed-in header control: a pill with the first name and a small menu. */
-export function AccountMenu({ locale, firstName, dashboardHref, settings, labels, pillClass }: Props) {
+export function AccountMenu({ locale, firstName, dashboardHref, settings, avatarUrl, labels, pillClass }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
@@ -38,8 +40,15 @@ export function AccountMenu({ locale, firstName, dashboardHref, settings, labels
   return (
     <div ref={ref} className="relative">
       <button type="button" aria-expanded={open} aria-haspopup="menu" aria-label={labels.menu} onClick={() => setOpen((o) => !o)} className={cn(pillClass, "inline-flex items-center gap-2")}>
-        <UserRound className="size-4" strokeWidth={1.75} />
-        <span className="max-w-[8rem] truncate">{firstName}</span>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={avatarUrl} alt="" className="size-full rounded-full object-cover" />
+        ) : (
+          <>
+            <UserRound className="size-4" strokeWidth={1.75} />
+            <span className="max-w-[8rem] truncate">{firstName}</span>
+          </>
+        )}
       </button>
       <AnimatePresence>
         {open && (

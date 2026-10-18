@@ -47,13 +47,13 @@ export async function getProviderOverview(actor: Actor, opts: { category?: strin
       where: { ...scope, status: "ACCEPTED", startAt: { gte: new Date() } },
       orderBy: { startAt: "asc" },
       take: 5,
-      select: { id: true, startAt: true, serviceNameSnap: true, client: { select: { fullName: true } }, profile: { select: { category: { select: { slug: true } } } } },
+      select: { id: true, startAt: true, serviceNameSnap: true, client: { select: { fullName: true } }, guestName: true, profile: { select: { category: { select: { slug: true } } } } },
     }),
     db.bookingStatusHistory.findMany({
       where: { booking: scope },
       orderBy: { createdAt: "desc" },
       take: 6,
-      select: { id: true, toStatus: true, createdAt: true, booking: { select: { serviceNameSnap: true, client: { select: { fullName: true } } } } },
+      select: { id: true, toStatus: true, createdAt: true, booking: { select: { serviceNameSnap: true, client: { select: { fullName: true } }, guestName: true } } },
     }),
     db.providerSubscription.findFirst({ where: { providerId: account.id }, orderBy: { createdAt: "desc" }, select: { status: true, trialEndsAt: true, billingBasis: true } }),
   ]);

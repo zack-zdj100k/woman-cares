@@ -12,7 +12,18 @@ type Invoice = {
   total: { toString(): string };
   status: string;
   dueAt: Date;
-  payments: { id: string; status: string; method: string; externalReference: string | null; createdAt: Date; note: string | null }[];
+  payments: {
+    id: string;
+    status: string;
+    method: string;
+    externalReference: string | null;
+    createdAt: Date;
+    note: string | null;
+    receiptKey?: string | null;
+    receiptNote?: string | null;
+    coveredFrom?: Date | null;
+    coveredTo?: Date | null;
+  }[];
 };
 
 /** A professional's invoices, each with its payments and, when unpaid, the declaration form. */
@@ -48,6 +59,20 @@ export function InvoiceList({ invoices, locale, b, limit }: { invoices: Invoice[
                     {formatDate(p.createdAt, locale, { dateStyle: "medium" })} · {b.methods[p.method]} <span dir="ltr">{p.externalReference}</span> ·{" "}
                     <span className={p.status === "PAID" ? "text-success" : p.status === "FAILED" ? "text-destructive" : "text-warning"}>{b.paymentStatuses[p.status]}</span>
                     {p.status === "FAILED" && p.note && <span> · {p.note}</span>}
+                    {p.status === "PAID" && (p.receiptKey || p.receiptNote || p.coveredFrom) && (
+                      <span className="mt-1.5 block rounded-lg bg-white/[0.04] px-3 py-2 text-foreground">
+                        <span className="font-medium">{b.receipt}</span>
+                        {p.coveredFrom && p.coveredTo && (
+                          <span className="text-muted-foreground"> · {b.coveredRange(formatDate(p.coveredFrom, locale, { dateStyle: "medium" }), formatDate(p.coveredTo, locale, { dateStyle: "medium" }))}</span>
+                        )}
+                        {p.receiptNote && <span className="mt-0.5 block text-muted-foreground">{p.receiptNote}</span>}
+                        {p.receiptKey && (
+                          <a href={`/api/v1/billing/payments/${p.id}/receipt`} className="mt-1 inline-block text-chart-1 underline underline-offset-4">
+                            {b.downloadReceipt}
+                          </a>
+                        )}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

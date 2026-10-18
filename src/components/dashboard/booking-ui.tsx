@@ -35,13 +35,25 @@ export function BookingHistory({
   statuses,
   by,
   clientId,
+  words,
 }: {
   rows: { id: string; toStatus: string; reason: string | null; createdAt: Date; actorId: string | null }[];
   locale: Locale;
   statuses: Record<string, string>;
   by: { client: string; provider: string; system: string };
   clientId: string | null;
+  /** Readable text for calendar changes (moves, agreed price, manual bookings). */
+  words?: { moved: (from: string, to: string) => string; price: (p: string) => string; manual: string };
 }) {
+  const reasonText = (reason: string) => {
+    if (!words) return reason;
+    if (reason === "manual") return words.manual;
+    const moved = /^moved (\S+) → (\S+)(?: · (.*))?$/.exec(reason);
+    if (moved) return [words.moved(whenLong(new Date(moved[1]), locale), whenLong(new Date(moved[2]), locale)), moved[3]].filter(Boolean).join(" · ");
+    const price = /^price (\S+)(?: · (.*))?$/.exec(reason);
+    if (price) return [words.price(price[1] === "-" ? "-" : formatDzd(price[1], locale)), price[2]].filter(Boolean).join(" · ");
+    return reason;
+  };
   return (
     <ol className="relative grid gap-4 border-s border-border ps-5">
       {rows.map((h) => (
@@ -51,7 +63,7 @@ export function BookingHistory({
           <p className="text-xs text-muted-foreground">
             {formatDate(h.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })} · {h.actorId === null ? by.system : h.actorId === clientId ? by.client : by.provider}
           </p>
-          {h.reason && h.reason !== "proposal declined" && h.reason !== "no answer" && <p className="mt-1 text-muted-foreground">{h.reason}</p>}
+          {h.reason && h.reason !== "proposal declined" && h.reason !== "no answer" && <p className="mt-1 text-muted-foreground">{reasonText(h.reason)}</p>}
         </li>
       ))}
     </ol>

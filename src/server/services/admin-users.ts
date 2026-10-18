@@ -149,3 +149,21 @@ export async function getUserDetail(actor: Actor, userId: string) {
     history,
   };
 }
+
+/**
+ * Confirms an account's email on the person's behalf (ADMIN and above), for example when the
+ * confirmation email never arrived. An account waiting for that confirmation becomes ACTIVE. Audited.
+ */
+export async function confirmEmailManually(actor: Actor, targetId: string) {
+  const { canReview } = await import("@/server/policies/roles");
+  if (!canReview(actor) || !UUID.test(targetId)) throw new ForbiddenError();
+  const t = await db.user.findUnique({ where: { id: targetId }, select: { id: true, status: true, emailVerifiedAt: true, provider: { select: { slug: true, profiles: { select: { slug: true, category: { select: { slug: true } } } } } } } });
+  if (!t) throw new ForbiddenError();
+  if (t.emailVerifiedAt) throw new AdminBlocked("state");
+  await db.$transaction([
+    db.user.update({ where: { id: t.id }, data: { emailVerifiedAt: new Date(), ...(t.status === "PENDING_VERIFICATION" ? { status: "ACTIVE" } : {}) } }),
+    db.verificationToken.deleteMany({ where: { userId: t.id, purpose: "EMAIL_VERIFICATION" } }),
+    db.auditLog.create({ data: { actorId: actor.id, action: "user.email.confirm", entityType: "User", entityId: t.id, metadata: { from: t.status } } }),
+  ]);
+  return t.provider ? ["profiles", `provider:${t.provider.slug}`, ...t.provider.profiles.flatMap((p) => [`profile:${p.slug}`, `directory:${p.category.slug}`])] : [];
+}

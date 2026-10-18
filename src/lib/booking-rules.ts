@@ -58,3 +58,8 @@ export function parseAmount(raw: string): number | null {
   const n = Number(v);
   return n > 0 && n <= 10_000_000 ? n : null;
 }
+
+/** Who the booking is for: the client's account name, or the name the professional typed for a manual booking. */
+export function clientLabel(b: { client?: { fullName: string } | null; guestName?: string | null }) {
+  return b.client?.fullName ?? b.guestName ?? "-";
+}

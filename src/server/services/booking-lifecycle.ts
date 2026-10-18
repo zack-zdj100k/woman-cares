@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
-import { clientActions, paymentSummary, PAYMENT_METHODS, providerActions, type BookingStatus, type PaymentMethod } from "@/lib/booking-rules";
+import { clientActions, clientLabel, paymentSummary, PAYMENT_METHODS, providerActions, type BookingStatus, type PaymentMethod } from "@/lib/booking-rules";
 import { canSignIn, type Actor } from "@/server/policies/roles";
 import { ForbiddenError } from "./admin-users";
 import { BookingBlocked, loadAvailability, notify, UUID } from "./bookings";
@@ -51,7 +51,7 @@ export async function cancelByClient(actor: Actor, bookingId: string, reason: st
       tx,
       b.provider.user,
       "booking-cancelled",
-      { by: "client", client: b.client.fullName.split(" ")[0], service: b.serviceNameSnap, reference: b.reference, note: clean(reason), at: b.startAt, path: `/dashboard/provider/bookings/${b.id}` },
+      { by: "client", client: clientLabel(b).split(" ")[0], service: b.serviceNameSnap, reference: b.reference, note: clean(reason), at: b.startAt, path: `/dashboard/provider/bookings/${b.id}` },
       `booking:${b.id}:cancelled`,
     );
   });
@@ -78,7 +78,7 @@ export async function answerProposal(actor: Actor, bookingId: string, accept: bo
       tx,
       b.provider.user,
       "booking-reschedule-reply",
-      { outcome: accept ? "approved" : "rejected", client: b.client.fullName.split(" ")[0], service: b.serviceNameSnap, reference: b.reference, at: accept ? proposedStart : b.startAt, path: `/dashboard/provider/bookings/${b.id}` },
+      { outcome: accept ? "approved" : "rejected", client: clientLabel(b).split(" ")[0], service: b.serviceNameSnap, reference: b.reference, at: accept ? proposedStart : b.startAt, path: `/dashboard/provider/bookings/${b.id}` },
       `booking:${b.id}:proposal:${proposedStart.toISOString()}:${accept ? "yes" : "no"}`,
     );
   });
@@ -120,7 +120,7 @@ export async function proposeTime(actor: Actor, bookingId: string, startAt: stri
   const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Algiers" }).format(start);
   await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "ProviderServiceProfile" WHERE id = ${b.profileId}::uuid FOR UPDATE`;
-    const [day] = await loadAvailability(tx, b.profileId, { durationMinutes: b.durationMinSnap, bufferMinutes: b.service.bufferMinutes }, localDate, 1, b.id);
+    const [day] = await loadAvailability(tx, b.profileId, { durationMinutes: b.durationMinSnap, bufferMinutes: (b.service?.bufferMinutes ?? 0) }, localDate, 1, b.id);
     if (!day?.slots.some((s) => s.startAt.getTime() === start.getTime())) throw new BookingBlocked("slot");
     const end = new Date(start.getTime() + b.durationMinSnap * 60_000);
     await move(tx, b.id, ["PENDING", "ACCEPTED"], "RESCHEDULE_PROPOSED", actor.id, clean(note), { proposedStartAt: start, proposedEndAt: end, providerNote: clean(note) ?? undefined });
@@ -178,6 +178,6 @@ export async function expirePendingBookings(now = new Date()) {
 export async function freeSlotsForBooking(actor: Actor, bookingId: string, date: string) {
   const b = await loadForProvider(actor, bookingId);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
-  const [day] = await loadAvailability(db, b.profileId, { durationMinutes: b.durationMinSnap, bufferMinutes: b.service.bufferMinutes }, date, 1, b.id);
+  const [day] = await loadAvailability(db, b.profileId, { durationMinutes: b.durationMinSnap, bufferMinutes: (b.service?.bufferMinutes ?? 0) }, date, 1, b.id);
   return (day?.slots ?? []).map((s) => s.startAt.toISOString());
 }

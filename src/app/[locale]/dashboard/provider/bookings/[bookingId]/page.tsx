@@ -6,15 +6,15 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getDashboardDictionary, getDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
-import { addDays, MAX_HORIZON_DAYS } from "@/lib/availability";
+import { algiersDate } from "@/lib/periods";
 import { paymentSummary, providerActions } from "@/lib/booking-rules";
 import { formatDate, formatDzd } from "@/lib/format";
 import { getProviderBooking } from "@/server/services/booking-views";
-import { today } from "@/server/services/bookings";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { BookingHistory, priceRange, StatusBadge, whenLong } from "@/components/dashboard/booking-ui";
 import { bookingLabels } from "@/components/dashboard/booking-labels";
-import { CloseVisitForm, ProposeTimeForm, ProviderCancelForm, RespondForm, VisitPaymentForm } from "@/components/dashboard/booking-forms";
+import { AgreedPriceForm, CloseVisitForm, DeleteBookingForm, GuestForm, MoveForm, ProviderCancelForm, RespondForm, VisitPaymentForm } from "@/components/dashboard/booking-forms";
+import { canDeleteBooking } from "@/server/services/booking-manual";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -55,7 +55,7 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
   const L = bookingLabels(b);
   const category = site.categories[r.profile.category.slug as CategorySlug]?.name ?? r.profile.category.slug;
   const money = paymentSummary(r.payments.map((p) => ({ amount: Number(p.amount), status: p.status })));
-  const first = today();
+  const hm = (d: Date) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Africa/Algiers" }).format(d);
 
   return (
     <div className={pageClass}>
@@ -83,6 +83,11 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
                 <div>
                   <p className="text-xs text-muted-foreground">{b.columns.price}</p>
                   <p className="mt-1 font-medium tabular-nums">{priceRange(r.priceMinSnap, r.priceMaxSnap, locale)}</p>
+                  {r.agreedPrice && (
+                    <p className="text-chart-1 tabular-nums">
+                      {b.agreed} : {formatDzd(r.agreedPrice.toString(), locale)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{b.phone}</p>
@@ -109,7 +114,29 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
               </CardContent>
             </Card>
 
-            {actions.length > 0 && actions.some((a) => a !== "pay") && (
+            {r.source === "MANUAL" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{b.guest}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <GuestForm bookingId={r.id} name={r.guestName ?? ""} phone={r.guestPhone ?? ""} l={L} />
+                </CardContent>
+              </Card>
+            )}
+
+            {!["REJECTED", "EXPIRED", "CANCELLED_BY_CLIENT", "CANCELLED_BY_PROVIDER"].includes(r.status) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{b.agreed}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AgreedPriceForm bookingId={r.id} price={r.agreedPrice ? String(Number(r.agreedPrice)) : ""} l={L} />
+                </CardContent>
+              </Card>
+            )}
+
+            {(actions.length > 0 && actions.some((a) => a !== "pay")) || ["PENDING", "ACCEPTED", "RESCHEDULE_PROPOSED"].includes(r.status) ? (
               <Card>
                 <CardHeader>
                   <CardTitle>{b.actions}</CardTitle>
@@ -117,11 +144,11 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
                 <CardContent className="grid gap-6">
                   {actions.includes("respond") && <RespondForm bookingId={r.id} l={L} />}
                   {(actions.includes("complete") || actions.includes("noShow")) && <CloseVisitForm bookingId={r.id} l={L} />}
-                  {actions.includes("propose") && (
+                  {(r.status === "PENDING" || r.status === "ACCEPTED" || r.status === "RESCHEDULE_PROPOSED") && (
                     <details className="group rounded-xl border border-border p-4">
-                      <summary className="cursor-pointer text-sm font-medium">{b.propose}</summary>
+                      <summary className="cursor-pointer text-sm font-medium">{b.move}</summary>
                       <div className="mt-4">
-                        <ProposeTimeForm bookingId={r.id} minDate={first} maxDate={addDays(first, MAX_HORIZON_DAYS)} locale={locale} l={L} />
+                        <MoveForm bookingId={r.id} day={algiersDate(r.startAt)} time={hm(r.startAt)} duration={r.durationMinSnap} l={L} />
                       </div>
                     </details>
                   )}
@@ -130,9 +157,10 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
                       <ProviderCancelForm bookingId={r.id} l={L} />
                     </div>
                   )}
+                  {canDeleteBooking(r) && <DeleteBookingForm bookingId={r.id} next={`/${locale}/dashboard/provider/bookings`} l={L} />}
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
             {(actions.includes("pay") || r.payments.length > 0) && (
               <Card>
@@ -190,7 +218,7 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
               <CardTitle>{b.history}</CardTitle>
             </CardHeader>
             <CardContent>
-              <BookingHistory rows={r.history} locale={locale} statuses={b.providerStatuses} by={b.historyBy} clientId={r.clientId} />
+              <BookingHistory rows={r.history} locale={locale} statuses={b.providerStatuses} by={b.historyBy} clientId={r.clientId} words={{ moved: b.historyMoved, price: b.historyPrice, manual: b.historyManual }} />
             </CardContent>
           </Card>
         </div>

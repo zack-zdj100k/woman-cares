@@ -13,6 +13,7 @@ import { BookingHistory, priceRange, StatusBadge, whenLong } from "@/components/
 import { bookingLabels } from "@/components/dashboard/booking-labels";
 import { ClientCancelForm, ProposalAnswer, ReviewForm } from "@/components/dashboard/booking-forms";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
+import { formatDzd } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Waits for its data on navigation (see the dashboard layout). */
@@ -88,6 +89,11 @@ async function Appointment({ params }: { params: PageProps<"/[locale]/dashboard/
                 <div>
                   <p className="text-xs text-muted-foreground">{b.columns.price}</p>
                   <p className="mt-1 font-medium tabular-nums">{priceRange(r.priceMinSnap, r.priceMaxSnap, locale)}</p>
+                  {r.agreedPrice && (
+                    <p className="text-chart-1 tabular-nums">
+                      {b.agreed} : {formatDzd(r.agreedPrice.toString(), locale)}
+                    </p>
+                  )}
                   <p className="text-muted-foreground">{b.paymentStatuses[r.paymentStatus]}</p>
                 </div>
                 <div>
@@ -153,7 +159,7 @@ async function Appointment({ params }: { params: PageProps<"/[locale]/dashboard/
               <CardTitle>{b.history}</CardTitle>
             </CardHeader>
             <CardContent>
-              <BookingHistory rows={r.history} locale={locale} statuses={b.clientStatuses} by={b.historyBy} clientId={r.clientId} />
+              <BookingHistory rows={r.history} locale={locale} statuses={b.clientStatuses} by={b.historyBy} clientId={r.clientId} words={{ moved: b.historyMoved, price: b.historyPrice, manual: b.historyManual }} />
             </CardContent>
           </Card>
         </div>

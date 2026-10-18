@@ -15,6 +15,7 @@ import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-sh
 import { StatCard } from "@/components/dashboard/stat-card";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { Badge } from "@/components/ui/badge";
+import { clientLabel } from "@/lib/booking-rules";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Waits for its data on navigation (see the dashboard layout). */
@@ -117,7 +118,7 @@ async function ProviderDashboard({ params, searchParams }: PageProps<"/[locale]/
                 {o.nextAppointments.map((b) => (
                   <li key={b.id} className="flex items-center justify-between gap-3 py-3 text-sm">
                     <span className="min-w-0">
-                      <span className="block truncate font-medium">{b.client.fullName}</span>
+                      <span className="block truncate font-medium">{clientLabel(b)}</span>
                       <span className="block truncate text-muted-foreground">
                         {b.serviceNameSnap} · {name(b.profile.category.slug)}
                       </span>
@@ -142,7 +143,7 @@ async function ProviderDashboard({ params, searchParams }: PageProps<"/[locale]/
                 {o.activity.map((a) => (
                   <li key={a.id} className="flex items-start gap-3">
                     <span className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[0.7rem] font-semibold" aria-hidden="true">
-                      {a.booking.client.fullName
+                      {clientLabel(a.booking)
                         .split(/\s+/)
                         .slice(0, 2)
                         .map((p) => p[0]?.toUpperCase())
@@ -150,7 +151,7 @@ async function ProviderDashboard({ params, searchParams }: PageProps<"/[locale]/
                     </span>
                     <div className="min-w-0 flex-1 text-sm">
                       <p>
-                        <span className="font-medium">{a.booking.client.fullName}</span> <span className="text-muted-foreground">· {a.booking.serviceNameSnap}</span>
+                        <span className="font-medium">{clientLabel(a.booking)}</span> <span className="text-muted-foreground">· {a.booking.serviceNameSnap}</span>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {c.statuses[a.toStatus]} · {formatDate(a.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}

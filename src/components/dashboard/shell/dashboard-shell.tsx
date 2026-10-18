@@ -9,6 +9,7 @@ import { homeArea, type Area } from "@/server/policies/roles";
 import { FindCareProvider } from "@/components/marketing/find-care";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { LocaleSwitch } from "@/components/layout/locale-switch";
+import { publicMediaUrl } from "@/lib/storage/urls";
 import { DashboardSidebar, SidebarInset, SidebarProvider, SidebarTrigger, type NavGroup } from "./sidebar";
 
 /**
@@ -43,10 +44,12 @@ export async function DashboardShell({
     .join("");
   const categoryNames = Object.fromEntries(categorySlugs.map((s) => [s, site.categories[s].name])) as Record<CategorySlug, string>;
 
+  const avatarUrl = user.avatarKey ? publicMediaUrl(user.avatarKey) : null;
   const footer = (
     <div className="flex items-center gap-3 rounded-xl px-1.5 py-1">
-      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-accent text-xs font-semibold text-white" aria-hidden="true">
-        {initials}
+      <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-sidebar-accent text-xs font-semibold text-white" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {avatarUrl ? <img src={avatarUrl} alt="" className="size-full object-cover" /> : initials}
       </span>
       <span className="min-w-0 leading-tight">
         <span className="block truncate text-sm text-white">{user.fullName}</span>
@@ -89,10 +92,11 @@ export async function DashboardShell({
               <AccountMenu
                 locale={locale}
                 firstName={initials}
+                avatarUrl={avatarUrl}
                 dashboardHref={home}
                 settings={{ href: `${home}/${area === "client" ? "profile" : "account"}`, label: d.account.menu }}
                 labels={t.account}
-                pillClass="grid size-9 place-items-center rounded-full bg-secondary text-xs font-semibold text-foreground hover:bg-accent [&>svg]:hidden"
+                pillClass="grid size-9 place-items-center overflow-hidden rounded-full bg-secondary text-xs font-semibold text-foreground hover:bg-accent [&>svg]:hidden"
               />
             </div>
           </header>

@@ -47,7 +47,10 @@ export function computeDays(input: {
   bufferMinutes: number;
   now: Date;
   leadMinutes?: number;
+  /** Session length: starts are counted from the start of each working range in this step (default 15). */
+  stepMinutes?: number | null;
 }): Day[] {
+  const step = input.stepMinutes && input.stepMinutes > 0 ? input.stepMinutes : SLOT_STEP;
   const earliest = input.now.getTime() + (input.leadMinutes ?? DEFAULT_LEAD_MINUTES) * 60_000;
   const blocks = input.busy.map((b) => ({ from: b.startAt.getTime(), to: b.endAt.getTime() + b.bufferMinutes * 60_000 }));
   const byDate = new Map(input.exceptions.map((e) => [e.date, e]));
@@ -63,8 +66,9 @@ export function computeDays(input: {
 
     const slots: Slot[] = [];
     for (const w of windows) {
-      const first = Math.ceil(w.startMinute / SLOT_STEP) * SLOT_STEP;
-      for (let minute = first; minute + input.durationMinutes <= w.endMinute; minute += SLOT_STEP) {
+      // A session grid starts at the range start (09:00, 09:45…); the default quarter-hour grid stays aligned on :00/:15/:30/:45.
+      const first = step === SLOT_STEP ? Math.ceil(w.startMinute / SLOT_STEP) * SLOT_STEP : w.startMinute;
+      for (let minute = first; minute + input.durationMinutes <= w.endMinute; minute += step) {
         const startAt = algiersInstant(date, minute);
         const from = startAt.getTime();
         if (from < earliest) continue;

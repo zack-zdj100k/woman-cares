@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { ROLES, type Role } from "@/server/policies/roles";
-import { AdminBlocked, ForbiddenError, changeUserRole, setUserSuspended } from "@/server/services/admin-users";
+import { AdminBlocked, ForbiddenError, changeUserRole, confirmEmailManually, setUserSuspended } from "@/server/services/admin-users";
 import { moveCategory, setCategoryActive, setCategoryCredentialReview } from "@/server/services/admin-categories";
 import { addCategoryPrice, deleteCategoryPrice } from "@/server/services/admin-pricing";
 import { deleteMessage, setMessageStatus } from "@/server/services/messages";
@@ -33,6 +33,7 @@ const OPS = [
   "invoice.delete",
   "payment.delete",
   "audit.delete",
+  "user.confirmEmail",
 ] as const;
 type Op = (typeof OPS)[number];
 
@@ -103,6 +104,9 @@ export async function manageAction(_prev: ReviewState, form: FormData): Promise<
         break;
       case "payment.delete":
         tags = await deletePayment(user, id);
+        break;
+      case "user.confirmEmail":
+        tags = await confirmEmailManually(user, id);
         break;
       case "audit.delete":
         tags = await deleteAuditEntry(user, id);

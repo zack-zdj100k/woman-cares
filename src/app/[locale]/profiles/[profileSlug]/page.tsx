@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, CalendarX, ChevronLeft, Clock, LayoutGrid, MapPin, Phone, Scissors, ShieldCheck, Sparkles, Star, UserRound } from "lucide-react";
+import { BadgeCheck, CalendarX, ChevronLeft, Clock, LayoutGrid, Mail, MapPin, MessageCircle, Phone, Scissors, ShieldCheck, Sparkles, Star, UserRound } from "lucide-react";
 import { categoryArt, isCategorySlug, type CategorySlug } from "@/config/categories";
 import { specialtyLabel } from "@/config/specialties";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -15,6 +15,7 @@ import { ProfileGallery } from "@/components/profile/profile-gallery";
 import { ViewBeacon } from "@/components/profile/view-beacon";
 import { ArrowDot, buttonClass } from "@/components/ui/button";
 import { FilmTitle } from "@/components/ui/film-title";
+import { LocationMap } from "@/components/ui/expand-map";
 import { Reveal } from "@/components/marketing/reveal";
 import { BookingPanel, type BookableService } from "@/components/profile/booking-panel";
 import { bookingCopy } from "@/lib/booking-copy";
@@ -277,12 +278,29 @@ function Profile({
             ) : (
               <p className="text-ink-2">{t.book.noHours}</p>
             )}
-            {pr.publicPhone && (
-              <a href={`tel:${pr.publicPhone.replace(/[^\d+]/g, "")}`} className="mt-5 inline-flex items-center gap-2 text-sm text-ink-2 hover:text-rose-ink" dir="ltr">
-                <Phone className="size-4" strokeWidth={1.75} />
-                {pr.publicPhone}
-              </a>
+            {(pr.publicPhone || pr.whatsapp || pr.publicEmail) && (
+              <div className="mt-5 grid gap-2 text-sm">
+                {pr.whatsapp && (
+                  <a href={`https://wa.me/${pr.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className={buttonClass({ variant: "outline", size: "sm", className: "justify-self-start" })}>
+                    <MessageCircle className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                    {t.whatsapp}
+                  </a>
+                )}
+                {pr.publicPhone && (
+                  <a href={`tel:${pr.publicPhone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-2 text-ink-2 hover:text-rose-ink">
+                    <Phone className="size-4" strokeWidth={1.75} aria-hidden="true" />
+                    <bdi dir="ltr">{pr.publicPhone}</bdi>
+                  </a>
+                )}
+                {pr.publicEmail && (
+                  <a href={`mailto:${pr.publicEmail}`} className="inline-flex items-center gap-2 break-all text-ink-2 hover:text-rose-ink">
+                    <Mail className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                    <bdi dir="ltr">{pr.publicEmail}</bdi>
+                  </a>
+                )}
+              </div>
             )}
+            {pr.mapsUrl && <LocationMap href={pr.mapsUrl} location={place || pr.businessName} detail={pr.businessName} openLabel={t.openMaps} className="mt-5" />}
           </section>
 
           <section aria-labelledby="hours-title" className="card-soft rounded-[26px] p-4">

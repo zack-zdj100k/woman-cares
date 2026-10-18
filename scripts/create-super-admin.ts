@@ -42,7 +42,7 @@ async function main() {
   const promote = process.argv.includes("--promote");
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("--email is required");
 
-  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL!, options: "-c TimeZone=UTC" }) });
   try {
     const existing = await db.user.findUnique({ where: { email } });
     if (existing && !promote) throw new Error("An account with this email exists. Re-run with --promote to make it Super Admin.");

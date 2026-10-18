@@ -7,7 +7,9 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 function createClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set. Copy .env.example to .env (see README).");
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  // Every session runs in UTC. With another server time zone (Africa/Algiers on our machines), the
+  // driver writes and reads timestamptz values without their offset and every instant drifts by an hour.
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString, options: "-c TimeZone=UTC" }) });
 }
 
 /** One client per process; reused across hot reloads in development. */

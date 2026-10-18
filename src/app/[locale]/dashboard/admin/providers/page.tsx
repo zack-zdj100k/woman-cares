@@ -73,9 +73,14 @@ async function Queue({ params, searchParams }: PageProps<"/[locale]/dashboard/ad
                 </p>
                 <p className="text-sm">{at.queue.pendingItems(r._count.profiles, r._count.categoryRequests, r._count.credentials)}</p>
               </div>
-              <Link href={`/${locale}/dashboard/admin/providers/${r.id}`} className={buttonClass({ variant: "solid", size: "sm", className: "self-start" })}>
-                {at.queue.open}
-              </Link>
+              <div className="flex flex-wrap gap-2 self-start">
+                <Link href={`/${locale}/dashboard/admin/providers/${r.id}`} className={buttonClass({ variant: "solid", size: "sm" })}>
+                  {at.queue.open}
+                </Link>
+                <Link href={`/${locale}/dashboard/admin/providers/${r.id}#abonnement`} className={buttonClass({ variant: "outline", size: "sm" })}>
+                  {at.queue.billing}
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

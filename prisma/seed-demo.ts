@@ -21,7 +21,7 @@ if (process.env.NODE_ENV === "production" || process.env.ALLOW_DEMO_SEED !== "1"
   process.exit(1);
 }
 
-const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
+const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL!, options: "-c TimeZone=UTC" }) });
 const DEMO_EMAIL_DOMAIN = "demo.woman-cares.invalid";
 
 // Real communes, approximate centroids (the full commune dataset is imported in Phase 5).

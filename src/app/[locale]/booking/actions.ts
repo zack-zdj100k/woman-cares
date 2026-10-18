@@ -29,7 +29,7 @@ export async function requestBookingAction(_prev: BookingState, form: FormData):
     after(() => deliverPendingEmails().catch(() => {}));
     return { status: "done", reference: result.reference };
   } catch (e) {
-    if (e instanceof BookingBlocked) return { status: "error", code: e.reason === "state" ? "generic" : e.reason };
+    if (e instanceof BookingBlocked) return { status: "error", code: e.reason === "state" ? "generic" : e.reason === "full" ? "slot" : e.reason };
     throw e;
   }
 }

@@ -31,7 +31,7 @@ async function Shell({ children, params }: { children: React.ReactNode; params: 
   // Not allowed here: render the page alone, which redirects to sign-in or shows the 404 page.
   if (!user || !canAccessArea(user, "admin")) return <div className="dashboard-dark min-h-dvh">{children}</div>;
   const [d, counts] = await Promise.all([getDashboardDictionary(locale), shellCounts(user, "admin")]);
-  const groups = buildNav("admin", locale, d, { badges: counts.badges, allowed: (key) => (key === "audit" ? canViewAudit(user) : key === "messages" ? canReadMessages(user) : true) });
+  const groups = buildNav("admin", locale, d, { badges: counts.badges, allowed: (key) => (key === "audit" ? canViewAudit(user) : key === "messages" || key === "settings" ? canReadMessages(user) : true) });
   const notificationsHref = `/${locale}/dashboard/admin/notifications`;
   return (
     <DashboardShell locale={locale} area="admin" user={user} groups={groups} unread={counts.unread} notificationsHref={notificationsHref}>
