@@ -93,9 +93,9 @@ describe("requesting a time", () => {
     expect(await db.booking.count({ where: { status: "PENDING" } })).toBe(2);
   });
 
-  it("only accepts verified clients, never the professional herself, and refuses unknown times", async () => {
+  it("accepts clients (confirmed e-mail not required for now), never the professional herself, and refuses unknown times", async () => {
     await expect(ask(providerActor)).rejects.toMatchObject({ reason: "role" });
-    await expect(ask(await client(false))).rejects.toMatchObject({ reason: "role" });
+    await expect(ask(await client(false))).resolves.toMatchObject({ reference: expect.stringMatching(/^WC-/) });
     await expect(ask(await client(), 607)).rejects.toMatchObject({ reason: "slot" }); // off the grid
     await expect(ask(await client(), 20 * 60)).rejects.toMatchObject({ reason: "slot" }); // after closing
     await expect(requestBooking(await client(), { profileSlug: "lina-hair", serviceId: randomUUID(), startAt: AT(), note: null, idempotencyKey: randomUUID() })).rejects.toMatchObject({ reason: "service" });

@@ -4,6 +4,7 @@ import { refresh, updateTag } from "next/cache";
 import { after } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { rateLimit } from "@/lib/rate-limit";
+import { BOOKING_REQUIRES_VERIFIED_EMAIL } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { BookingBlocked, requestBooking, respondToBooking } from "@/server/services/bookings";
 import { deliverPendingEmails } from "@/server/services/outbox";
@@ -16,7 +17,7 @@ export type BookingState =
 export async function requestBookingAction(_prev: BookingState, form: FormData): Promise<BookingState> {
   const user = await getSessionUser();
   if (!user) return { status: "error", code: "signin" };
-  if (user.role === "CLIENT" && !user.emailVerified) return { status: "error", code: "verify" };
+  if (BOOKING_REQUIRES_VERIFIED_EMAIL && user.role === "CLIENT" && !user.emailVerified) return { status: "error", code: "verify" };
   if (!rateLimit(`booking:${user.id}`, 10, 10 * 60_000).ok) return { status: "error", code: "rate" };
   try {
     const result = await requestBooking(user, {

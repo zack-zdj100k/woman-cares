@@ -4,6 +4,7 @@ import {
   canChangeRole,
   canChangeStatus,
   canManageProviderResource,
+  BOOKING_REQUIRES_VERIFIED_EMAIL,
   canRequestAppointment,
   canSignIn,
   canVerifyProvider,
@@ -53,10 +54,11 @@ describe("role hierarchy and areas", () => {
     expect(canSignIn("DEACTIVATED")).toBe(false);
   });
 
-  it("requires a verified, active client to request appointments", () => {
+  it("lets any client who can sign in request appointments (e-mail confirmation not required for now)", () => {
+    expect(BOOKING_REQUIRES_VERIFIED_EMAIL).toBe(false);
     expect(canRequestAppointment(actor("CLIENT"))).toBe(true);
-    expect(canRequestAppointment(actor("CLIENT", { emailVerified: false }))).toBe(false);
-    expect(canRequestAppointment(actor("CLIENT", { status: "PENDING_VERIFICATION" }))).toBe(false);
+    expect(canRequestAppointment(actor("CLIENT", { emailVerified: false, status: "PENDING_VERIFICATION" }))).toBe(true);
+    expect(canRequestAppointment(actor("CLIENT", { status: "SUSPENDED" }))).toBe(false);
     expect(canRequestAppointment(actor("PROVIDER"))).toBe(false);
   });
 });

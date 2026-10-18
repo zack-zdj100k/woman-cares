@@ -67,6 +67,10 @@ Session length typed by hand (5 to 240 min; empty means 15-minute start times on
 
 Booking panel: a professional or admin session now gets an explanation and a "Se connecter avec un compte cliente" button (signs out, returns to the profile, keeps the chosen time); after sending, the client sees the service, day, time, reference and status with a link to the new appointment. Back links (admin professional and account details, professional profile editor and booking detail, client appointment detail, public profile) return to the page actually visited before, with its tab, filters and page; opened directly, they fall back to the list. Verified: 99 unit, 127 integration, 16 end-to-end (booking test extended), build; screenshots FR 1440 and AR 375.
 
+## E-mail confirmation not required to book (2026-10-18)
+
+Owner decision: clients can request appointments before confirming their e-mail. One switch, `BOOKING_REQUIRES_VERIFIED_EMAIL` in src/server/policies/roles.ts (false), controls both the server rule and the booking action; suspended or deactivated accounts still cannot book. The confirmation e-mail and the dashboard reminder are unchanged. Verified: 99 unit, 127 integration, 16 end-to-end, build.
+
 ## Next session
 
 1. Phase 7: support requests (including promotional requests) for professionals.

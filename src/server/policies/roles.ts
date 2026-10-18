@@ -41,9 +41,16 @@ export function homeArea(role: Role): Area {
   return isStaff(role) ? "admin" : role === "PROVIDER" ? "provider" : "client";
 }
 
-/** Requesting appointments requires a verified, active client account. */
+/**
+ * Whether a client must confirm her e-mail before requesting an appointment. Off for now (owner
+ * decision, 2026-10-18): any client who can sign in may book. Set back to true to require it again.
+ */
+export const BOOKING_REQUIRES_VERIFIED_EMAIL = false;
+
+/** Requesting appointments requires a client account that can sign in (and a confirmed e-mail when required). */
 export function canRequestAppointment(actor: Actor) {
-  return actor.role === "CLIENT" && actor.status === "ACTIVE" && actor.emailVerified;
+  if (actor.role !== "CLIENT" || !canSignIn(actor.status)) return false;
+  return !BOOKING_REQUIRES_VERIFIED_EMAIL || (actor.status === "ACTIVE" && actor.emailVerified);
 }
 
 /**
