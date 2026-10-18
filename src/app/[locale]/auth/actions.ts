@@ -93,7 +93,9 @@ export async function signInAction(_prev: FormState, form: FormData): Promise<Fo
 export async function signOutAction(form: FormData) {
   const locale = localeOf(form);
   await endSession();
-  redirect(`/${locale}/auth/sign-in?notice=signedOut`);
+  // "Switch account" from a page (e.g. booking as a client) comes back to that page after signing in.
+  const next = safeNextPath(form.get("next"), locale);
+  redirect(`/${locale}/auth/sign-in?notice=signedOut${next ? `&next=${encodeURIComponent(next)}` : ""}`);
 }
 
 export async function forgotPasswordAction(_prev: FormState, form: FormData): Promise<FormState> {

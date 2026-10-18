@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { BackLink } from "@/components/navigation/back-link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { CategorySlug } from "@/config/categories";
@@ -84,13 +85,13 @@ async function Review({ params }: { params: Params }) {
 
   return (
     <div className={pageClass}>
-      <Link
+      <BackLink
         href={`/${locale}/dashboard/admin/providers`}
         className="mb-4 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink"
       >
         <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} />
         {at.detail.back}
-      </Link>
+      </BackLink>
       <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)]">
         {account.businessName}
       </h1>

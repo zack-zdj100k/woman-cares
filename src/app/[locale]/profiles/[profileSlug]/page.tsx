@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink } from "@/components/navigation/back-link";
 import { notFound } from "next/navigation";
 import { BadgeCheck, CalendarX, ChevronLeft, Clock, LayoutGrid, Mail, MapPin, MessageCircle, Phone, Scissors, ShieldCheck, Sparkles, Star, UserRound } from "lucide-react";
 import { categoryArt, isCategorySlug, type CategorySlug } from "@/config/categories";
@@ -88,10 +89,10 @@ function Profile({
   return (
     <article className="mx-auto max-w-[1400px] px-4 pt-4 pb-24 sm:px-8 lg:px-12">
       <ViewBeacon slug={profile.slug} />
-      <Link prefetch href={`/${locale}/${category}`} className="mb-5 inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5 text-sm text-ink-2 shadow-[inset_0_1px_0_white] hover:text-rose-ink">
+      <BackLink href={`/${locale}/${category}`} className="mb-5 inline-flex items-center gap-1 rounded-full bg-white/70 px-3 py-1.5 text-sm text-ink-2 shadow-[inset_0_1px_0_white] hover:text-rose-ink">
         <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} />
         {dict.categories[category].name}
-      </Link>
+      </BackLink>
 
       {/* Identity: gallery card + soft identity card with the price on top */}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
@@ -341,7 +342,8 @@ async function BookingSlot({ locale, slug, copy, services }: { locale: Locale; s
       copy={bookingCopy(copy)}
       viewer={viewer}
       signInHref={`/${locale}/auth/sign-in?next=${encodeURIComponent(`/${locale}/profiles/${slug}`)}`}
-      myBookingsHref={`/${locale}/dashboard/client`}
+      myBookingsHref={`/${locale}/dashboard/client/appointments`}
+      appointmentHref={`/${locale}/dashboard/client/appointments/{id}`}
     />
   );
 }

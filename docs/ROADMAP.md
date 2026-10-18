@@ -63,6 +63,10 @@ Schedule: same hours for all days in one click, up to 10 ranges a day, session l
 
 Session length typed by hand (5 to 240 min; empty means 15-minute start times on the site). The calendar is a table of sessions for one category at a time (no "all categories"): sessions start at opening and the last one ends at closing; appointments show as a compact chip opened on click; each open session has a "+" in its top-right corner and counts places against the professional's postes, so a full session cannot take a manual booking or a booking from the site; online clients show with their account name and phone. Add form: free-text "Prestation" with her services suggested. Specialties: create chips instead of typing a list. Rendez-vous: tabs Tous / Aujourd’hui / À venir / Passés / Annulés et refusés (À traiter removed, pending requests sit in À venir), and accept, refuse, cancel with reason or delete (manual, refused, cancelled or expired bookings) straight from the table. Fixed a time-zone drift: the database session now always runs in UTC (`-c TimeZone=UTC`), dev data written while the dev database was set to Africa/Algiers was moved by one hour, and a regression test sets that zone on purpose. Verified: 99 unit, 127 integration, 16 end-to-end, build; screenshots FR 1440/375 and AR 1440/768/375.
 
+## Booking confirmation and back links (2026-10-18)
+
+Booking panel: a professional or admin session now gets an explanation and a "Se connecter avec un compte cliente" button (signs out, returns to the profile, keeps the chosen time); after sending, the client sees the service, day, time, reference and status with a link to the new appointment. Back links (admin professional and account details, professional profile editor and booking detail, client appointment detail, public profile) return to the page actually visited before, with its tab, filters and page; opened directly, they fall back to the list. Verified: 99 unit, 127 integration, 16 end-to-end (booking test extended), build; screenshots FR 1440 and AR 375.
+
 ## Next session
 
 1. Phase 7: support requests (including promotional requests) for professionals.

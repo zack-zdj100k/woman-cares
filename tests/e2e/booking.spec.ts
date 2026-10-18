@@ -38,7 +38,18 @@ test("a client picks a time, signs in, sends the request, and the professional a
   await expect(panel.getByRole("button", { pressed: true }).filter({ hasText: label })).toBeVisible();
   await panel.getByLabel("Un mot pour la professionnelle (facultatif)").fill("Ongles courts, merci.");
   await panel.getByRole("button", { name: "Demander un rendez-vous" }).click();
-  await expect(panel.getByRole("status")).toContainText(/Demande envoyée\. Référence WC-[A-Z2-9]{6}/);
+  const sent = panel.getByRole("status");
+  await expect(sent).toContainText("Demande envoyée");
+  await expect(sent).toContainText(/WC-[A-Z2-9]{6}/);
+  await expect(sent).toContainText("En attente de réponse");
+
+  // The confirmation opens the new appointment, and "back" returns to the profile she came from.
+  const profileUrl = client.url();
+  await sent.getByRole("link", { name: "Voir ce rendez-vous" }).click();
+  await expect(client).toHaveURL(/\/fr\/dashboard\/client\/appointments\/[0-9a-f-]{36}$/);
+  await expect(client.getByText(/WC-[A-Z2-9]{6}/).first()).toBeVisible();
+  await client.getByRole("link", { name: "Retour à la liste" }).click();
+  await expect(client).toHaveURL(profileUrl);
 
   // The professional answers from her bookings table.
   await page.goto("/fr/dashboard/provider/bookings");

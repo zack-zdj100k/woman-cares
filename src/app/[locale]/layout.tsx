@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { Amiri, Cormorant_Garamond, IBM_Plex_Sans_Arabic, Outfit } from "next/font/google";
 import { isLocale, localeDirection, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { Suspense } from "react";
 import { SiteBackdrop } from "@/components/layout/site-backdrop";
+import { HistoryTrail } from "@/components/navigation/back-link";
 import "../globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -58,6 +60,9 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
     >
       <body className="min-h-dvh">
         <SiteBackdrop />
+        <Suspense fallback={null}>
+          <HistoryTrail />
+        </Suspense>
         {children}
       </body>
     </html>

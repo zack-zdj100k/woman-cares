@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink } from "@/components/navigation/back-link";
 import { ArrowLeft } from "lucide-react";
 import type { CategorySlug } from "@/config/categories";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -38,10 +39,10 @@ async function Appointment({ params }: { params: PageProps<"/[locale]/dashboard/
   const b = d.bookings;
   const back = `/${locale}/dashboard/client/appointments`;
   const backLink = (
-    <Link href={back} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <BackLink href={back} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
       <ArrowLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} aria-hidden="true" />
       {b.back}
-    </Link>
+    </BackLink>
   );
   if (!r)
     return (

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { BackLink } from "@/components/navigation/back-link";
 import { ArrowLeft } from "lucide-react";
 import type { CategorySlug } from "@/config/categories";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -39,10 +39,10 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
   const [d, site, r] = await Promise.all([getDashboardDictionary(locale), getDictionary(locale), getProviderBooking(user, bookingId)]);
   const b = d.bookings;
   const backLink = (
-    <Link href={`/${locale}/dashboard/provider/bookings`} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <BackLink href={`/${locale}/dashboard/provider/bookings`} className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
       <ArrowLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} aria-hidden="true" />
       {b.back}
-    </Link>
+    </BackLink>
   );
   if (!r)
     return (

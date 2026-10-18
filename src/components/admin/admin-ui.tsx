@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/navigation/back-link";
 import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { buttonClass } from "@/components/ui/button";
@@ -12,10 +13,10 @@ export function AdminTitle({ title, intro, back }: { title: string; intro?: stri
   return (
     <header>
       {back && (
-        <Link href={back.href} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink">
+        <BackLink href={back.href} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink">
           <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} />
           {back.label}
-        </Link>
+        </BackLink>
       )}
       <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)] break-words">{title}</h1>
       {intro && <p className="mt-4 max-w-[42rem] text-lg leading-relaxed text-ink-2">{intro}</p>}

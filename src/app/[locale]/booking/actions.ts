@@ -10,7 +10,7 @@ import { deliverPendingEmails } from "@/server/services/outbox";
 
 export type BookingState =
   | { status: "idle" }
-  | { status: "done"; reference: string }
+  | { status: "done"; id: string; reference: string }
   | { status: "error"; code: "signin" | "verify" | "slot" | "limit" | "profile" | "service" | "role" | "rate" | "generic" };
 
 export async function requestBookingAction(_prev: BookingState, form: FormData): Promise<BookingState> {
@@ -27,7 +27,7 @@ export async function requestBookingAction(_prev: BookingState, form: FormData):
       idempotencyKey: String(form.get("key") ?? ""),
     });
     after(() => deliverPendingEmails().catch(() => {}));
-    return { status: "done", reference: result.reference };
+    return { status: "done", id: result.id, reference: result.reference };
   } catch (e) {
     if (e instanceof BookingBlocked) return { status: "error", code: e.reason === "state" ? "generic" : e.reason === "full" ? "slot" : e.reason };
     throw e;

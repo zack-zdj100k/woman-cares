@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackLink } from "@/components/navigation/back-link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, Check, ChevronLeft, Circle } from "lucide-react";
 import type { CategorySlug } from "@/config/categories";
@@ -65,10 +66,10 @@ async function Editor({ params }: { params: Params }) {
 
   return (
     <div className={pageClass}>
-      <Link href={`/${locale}/dashboard/provider/profiles`} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink">
+      <BackLink href={`/${locale}/dashboard/provider/profiles`} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-2 hover:text-rose-ink">
         <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} />
         {e.back}
-      </Link>
+      </BackLink>
       <div className="flex flex-wrap items-center gap-4">
         <h1 className="type-display text-[clamp(2.6rem,5vw,4rem)]">{dict.categories[category].name}</h1>
         <span className="rounded-full bg-surface px-3 py-1 text-sm">{t.dashboard.provider.profileStatuses[profile.status]}</span>

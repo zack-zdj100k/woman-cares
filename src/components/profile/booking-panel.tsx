@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CalendarCheck, Clock } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { BookingCopy } from "@/lib/booking-copy";
 import { requestBookingAction, type BookingState } from "@/app/[locale]/booking/actions";
+import { signOutAction } from "@/app/[locale]/auth/actions";
 import { ArrowDot, buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
@@ -31,6 +32,7 @@ export function BookingPanel({
   viewer,
   signInHref,
   myBookingsHref,
+  appointmentHref,
 }: {
   locale: Locale;
   profileSlug: string;
@@ -39,6 +41,8 @@ export function BookingPanel({
   viewer: Viewer;
   signInHref: string;
   myBookingsHref: string;
+  /** The client's page for one appointment; "{id}" is replaced with the new booking's id. */
+  appointmentHref: string;
 }) {
   const reduce = useReducedMotion();
   const storeKey = `wc:booking:${profileSlug}`;
@@ -48,6 +52,8 @@ export function BookingPanel({
   const [startAt, setStartAt] = useState<string | null>(null);
   const [key, setKey] = useState(newKey);
   const [state, action, pending] = useActionState<BookingState, FormData>(requestBookingAction, { status: "idle" });
+  // What was sent, kept for the confirmation (the slot leaves the list once it is taken).
+  const [sent, setSent] = useState<{ service: string; day: string; time: string } | null>(null);
 
   // A choice saved before signing in comes back once.
   useEffect(() => {
@@ -90,14 +96,39 @@ export function BookingPanel({
   const asDate = (d: string) => new Date(`${d}T12:00:00Z`);
 
   if (state.status === "done") {
+    const rows: [string, ReactNode][] = [
+      ...(sent
+        ? ([
+            [copy.service, sent.service],
+            [copy.day, sent.day],
+            [copy.time, <span key="t" dir="ltr">{sent.time}</span>],
+          ] as [string, ReactNode][])
+        : []),
+      [copy.reference, <span key="r" dir="ltr" className="font-medium tabular-nums">{state.reference}</span>],
+      [copy.status, copy.statusPending],
+    ];
     return (
       <motion.div initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="grid gap-4" role="status">
-        <span className="grid size-12 place-items-center rounded-full bg-[linear-gradient(180deg,#c25a73,#8e3249)] text-white shadow-[0_10px_24px_-10px_rgb(142_50_73/0.7)]">
-          <CalendarCheck className="size-5" strokeWidth={1.75} />
-        </span>
-        <p className="leading-relaxed">{copy.done.replace("{ref}", state.reference)}</p>
+        <div className="flex items-center gap-3">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,#c25a73,#8e3249)] text-white shadow-[0_10px_24px_-10px_rgb(142_50_73/0.7)]">
+            <CalendarCheck className="size-5" strokeWidth={1.75} />
+          </span>
+          <p className="type-display text-[1.35rem]">{copy.sentTitle}</p>
+        </div>
+        <dl className="grid gap-2 rounded-2xl bg-white/80 p-4 text-sm">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+              <dt className="text-ink-2">{k}</dt>
+              <dd className="text-end">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-sm leading-relaxed text-ink-2">{copy.done}</p>
         <div className="flex flex-wrap gap-2">
-          <Link href={myBookingsHref} className={buttonClass({ variant: "solid", size: "sm" })}>
+          <Link href={appointmentHref.replace("{id}", state.id)} className={buttonClass({ variant: "solid", size: "sm" })}>
+            {copy.seeOne}
+          </Link>
+          <Link href={myBookingsHref} className={buttonClass({ variant: "outline", size: "sm" })}>
             {copy.seeMine}
           </Link>
           <button
@@ -107,7 +138,7 @@ export function BookingPanel({
               setStartAt(null);
               window.location.reload();
             }}
-            className={buttonClass({ variant: "outline", size: "sm" })}
+            className={buttonClass({ variant: "ghost", size: "sm" })}
           >
             {copy.another}
           </button>
@@ -119,8 +150,14 @@ export function BookingPanel({
   if (services.length === 0) return <p className="text-ink-2">{copy.noServices}</p>;
 
   return (
-    <form action={action} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6">
+    <form
+      action={action}
+      onSubmit={() => chosen && service && day && setSent({ service: service.name, day: longFmt.format(asDate(day.date)), time: hhmm(chosen.minute) })}
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6"
+    >
       <input type="hidden" name="profile" value={profileSlug} />
+      <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="next" value={`/${locale}/profiles/${profileSlug}`} />
       <input type="hidden" name="serviceId" value={serviceId} />
       <input type="hidden" name="startAt" value={chosen?.startAt ?? ""} />
       <input type="hidden" name="key" value={key} />
@@ -293,7 +330,24 @@ export function BookingPanel({
           <ArrowDot />
         </button>
       ) : (
-        <p className="text-sm text-ink-2">{copy.clientOnly}</p>
+        <div className="grid gap-3 rounded-2xl bg-white/80 p-4">
+          <p className="text-sm leading-relaxed text-ink-2">{copy.clientOnly}</p>
+          {/* Signs this account out and comes back here to sign in as a client; the chosen time is kept. */}
+          <button
+            type="submit"
+            formAction={signOutAction}
+            formNoValidate
+            onClick={() => {
+              try {
+                if (chosen) sessionStorage.setItem(storeKey, JSON.stringify({ serviceId, startAt: chosen.startAt }));
+              } catch {}
+            }}
+            className={buttonClass({ variant: "solid", size: "lg", className: "w-full pe-4" })}
+          >
+            {copy.switchAccount}
+            <ArrowDot />
+          </button>
+        </div>
       )}
     </form>
   );
