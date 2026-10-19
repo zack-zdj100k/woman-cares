@@ -7,7 +7,7 @@ import { isLocale } from "@/i18n/config";
 import { addMonths, billingStatus, invoiceLines, invoiceNumber, isPubliclyVisible, type Basis, type BillableCategory, type SubStatus } from "@/lib/billing";
 import { formatDate, formatDzd } from "@/lib/format";
 import { renderEmail, type EmailTemplate, type TemplateData } from "@/lib/email/templates";
-import { canReview, canSignIn, canViewModeration, type Actor } from "@/server/policies/roles";
+import { canReview, canSignIn, canVerifyPayment, canViewModeration, type Actor } from "@/server/policies/roles";
 import { ForbiddenError } from "./admin-users";
 import { enqueueEmail } from "./outbox";
 
@@ -249,6 +249,11 @@ function requireBillingAdmin(actor: Actor) {
   if (!canReview(actor)) throw new ForbiddenError();
 }
 
+/** Payment confirmation and manual recording: Super Admin only (owner decision, 2026-10-19). */
+function requirePaymentAdmin(actor: Actor) {
+  if (!canVerifyPayment(actor)) throw new ForbiddenError();
+}
+
 export type SubscriptionFilter = "all" | "TRIALING" | "ACTIVE" | "GRACE" | "EXPIRED" | "EXEMPT" | "NEGOTIATED";
 
 export async function listSubscriptions(actor: Actor, filter: SubscriptionFilter, q: string | undefined, page: number) {
@@ -330,7 +335,7 @@ export async function setSubscriptionTerms(
 
 /** Staff verify (or refuse) a declared transfer. Only a verified payment marks the invoice paid. */
 export async function verifyPayment(actor: Actor, paymentId: string, approve: boolean, note: string | null) {
-  requireBillingAdmin(actor);
+  requirePaymentAdmin(actor);
   if (!UUID.test(paymentId)) throw new ForbiddenError();
   if (!approve && (note?.trim().length ?? 0) < 5) throw new BillingBlocked("note");
   return db.$transaction(async (tx) => {
@@ -357,7 +362,7 @@ export async function verifyPayment(actor: Actor, paymentId: string, approve: bo
 
 /** Staff record a payment received directly (cash at an office, transfer seen on the account). */
 export async function recordPayment(actor: Actor, invoiceId: string, input: { method: "MANUAL_TRANSFER" | "CCP" | "BARIDIMOB" | "CASH"; reference: string; paidAt?: Date | null }) {
-  requireBillingAdmin(actor);
+  requirePaymentAdmin(actor);
   if (!UUID.test(invoiceId)) throw new ForbiddenError();
   const reference = input.reference.trim().slice(0, 120);
   if (reference.length < 3) throw new BillingBlocked("note");

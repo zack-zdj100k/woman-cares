@@ -132,6 +132,11 @@ export function canVerifyProvider(actor: Actor) {
   return canSignIn(actor.status) && actor.emailVerified && hasStaffRank(actor.role, "ADMIN");
 }
 
+/** Confirming or refusing subscription payments is reserved for the Super Admin (owner decision, 2026-10-19). */
+export function canVerifyPayment(actor: Actor) {
+  return canSignIn(actor.status) && actor.emailVerified && actor.role === "SUPER_ADMIN";
+}
+
 export type ProfileStatus = "DRAFT" | "PENDING_REVIEW" | "PUBLISHED" | "RESTRICTED" | "SUSPENDED" | "ARCHIVED";
 export type ProviderStatus = "ONBOARDING" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
 

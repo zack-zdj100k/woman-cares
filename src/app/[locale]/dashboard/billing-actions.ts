@@ -6,7 +6,7 @@ import { isLocale } from "@/i18n/config";
 import { getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getSessionUser } from "@/lib/auth/session";
 import { rateLimit } from "@/lib/rate-limit";
-import { canReview } from "@/server/policies/roles";
+import { canReview, canVerifyPayment } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { addMonths } from "@/lib/billing";
 import { BillingBlocked, declarePayment, recordPayment, runBillingCycle, setSubscriptionTerms, setTrialDefault, setTrialEnd, verifyPayment } from "@/server/services/billing";
@@ -45,13 +45,13 @@ export async function setTermsAction(_prev: BillingState, form: FormData): Promi
 
 export async function verifyPaymentAction(_prev: BillingState, form: FormData): Promise<BillingState> {
   const user = await getSessionUser();
-  if (!user) return { status: "error", code: "forbidden" };
+  if (!user || !canVerifyPayment(user)) return { status: "error", code: "forbidden" };
   return run(() => verifyPayment(user, String(form.get("paymentId") ?? ""), form.get("decision") === "verify", String(form.get("note") ?? "") || null));
 }
 
 export async function recordPaymentAction(_prev: BillingState, form: FormData): Promise<BillingState> {
   const user = await getSessionUser();
-  if (!user) return { status: "error", code: "forbidden" };
+  if (!user || !canVerifyPayment(user)) return { status: "error", code: "forbidden" };
   const day = String(form.get("paidOn") ?? "");
   const paidAt = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T12:00:00+01:00`) : null;
   return run(() => recordPayment(user, String(form.get("invoiceId") ?? ""), { method: method(form.get("method")), reference: String(form.get("reference") ?? ""), paidAt }));

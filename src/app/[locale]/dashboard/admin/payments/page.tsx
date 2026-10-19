@@ -5,7 +5,7 @@ import { getAdminDictionary, getDashboardDictionary } from "@/i18n/get-dictionar
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
-import { canDelete, canReview } from "@/server/policies/roles";
+import { canDelete, canVerifyPayment } from "@/server/policies/roles";
 import { listPayments } from "@/server/services/billing";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
@@ -44,7 +44,7 @@ async function Payments({ params, searchParams }: PageProps<"/[locale]/dashboard
   const b = d.billing;
   const base = `/${locale}/dashboard/admin/payments`;
   const href = (s: string, p = 1) => `${base}?status=${s}${p > 1 ? `&page=${p}` : ""}`;
-  const decide = canReview(user);
+  const decide = canVerifyPayment(user);
 
   return (
     <div className={pageClass}>
