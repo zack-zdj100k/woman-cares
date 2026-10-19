@@ -413,7 +413,7 @@ export async function listPayments(actor: Actor, status: "PENDING" | "PAID" | "F
       orderBy: { createdAt: "desc" },
       take: 25,
       skip: (page - 1) * 25,
-      include: { invoice: { select: { id: true, number: true, total: true, periodStart: true, periodEnd: true, provider: { select: { id: true, businessName: true } } } }, verifiedBy: { select: { fullName: true } } },
+      include: { invoice: { select: { id: true, number: true, total: true, status: true, periodStart: true, periodEnd: true, provider: { select: { id: true, businessName: true } } } }, verifiedBy: { select: { fullName: true } } },
     }),
   ]);
   return { total, rows, pageCount: Math.max(1, Math.ceil(total / 25)) };

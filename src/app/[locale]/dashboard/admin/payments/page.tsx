@@ -9,7 +9,7 @@ import { canDelete, canVerifyPayment } from "@/server/policies/roles";
 import { listPayments } from "@/server/services/billing";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { DataTable, FilterTabs, Pager, Td } from "@/components/dashboard/data-table";
-import { VerifyPaymentForm } from "@/components/dashboard/billing-forms";
+import { RecordPaymentForm, VerifyPaymentForm } from "@/components/dashboard/billing-forms";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { ManageForm } from "@/components/admin/manage-form";
 import { ReceiptForm } from "@/components/dashboard/receipt-form";
@@ -93,6 +93,9 @@ async function Payments({ params, searchParams }: PageProps<"/[locale]/dashboard
                 )}
                 {remove && (
                   <ManageForm op="payment.delete" id={p.id} label={at.deletes.payment} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.paymentConfirm} className="mt-2" />
+                )}
+                {decide && p.status === "FAILED" && (p.invoice.status === "OPEN" || p.invoice.status === "OVERDUE") && (
+                  <RecordPaymentForm invoiceId={p.invoice.id} today={algiersDate(new Date())} labels={{ method: b.method, reference: b.reference, paidOn: b.paidOn, save: b.record, methods: b.methods, errors: b.errors }} />
                 )}
               </Td>
             </tr>

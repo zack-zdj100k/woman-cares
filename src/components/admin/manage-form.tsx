@@ -58,17 +58,11 @@ export function ManageForm({
         {labels.errors[state.message] ?? labels.errors.generic}
       </p>
     ) : null;
-  const hidden = (
-    <>
-      <input type="hidden" name="op" value={op} />
-      <input type="hidden" name="id" value={id} />
-    </>
-  );
-
   if (!note && !confirm) {
     return (
       <form action={action} className={cn("grid gap-2", className)}>
-        {hidden}
+        <input type="hidden" name="op" value={op} />
+        <input type="hidden" name="id" value={id} />
         {fields}
         <button type="submit" disabled={pending} aria-label={ariaLabel} className={cn(button, "justify-self-start", children ? "w-10 px-0! [&_svg]:shrink-0" : undefined)}>
           {children ?? label}
@@ -81,7 +75,8 @@ export function ManageForm({
     <details className={cn("group", className)} open={state.status === "error"}>
       <summary className={cn(button, "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}>{label}</summary>
       <form action={action} className="mt-3 grid max-w-md gap-3">
-        {hidden}
+        <input type="hidden" name="op" value={op} />
+        <input type="hidden" name="id" value={id} />
         {confirm && <p className="text-sm leading-relaxed text-ink-2">{confirm}</p>}
         {fields}
         {note && (
