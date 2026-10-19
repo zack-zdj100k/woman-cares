@@ -21,7 +21,7 @@ import { algiersDate } from "@/lib/periods";
 import { Badge } from "@/components/ui/badge";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
-import { canDelete, canReview } from "@/server/policies/roles";
+import { canDelete, canReview, canVerifyPayment } from "@/server/policies/roles";
 import { ManageForm } from "@/components/admin/manage-form";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { getProviderReview } from "@/server/services/review";
@@ -73,6 +73,7 @@ async function Review({ params }: { params: Params }) {
   const sub = billing.subscription;
   const { account, profiles, audit } = data;
   const decide = canReview(user);
+  const canPay = canVerifyPayment(user);
   const labels = {
     note: at.actions.note,
     notePlaceholder: at.actions.notePlaceholder,
@@ -320,7 +321,7 @@ async function Review({ params }: { params: Params }) {
                           <span className="tabular-nums">{formatDzd(inv.total.toString(), locale)}</span>
                           <Badge variant={inv.status === "PAID" ? "success" : inv.status === "OVERDUE" ? "destructive" : "warning"}>{b.invoiceStatuses[inv.status]}</Badge>
                         </div>
-                        {decide &&
+                        {canPay &&
                           inv.payments
                             .filter((pay) => pay.status === "PAID")
                             .map((pay) => (
@@ -336,7 +337,7 @@ async function Review({ params }: { params: Params }) {
                         {canDelete(user) && (
                           <ManageForm op="invoice.delete" id={inv.id} label={at.deletes.invoice} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.invoiceConfirm} />
                         )}
-                        {decide && (inv.status === "OPEN" || inv.status === "OVERDUE") && (
+                        {canPay && (inv.status === "OPEN" || inv.status === "OVERDUE") && (
                           <RecordPaymentForm invoiceId={inv.id} today={algiersDate(new Date())} labels={{ method: b.method, reference: b.reference, paidOn: b.paidOn, save: b.record, methods: b.methods, errors: b.errors }} />
                         )}
                       </li>
