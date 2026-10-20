@@ -1,6 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
-import { Bell, ExternalLink } from "lucide-react";
+import { Bell, ExternalLink, House } from "lucide-react";
 import { categorySlugs, type CategorySlug } from "@/config/categories";
 import { localeLabel, locales, type Locale } from "@/i18n/config";
 import { getAuthDictionary, getDashboardDictionary, getDictionary } from "@/i18n/get-dictionary";
@@ -72,6 +72,9 @@ export async function DashboardShell({
             <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
             <p className="truncate text-sm text-muted-foreground">{d.shell.areas[area]}</p>
             <div className="ms-auto flex items-center gap-1">
+              <Link href={`/${locale}`} aria-label={d.shell.website} className="grid size-9 place-items-center rounded-xl text-foreground/75 hover:bg-white/8 hover:text-foreground lg:hidden">
+                <House className="size-[1.15rem]" strokeWidth={1.75} aria-hidden="true" />
+              </Link>
               <Link href={`/${locale}`} className="hidden items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-foreground/75 hover:bg-white/8 hover:text-foreground lg:inline-flex">
                 {d.shell.website}
                 <ExternalLink className="size-3.5 rtl:-scale-x-100" strokeWidth={1.75} />
