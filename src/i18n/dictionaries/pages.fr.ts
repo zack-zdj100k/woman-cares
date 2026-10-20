@@ -140,7 +140,7 @@ const pagesFr = {
       addPhoto: "Ajouter des photos",
       removePhoto: "Retirer cette photo",
       photosSent: "Photos envoyées à la professionnelle.",
-      photosFailed: "Votre demande est envoyée, mais certaines photos n’ont pas pu l’être. Ajoutez-les en écrivant à la professionnelle.",
+      photosFailed: "Votre demande est envoyée, mais certaines photos n’ont pas pu l’être. Vous pourrez les montrer à la professionnelle lors du rendez-vous.",
       photoErrors: {
         type: "Seules les images JPEG, PNG ou WebP sont acceptées.",
         size: "Cette image dépasse 10 Mo.",
