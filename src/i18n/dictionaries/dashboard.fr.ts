@@ -114,6 +114,7 @@ const dashboardFr = {
     history: "Historique",
     historyBy: { client: "par la cliente", provider: "par la professionnelle", system: "automatiquement" },
     clientNote: "Message de la cliente",
+    references: "Photos d’inspiration",
     providerNote: "Message de la professionnelle",
     requested: "Horaire demandé",
     proposed: "Horaire proposé",

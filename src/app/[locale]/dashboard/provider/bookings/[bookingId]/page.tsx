@@ -10,6 +10,7 @@ import { algiersDate } from "@/lib/periods";
 import { paymentSummary, providerActions } from "@/lib/booking-rules";
 import { formatDate, formatDzd } from "@/lib/format";
 import { getProviderBooking } from "@/server/services/booking-views";
+import { ReferencePhotos } from "@/components/dashboard/reference-photos";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { BookingHistory, priceRange, StatusBadge, whenLong } from "@/components/dashboard/booking-ui";
 import { bookingLabels } from "@/components/dashboard/booking-labels";
@@ -111,6 +112,7 @@ async function Booking({ params }: { params: PageProps<"/[locale]/dashboard/prov
                     <p className="mt-1 rounded-xl bg-white/4 px-4 py-3">{r.clientNote}</p>
                   </div>
                 )}
+                <ReferencePhotos bookingId={r.id} ids={r.references.map((m) => m.id)} label={b.references} />
               </CardContent>
             </Card>
 

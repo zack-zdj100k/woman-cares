@@ -173,7 +173,7 @@ export async function requestBooking(
         durationMinSnap: service.durationMinutes,
         priceMinSnap: service.priceMin,
         priceMaxSnap: service.priceMax,
-        clientNote: input.note?.trim().slice(0, 500) || null,
+        clientNote: input.note?.trim().slice(0, 1000) || null,
         idempotencyKey: `${actor.id}:${input.idempotencyKey}`,
         pendingExpiresAt: new Date(Math.min(start.getTime(), Date.now() + 48 * 3_600_000)),
       },

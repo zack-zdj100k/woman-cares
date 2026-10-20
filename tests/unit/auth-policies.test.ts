@@ -213,3 +213,16 @@ describe("email templates", () => {
     expect(ar.subject).toBe("إعادة تعيين كلمة المرور");
   });
 });
+
+describe("payment confirmation", () => {
+  it("is reserved for a verified Super Admin", async () => {
+    const { canVerifyPayment } = await import("@/server/policies/roles");
+    const base = { id: "u", status: "ACTIVE" as const, emailVerified: true };
+    expect(canVerifyPayment({ ...base, role: "SUPER_ADMIN" })).toBe(true);
+    expect(canVerifyPayment({ ...base, role: "ADMIN" })).toBe(false);
+    expect(canVerifyPayment({ ...base, role: "SUPPORT" })).toBe(false);
+    expect(canVerifyPayment({ ...base, role: "PROVIDER" })).toBe(false);
+    expect(canVerifyPayment({ ...base, role: "SUPER_ADMIN", emailVerified: false })).toBe(false);
+    expect(canVerifyPayment({ ...base, role: "SUPER_ADMIN", status: "SUSPENDED" })).toBe(false);
+  });
+});

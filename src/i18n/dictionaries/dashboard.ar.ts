@@ -114,6 +114,7 @@ const dashboardAr: DashboardDictionary = {
     history: "السجل",
     historyBy: { client: "من الزبونة", provider: "من المحترفة", system: "تلقائيًا" },
     clientNote: "رسالة الزبونة",
+    references: "صور مرجعية",
     providerNote: "رسالة المحترفة",
     requested: "الموعد المطلوب",
     proposed: "الموعد المقترح",

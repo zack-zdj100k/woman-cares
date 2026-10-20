@@ -99,9 +99,10 @@ describe("payments and prices", () => {
 
   it("records a payment on the day it was received, and deleting it reopens the invoice", async () => {
     const invoice = await openInvoice();
-    await expect(recordPayment(admin, invoice.id, { method: "CCP", reference: "CCP-1", paidAt: new Date(Date.now() + 5 * DAY) })).rejects.toMatchObject({ reason: "date" });
+    await expect(recordPayment(admin, invoice.id, { method: "CCP", reference: "CCP-1" })).rejects.toBeInstanceOf(ForbiddenError); // Super Admin only
+    await expect(recordPayment(superAdmin, invoice.id, { method: "CCP", reference: "CCP-1", paidAt: new Date(Date.now() + 5 * DAY) })).rejects.toMatchObject({ reason: "date" });
     const day = new Date(Date.now() - 20 * DAY);
-    await recordPayment(admin, invoice.id, { method: "CCP", reference: "CCP-1", paidAt: day });
+    await recordPayment(superAdmin, invoice.id, { method: "CCP", reference: "CCP-1", paidAt: day });
     const paid = await db.invoice.findUniqueOrThrow({ where: { id: invoice.id }, include: { payments: true } });
     expect(paid.status).toBe("PAID");
     expect(paid.paidAt!.toISOString()).toBe(day.toISOString());

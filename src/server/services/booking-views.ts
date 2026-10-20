@@ -39,6 +39,7 @@ const detail = {
   createdAt: true,
   cancelledAt: true,
   completedAt: true,
+  references: { orderBy: { createdAt: "asc" }, select: { id: true } },
   history: { orderBy: { createdAt: "asc" }, select: { id: true, fromStatus: true, toStatus: true, reason: true, createdAt: true, actorId: true } },
 } as const;
 

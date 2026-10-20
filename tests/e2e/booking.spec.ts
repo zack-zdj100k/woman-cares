@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import sharp from "sharp";
 import { PASSWORD, completeAndSubmitProfile, form, newSuperAdmin, newVerifiedClient, newVerifiedProvider, openInQueue } from "./flows";
 
 test("a client picks a time, signs in, sends the request, and the professional accepts it", async ({ page, browser }) => {
@@ -36,10 +37,14 @@ test("a client picks a time, signs in, sends the request, and the professional a
   await f.getByRole("button", { name: "Se connecter" }).click();
   await expect(client).toHaveURL(/\/fr\/profiles\//);
   await expect(panel.getByRole("button", { pressed: true }).filter({ hasText: label })).toBeVisible();
-  await panel.getByLabel("Un mot pour la professionnelle (facultatif)").fill("Ongles courts, merci.");
+  await panel.getByLabel("Décrivez ce que vous souhaitez (facultatif)").fill("Ongles courts, merci.");
+  const png = await sharp({ create: { width: 320, height: 240, channels: 3, background: "#c98" } }).png().toBuffer();
+  await panel.locator('input[type="file"]').setInputFiles({ name: "modele.png", mimeType: "image/png", buffer: png });
+  await expect(panel.getByRole("img", { name: "Photos d’inspiration (facultatif) 1" })).toBeVisible();
   await panel.getByRole("button", { name: "Demander un rendez-vous" }).click();
   const sent = panel.getByRole("status");
   await expect(sent).toContainText("Demande envoyée");
+  await expect(sent).toContainText("Photos envoyées à la professionnelle.");
   await expect(sent).toContainText(/WC-[A-Z2-9]{6}/);
   await expect(sent).toContainText("En attente de réponse");
 
@@ -48,6 +53,9 @@ test("a client picks a time, signs in, sends the request, and the professional a
   await sent.getByRole("link", { name: "Voir ce rendez-vous" }).click();
   await expect(client).toHaveURL(/\/fr\/dashboard\/client\/appointments\/[0-9a-f-]{36}$/);
   await expect(client.getByText(/WC-[A-Z2-9]{6}/).first()).toBeVisible();
+  const mine = client.getByRole("img", { name: "Photos d’inspiration 1" });
+  await expect(mine).toBeVisible();
+  expect(await mine.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   await client.getByRole("link", { name: "Retour à la liste" }).click();
   await expect(client).toHaveURL(profileUrl);
 
@@ -55,6 +63,9 @@ test("a client picks a time, signs in, sends the request, and the professional a
   await page.goto("/fr/dashboard/provider/bookings");
   await page.getByRole("link", { name: "Ouvrir" }).first().click();
   await expect(page.getByText("Ongles courts, merci.")).toBeVisible();
+  const theirs = page.getByRole("img", { name: "Photos d’inspiration 1" });
+  await expect(theirs).toBeVisible();
+  expect(await theirs.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Accepter" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Rendez-vous mis à jour." })).toBeVisible();
   await expect(page.getByText("Confirmé").first()).toBeVisible();

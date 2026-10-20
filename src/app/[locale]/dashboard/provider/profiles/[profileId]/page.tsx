@@ -82,7 +82,7 @@ async function Editor({ params }: { params: Params }) {
       </div>
       {!editable && <p className="mt-6 rounded-(--radius-field) bg-surface p-4 text-sm leading-relaxed text-rose-ink">{e.locked}</p>}
 
-      <nav aria-label={dict.categories[category].name} className="sticky top-[4.5rem] z-10 -mx-5 mt-8 overflow-x-auto border-b border-line bg-ground/95 px-5 backdrop-blur sm:mx-0 sm:px-0">
+      <nav aria-label={dict.categories[category].name} className="sticky top-[4.5rem] z-10 -mx-4 mt-8 overflow-x-auto border-b border-line bg-ground/95 px-4 backdrop-blur sm:mx-0 sm:px-0">
         <ul className="flex gap-6 text-sm">
           {(Object.keys(e.sections) as (keyof typeof e.sections)[]).map((k) => (
             <li key={k}>

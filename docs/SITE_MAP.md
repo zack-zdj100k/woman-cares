@@ -93,4 +93,4 @@ Every dashboard page then calls `requireArea()` on the server: wrong role or sus
 ### API
 
 `/api/v1/*`, see [API_SPECIFICATION.md](API_SPECIFICATION.md). Implemented: `POST /api/v1/profiles/{slug}/views`,
-`POST /api/v1/provider/profiles/{profileId}/media`. Public media: `GET /uploads/*`.
+`POST /api/v1/provider/profiles/{profileId}/media`, `POST /api/v1/bookings/{bookingId}/references`, `GET /api/v1/bookings/{bookingId}/references/{mediaId}`. Public media: `GET /uploads/*`.

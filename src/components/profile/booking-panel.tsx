@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { CalendarCheck, Clock } from "lucide-react";
+import { CalendarCheck, Clock, ImagePlus, X } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import type { BookingCopy } from "@/lib/booking-copy";
 import { requestBookingAction, type BookingState } from "@/app/[locale]/booking/actions";
@@ -16,6 +16,11 @@ type Day = { date: string; weekday: number; slots: Slot[] };
 export type BookableService = { id: string; name: string; duration: string; price: string };
 type Viewer = "guest" | "client" | "unverified" | "other";
 
+
+const MAX_PHOTOS = 4;
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+type Photo = { id: string; file: File; url: string };
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`);
@@ -51,7 +56,53 @@ export function BookingPanel({
   const [date, setDate] = useState<string | null>(null);
   const [startAt, setStartAt] = useState<string | null>(null);
   const [key, setKey] = useState(newKey);
-  const [state, action, pending] = useActionState<BookingState, FormData>(requestBookingAction, { status: "idle" });
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photosOutcome, setPhotosOutcome] = useState<"sent" | "failed" | null>(null);
+  const photosRef = useRef<Photo[]>([]);
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+  useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
+  const [state, action, pending] = useActionState<BookingState, FormData>(async (prev, form) => {
+    const result = await requestBookingAction(prev, form);
+    if (result.status !== "done" || photosRef.current.length === 0) return result;
+    // The request exists now; the example photos follow it (a failed photo never loses the request).
+    let failed = false;
+    for (const p of photosRef.current) {
+      const body = new FormData();
+      body.set("file", p.file);
+      try {
+        const res = await fetch(`/api/v1/bookings/${result.id}/references`, { method: "POST", body });
+        if (!res.ok) failed = true;
+      } catch {
+        failed = true;
+      }
+    }
+    setPhotosOutcome(failed ? "failed" : "sent");
+    return result;
+  }, { status: "idle" });
+
+  const addPhotos = (e: ChangeEvent<HTMLInputElement>) => {
+    const next: Photo[] = [];
+    let problem: string | null = null;
+    for (const file of Array.from(e.target.files ?? [])) {
+      if (photos.length + next.length >= MAX_PHOTOS) problem = "limit";
+      else if (!PHOTO_TYPES.includes(file.type)) problem = "type";
+      else if (file.size > MAX_PHOTO_BYTES) problem = "size";
+      else next.push({ id: newKey(), file, url: URL.createObjectURL(file) });
+    }
+    e.target.value = "";
+    setPhotoError(problem);
+    if (next.length) setPhotos((cur) => [...cur, ...next]);
+  };
+  const removePhoto = (id: string) => {
+    setPhotoError(null);
+    setPhotos((cur) => {
+      cur.filter((p) => p.id === id).forEach((p) => URL.revokeObjectURL(p.url));
+      return cur.filter((p) => p.id !== id);
+    });
+  };
   // What was sent, kept for the confirmation (the slot leaves the list once it is taken).
   const [sent, setSent] = useState<{ service: string; day: string; time: string } | null>(null);
 
@@ -124,6 +175,11 @@ export function BookingPanel({
           ))}
         </dl>
         <p className="text-sm leading-relaxed text-ink-2">{copy.done}</p>
+        {photosOutcome && (
+          <p role={photosOutcome === "failed" ? "alert" : undefined} className={cn("text-sm", photosOutcome === "failed" ? "text-rose-ink" : "text-ink-2")}>
+            {photosOutcome === "failed" ? copy.photosFailed : copy.photosSent}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <Link href={appointmentHref.replace("{id}", state.id)} className={buttonClass({ variant: "solid", size: "sm" })}>
             {copy.seeOne}
@@ -293,11 +349,45 @@ export function BookingPanel({
             </p>
             <p className="mt-2 text-xs text-ink-2">{copy.pending}</p>
           </div>
-          {viewer === "client" && (
-            <label className="grid gap-2 text-sm font-medium">
-              {copy.note}
-              <textarea name="note" rows={2} maxLength={500} placeholder={copy.notePlaceholder} className="rounded-2xl border border-ink/15 bg-white/90 px-4 py-3 font-normal focus:border-rose focus:outline-none" />
-            </label>
+          {(viewer === "client" || viewer === "unverified") && (
+            <>
+              <label className="grid gap-2 text-sm font-medium">
+                {copy.note}
+                <textarea name="note" rows={5} maxLength={1000} placeholder={copy.notePlaceholder} className="min-h-32 rounded-2xl border border-ink/15 bg-white/90 px-4 py-3 font-normal leading-relaxed focus:border-rose focus:outline-none" />
+              </label>
+              <div className="grid gap-2">
+                <p className="text-sm font-medium">{copy.photos}</p>
+                <p className="text-xs text-ink-2">{copy.photosHint}</p>
+                <div className="flex flex-wrap gap-2">
+                  {photos.map((p, i) => (
+                    <span key={p.id} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.url} alt={`${copy.photos} ${i + 1}`} className="size-20 rounded-2xl border border-ink/10 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(p.id)}
+                        aria-label={copy.removePhoto}
+                        className="absolute -end-1.5 -top-1.5 grid size-6 place-items-center rounded-full bg-ink text-white shadow"
+                      >
+                        <X className="size-3.5" strokeWidth={2} aria-hidden="true" />
+                      </button>
+                    </span>
+                  ))}
+                  {photos.length < MAX_PHOTOS && (
+                    <label className="grid size-20 cursor-pointer place-items-center rounded-2xl border border-dashed border-ink/25 bg-white/70 text-ink-2 transition-colors hover:bg-white focus-within:border-rose">
+                      <ImagePlus className="size-6" strokeWidth={1.5} aria-hidden="true" />
+                      <span className="sr-only">{copy.addPhoto}</span>
+                      <input type="file" accept={PHOTO_TYPES.join(",")} multiple onChange={addPhotos} className="sr-only" />
+                    </label>
+                  )}
+                </div>
+                {photoError && (
+                  <p role="alert" className="text-xs text-rose-ink">
+                    {copy.photoErrors[photoError]}
+                  </p>
+                )}
+              </div>
+            </>
           )}
         </motion.div>
       )}

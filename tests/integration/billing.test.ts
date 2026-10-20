@@ -10,6 +10,7 @@ import { createProfile, createProvider, resetDatabase } from "./fixtures";
 
 const DAY = 86_400_000;
 let admin: Actor;
+let superAdmin: Actor;
 let support: Actor;
 let pro: Actor;
 let providerId: string;
@@ -28,6 +29,7 @@ beforeEach(async () => {
     await db.categorySubscriptionPricing.create({ data: { categoryId: c.id, monthlyPrice: 30000, effectiveFrom: new Date("2026-01-01T00:00:00Z") } });
   }
   admin = await staff("ADMIN");
+  superAdmin = await staff("SUPER_ADMIN");
   support = await staff("SUPPORT");
   const account = await createProvider({ name: "Atelier Facture" });
   providerId = account.id;
@@ -119,9 +121,10 @@ describe("payments", () => {
 
     await expect(verifyPayment(pro, p.id, true, null)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(verifyPayment(support, p.id, true, null)).rejects.toBeInstanceOf(ForbiddenError);
-    await verifyPayment(admin, p.id, true, null);
+    await expect(verifyPayment(admin, p.id, true, null)).rejects.toBeInstanceOf(ForbiddenError); // Super Admin only
+    await verifyPayment(superAdmin, p.id, true, null);
     expect((await db.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).status).toBe("PAID");
-    await expect(verifyPayment(admin, p.id, true, null)).rejects.toMatchObject({ reason: "state" });
+    await expect(verifyPayment(superAdmin, p.id, true, null)).rejects.toMatchObject({ reason: "state" });
     expect(await db.auditLog.count({ where: { action: "subscription.payment.verify" } })).toBe(1);
   });
 
@@ -135,8 +138,9 @@ describe("payments", () => {
 
     const invoice = await db.invoice.findFirstOrThrow();
     expect(invoice.status).toBe("OVERDUE");
-    await expect(recordPayment(admin, invoice.id, { method: "CASH", reference: "" })).rejects.toBeInstanceOf(BillingBlocked);
-    await recordPayment(admin, invoice.id, { method: "CASH", reference: "Agence Alger centre" });
+    await expect(recordPayment(admin, invoice.id, { method: "CASH", reference: "Agence" })).rejects.toBeInstanceOf(ForbiddenError); // Super Admin only
+    await expect(recordPayment(superAdmin, invoice.id, { method: "CASH", reference: "" })).rejects.toBeInstanceOf(BillingBlocked);
+    await recordPayment(superAdmin, invoice.id, { method: "CASH", reference: "Agence Alger centre" });
     expect((await db.providerSubscription.findFirstOrThrow()).status).toBe("ACTIVE");
     expect(await slugs()).toContain("facture-nails");
   });

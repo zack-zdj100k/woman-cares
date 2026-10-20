@@ -51,7 +51,7 @@ Zod-validated): `signUpAction`, `signInAction`, `signOutAction`, `verifyEmailAct
 | Method | Path | Notes |
 |---|---|---|
 | POST | `/bookings` | `profileId`, `serviceId`, `startAt`, `note?`, `Idempotency-Key`. Transactional capacity check. Today a Server Action (`requestBookingAction` in `src/app/[locale]/booking/actions.ts`): verified clients only, 10 per 10 min, at most 5 open requests, profile row locked while capacity is recounted; errors `slot`, `limit`, `profile`, `service`, `role`, `verify`, `signin`, `rate`. |
-| POST | `/bookings/{id}/references` | Multipart image ≤ 8 MB (JPEG/PNG/WebP/HEIC, magic-byte checked). Private. |
+| POST | `/bookings/{id}/references` | Client of the booking only. Multipart `file`: image ≤ 10 MB (JPEG/PNG/WebP, magic-byte checked, re-encoded to WebP), 4 per booking, while the request is open or upcoming. Private. |
 | GET | `/me/bookings` · `/me/bookings/{id}` | Own bookings only. |
 | POST | `/me/bookings/{id}/cancel` · `/accept-reschedule` · `/decline-reschedule` | State machine enforced. |
 | GET/PUT/DELETE | `/me/favorites/{profileId}` | |
@@ -79,7 +79,7 @@ ownership from the session. The REST routes below will wrap the same services.
 | GET | `/provider/bookings` | Filters: profile, status, date range, payment status. |
 | POST | `/provider/bookings/{id}/accept` · `/reject` · `/propose` · `/cancel` · `/complete` · `/no-show` | |
 | POST | `/provider/bookings/{id}/payments` | Records a received payment (client → provider). |
-| GET | `/provider/bookings/{id}/references/{refId}` | Streams a private reference image after ownership check (short-lived signed token). |
+| GET | `/bookings/{id}/references/{mediaId}` | Streams a private reference image to the booking's client, her professional or verified staff (session check, never cached). |
 | GET | `/provider/analytics?profileId&from&to` | Aggregates; never raw visitor data. |
 | GET | `/provider/billing` | Subscription, invoices, payment instructions. |
 | POST | `/provider/billing/invoices/{id}/payments` | Manual payment declaration with reference/proof. |

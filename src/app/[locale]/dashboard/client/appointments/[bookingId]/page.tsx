@@ -9,6 +9,7 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { clientActions } from "@/lib/booking-rules";
 import { getClientBooking } from "@/server/services/booking-views";
+import { ReferencePhotos } from "@/components/dashboard/reference-photos";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { BookingHistory, priceRange, StatusBadge, whenLong } from "@/components/dashboard/booking-ui";
 import { bookingLabels } from "@/components/dashboard/booking-labels";
@@ -115,6 +116,7 @@ async function Appointment({ params }: { params: PageProps<"/[locale]/dashboard/
                     <p className="mt-1">{r.clientNote}</p>
                   </div>
                 )}
+                <ReferencePhotos bookingId={r.id} ids={r.references.map((m) => m.id)} label={b.references} />
                 {r.providerNote && r.status !== "RESCHEDULE_PROPOSED" && (
                   <div className="sm:col-span-2">
                     <p className="text-xs text-muted-foreground">{b.providerNote}</p>

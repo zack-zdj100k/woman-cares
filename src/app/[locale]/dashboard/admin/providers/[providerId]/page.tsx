@@ -353,11 +353,11 @@ async function Review({ params }: { params: Params }) {
           {profiles.length === 0 && (
             <p className="text-ink-2">{at.detail.noProfiles}</p>
           )}
-          <div className="grid gap-8">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-8">
             {profiles.map((p) => (
               <article
                 key={p.id}
-                className="rounded-(--radius-media) border border-line p-6"
+                className="min-w-0 rounded-(--radius-media) border border-line p-6 [overflow-wrap:anywhere]"
               >
                 <p className="flex flex-wrap items-center gap-3">
                   <span className="type-display text-3xl">
