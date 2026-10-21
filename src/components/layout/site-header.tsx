@@ -11,6 +11,7 @@ import { useFindCareOptional } from "@/components/marketing/find-care";
 import { cn } from "@/lib/cn";
 import { LocaleSwitch } from "./locale-switch";
 import { DialMenu, openDialMenu } from "./dial-menu";
+import type { AccountNav } from "./account-nav";
 
 type Props = {
   locale: Locale;
@@ -25,9 +26,11 @@ type Props = {
   account?: ReactNode;
   /** Round account button kept beside the search and menu circles at every width. */
   accountIcon?: ReactNode;
+  /** Where the menu's account entry points once the session is known. */
+  accountNav?: Promise<AccountNav>;
 };
 
-export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categories, account, accountIcon, overMedia = false }: Props) {
+export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categories, account, accountIcon, accountNav, overMedia = false }: Props) {
   const findCare = useFindCareOptional();
   const reduce = useReducedMotion();
   const [careOpen, setCareOpen] = useState(false);
@@ -189,7 +192,7 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categ
       </div>
       {/* Reads the current path, so it streams in (Cache Components). */}
       <Suspense fallback={null}>
-        <DialMenu locale={locale} nav={nav} categoryNames={categoryNames} categories={categories} />
+        <DialMenu locale={locale} nav={nav} categoryNames={categoryNames} categories={categories} accountNav={accountNav} />
       </Suspense>
     </header>
   );

@@ -41,23 +41,23 @@ test("a client picks a time, signs in, sends the request, and the professional a
   const png = await sharp({ create: { width: 320, height: 240, channels: 3, background: "#c98" } }).png().toBuffer();
   await panel.locator('input[type="file"]').setInputFiles({ name: "modele.png", mimeType: "image/png", buffer: png });
   await expect(panel.getByRole("img", { name: "Photos d’inspiration (facultatif) 1" })).toBeVisible();
+  const profileUrl = client.url();
   await panel.getByRole("button", { name: "Demander un rendez-vous" }).click();
-  const sent = panel.getByRole("status");
-  await expect(sent).toContainText("Demande envoyée");
-  await expect(sent).toContainText("Photos envoyées à la professionnelle.");
+
+  // The confirmation has a page of its own, so nothing else competes with it.
+  await client.waitForURL(/\/fr\/booking\/sent\/[0-9a-f-]{36}/, { timeout: 20_000 });
+  const sent = client.getByRole("region", { name: "Demande envoyée" });
   await expect(sent).toContainText(/WC-[A-Z2-9]{6}/);
   await expect(sent).toContainText("En attente de réponse");
+  await expect(sent).toContainText("Photos envoyées à la professionnelle.");
 
-  // The confirmation opens the new appointment, and "back" returns to the profile she came from.
-  const profileUrl = client.url();
+  // It opens the new appointment, where her photo is readable.
   await sent.getByRole("link", { name: "Voir ce rendez-vous" }).click();
   await expect(client).toHaveURL(/\/fr\/dashboard\/client\/appointments\/[0-9a-f-]{36}$/);
-  await expect(client.getByText(/WC-[A-Z2-9]{6}/).first()).toBeVisible();
   const mine = client.getByRole("img", { name: "Photos d’inspiration 1" });
   await expect(mine).toBeVisible();
   expect(await mine.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
-  await client.getByRole("link", { name: "Retour à la liste" }).click();
-  await expect(client).toHaveURL(profileUrl);
+  await client.goto(profileUrl);
 
   // The professional answers from her bookings table.
   await page.goto("/fr/dashboard/provider/bookings");

@@ -8,6 +8,7 @@ import { X } from "lucide-react";
 import { categorySlugs, type CategorySlug } from "@/config/categories";
 import { localeLabel, locales, type Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/fr";
+import type { AccountNav } from "./account-nav";
 import { cn } from "@/lib/cn";
 
 export const OPEN_MENU_EVENT = "wc:open-menu";
@@ -30,11 +31,14 @@ export function DialMenu({
   nav,
   categoryNames,
   categories,
+  accountNav,
 }: {
   locale: Locale;
   nav: Dictionary["nav"];
   categoryNames: Record<CategorySlug, string>;
   categories: Dictionary["categories"];
+  /** Resolves to "Connexion" or, once signed in, to her own space. */
+  accountNav?: Promise<AccountNav>;
 }) {
   const reduce = useReducedMotion();
   const router = useRouter();
@@ -49,6 +53,24 @@ export function DialMenu({
   const wheel = useRef(0);
   const touchY = useRef<number | null>(null);
   const rtl = locale === "ar";
+  // Resolved rather than awaited: the menu shows at once and the entry corrects itself when the
+  // session arrives, long before anyone can open it.
+  const [account, setAccount] = useState<AccountNav | null>(null);
+  useEffect(() => {
+    if (!accountNav) return;
+    let alive = true;
+    // React hands a thenable across the server boundary, not a real Promise: normalise it first,
+    // and handle rejection through the second argument since it has no .catch().
+    Promise.resolve(accountNav).then(
+      (a) => {
+        if (alive) setAccount(a);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [accountNav]);
   const other = locales.find((l) => l !== locale)!;
 
   const items: Item[] = useMemo(
@@ -58,9 +80,9 @@ export function DialMenu({
       { href: `/${locale}/about-platform`, label: nav.about, short: nav.dial.aboutShort },
       { href: `/${locale}/about-services`, label: nav.forPros, short: nav.dial.prosShort },
       { href: `/${locale}/contact`, label: nav.dial.contact, short: nav.dial.contactShort },
-      { href: `/${locale}/auth/sign-in`, label: nav.signIn, short: nav.dial.accountShort },
+      { href: account?.href ?? `/${locale}/auth/sign-in`, label: account?.label ?? nav.signIn, short: nav.dial.accountShort },
     ],
-    [locale, nav, categoryNames, categories],
+    [locale, nav, categoryNames, categories, account],
   );
 
   const show = useCallback(() => {
@@ -97,6 +119,16 @@ export function DialMenu({
       tab?.focus({ preventScroll: true });
     };
   }, [open, turn, items.length]);
+
+  // Safety net for the scroll lock: releasing `overflow: hidden` makes the browser restore the
+  // position it had before the menu opened, which would drop the visitor at the bottom of the page
+  // she just opened. Closing on click usually gets there first; this catches every other route.
+  const landed = useRef<string | null>(null);
+  useEffect(() => {
+    if (openOn === null || openOn === pathname || landed.current === pathname) return;
+    landed.current = pathname;
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [openOn, pathname]);
 
   const onWheel = (e: React.WheelEvent) => {
     wheel.current += e.deltaY;
@@ -195,6 +227,8 @@ export function DialMenu({
                           prefetch
                           tabIndex={hidden ? -1 : 0}
                           onFocus={() => setActive(i)}
+                          // Close first: the scroll lock must be gone before the router scrolls the new page to the top.
+                          onClick={() => close()}
                           aria-current={it.href === pathname ? "page" : undefined}
                           className={cn(
                             "inline-flex items-center justify-end gap-2 rounded-full py-1 leading-tight text-balance transition-[color] duration-300",

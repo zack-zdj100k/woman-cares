@@ -6,6 +6,7 @@ import { FindCareProvider } from "@/components/marketing/find-care";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { AccountSlot } from "./account-slot";
+import { accountNavItem } from "./account-nav";
 
 /** Header (solid), footer and the shared search dialog for every page except the homepage. */
 export async function PageShell({ children }: { children: ReactNode }) {
@@ -26,6 +27,7 @@ export async function PageShell({ children }: { children: ReactNode }) {
         categories={dict.categories}
         account={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="header" />}
         accountIcon={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="icon" />}
+        accountNav={accountNavItem(locale)}
       />
       <main id="main" className="min-h-[70dvh] pt-24">
         {children}

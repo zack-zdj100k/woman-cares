@@ -345,8 +345,6 @@ async function BookingSlot({ locale, slug, copy, services }: { locale: Locale; s
       copy={bookingCopy(copy)}
       viewer={viewer}
       signInHref={`/${locale}/auth/sign-in?next=${encodeURIComponent(`/${locale}/profiles/${slug}`)}`}
-      myBookingsHref={`/${locale}/dashboard/client/appointments`}
-      appointmentHref={`/${locale}/dashboard/client/appointments/{id}`}
     />
   );
 }

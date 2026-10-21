@@ -5,6 +5,7 @@ import { getDictionary } from "@/i18n/get-dictionary";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { AccountSlot } from "@/components/layout/account-slot";
+import { accountNavItem } from "@/components/layout/account-nav";
 import { FindCareProvider } from "@/components/marketing/find-care";
 import { HeroFilm } from "@/components/marketing/hero-film";
 import { HomeIntro } from "@/components/marketing/home-intro";
@@ -44,6 +45,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         overMedia
         account={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="header" />}
         accountIcon={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="icon" />}
+        accountNav={accountNavItem(locale)}
       />
       <main id="main">
         <HeroFilm locale={locale} copy={dict.hero} chapters={chapters} />
