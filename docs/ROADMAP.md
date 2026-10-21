@@ -82,6 +82,21 @@ Owner decision: clients can request appointments before confirming their e-mail.
 - Sign-in: two pills on top ("Entrer dans mon compte" and "Créer un compte"); the second opens "Je suis une cliente" and "Je suis professionnelle". The sign-up tab "Je cherche un soin" is now "Je suis une cliente" (FR and AR). New sign-in picture: the owner's nail-studio photo, with the other studio's sign cropped out and the apron logo blurred.
 - Home hero: tried four owner-supplied clips (a cinematic scroll stack in 7ef039a, then a page locked on the hero in dd6ce09); the owner asked to go back, so the original single film with four chapters is restored. The four-clip version stays in git history (`git show dd6ce09`) with its encoded videos.
 
+## Live deployment (2026-10-21)
+
+- **Hosting**: GitHub `zack-zdj100k/woman-cares` (public) → Vercel `woman-cares.vercel.app`, auto-deployed from `main`. Database: Neon `woman-cares` (Postgres 18, `aws-eu-central-1`), pooled URL for the app and the direct URL for migrations and seeds. Media: Cloudinary cloud `drtwdhve` via `STORAGE_DRIVER=cloudinary` (new driver, see docs/DESIGN.md assets and `src/lib/storage/cloudinary.ts`).
+- **Verified on the live site**: every page in FR and AR, the hero film, the demo photos served from the CDN, an upload that really goes through Vercel into Cloudinary, and an unsigned fetch of a private asset refused with 401.
+- **Daily job**: `/api/cron/daily` (billing cycle, booking expiry, outbox), called nightly by Vercel Cron with `CRON_SECRET`; the route refuses every caller when that secret is unset. A manual run returned 4 professionals, 0 invoices (all still in free trial) and 5 e-mails attempted.
+- **Search engines**: `robots.txt` and `sitemap.xml` exist; demo businesses are `noindex, nofollow` and are left out of the sitemap, so invented salons never reach search results.
+- **Page security headers** (CSP, nosniff, `X-Frame-Options: DENY`, referrer, permissions) ship from `next.config.ts`; the API and `/uploads` keep their own. Verified: no CSP violation on eight pages.
+
+### Known gaps in production
+
+1. **E-mail does not send.** `EMAIL_TRANSPORT=log` throws in production by design, so verification, password reset and every booking or billing notice fail into the outbox. Needs SMTP credentials.
+2. **Rate limiting is per-instance.** `src/lib/rate-limit.ts` keeps counters in process memory; serverless runs many short-lived instances, so the limits are far weaker than they look. Needs a shared store.
+3. Point-in-time recovery on the Neon free plan is 6 hours, storage capped at 1 GB.
+4. The Cloudinary key carries the Master Admin role on a cloud shared with other projects.
+
 ## Next session
 
 1. Phase 7: support requests (including promotional requests) for professionals.

@@ -93,6 +93,7 @@ the single chapter control.
 | Asset | Where | Replace by |
 |---|---|---|
 | Hero film | `public/media/hero-woman-cares.mp4` (+ `-960.mp4`) | Same filenames; update chapter times in `src/config/categories.ts` |
+| Brand icon (tab, phone home screen) | `src/app/icon.png`, `src/app/apple-icon.png`, `src/app/favicon.ico` | The WC mark: rose gradient disc, cream serif letters |
 | Chapter stills | `public/images/hero/chapter-*.jpg` | Frames from the film |
 | Pro band clip | `public/media/pro-cta-nails.mp4` + poster | Any portrait 4:5 clip |
 | Illustrated frames | `public/images/backgrounds/*.jpg` | Same filenames; CMS-managed in Phase 10 |
