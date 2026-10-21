@@ -1,10 +1,18 @@
-/** Scroll progress beyond which the chapter follows the scroll instead of advancing on its own. */
-export const ENGAGED = 0.03;
+/**
+ * What one scroll gesture does while the hero is locked: move to the next or previous scene, release the
+ * page to the landing content after the last scene (scrolling down), or nothing (already at the first
+ * scene and the very top).
+ */
+export type Step = { kind: "scene"; to: number } | { kind: "release" } | { kind: "none" };
 
-/** Chapter shown at scroll progress `value` (each equal slice of the pinned scroll is one chapter). */
-export function chapterForProgress(value: number, count: number) {
-  return Math.min(count - 1, Math.max(0, Math.floor(value * count)));
+export function nextStep(current: number, direction: 1 | -1, count: number): Step {
+  if (direction > 0) return current < count - 1 ? { kind: "scene", to: current + 1 } : { kind: "release" };
+  return current > 0 ? { kind: "scene", to: current - 1 } : { kind: "none" };
 }
+
+/** Wheel and swipe sizes below these are treated as noise (trackpad rest, finger tremor). */
+export const WHEEL_MIN = 4;
+export const SWIPE_MIN = 36;
 
 /**
  * Where each scene comes from when it enters: scene 1 from the inline-end side, scene 2 from the top,
@@ -25,15 +33,4 @@ export function hiddenClip({ x, y }: Entry) {
   if (x < 0) return "inset(0% 100% 0% 0%)";
   if (y < 0) return "inset(0% 0% 100% 0%)";
   return "inset(100% 0% 0% 0%)";
-}
-
-/**
- * Clamped linear mapping. Function-form transforms keep Motion on the JS path;
- * its accelerated scroll path mis-mapped targeted offsets (opacities stuck mid-way).
- */
-export function map([a, b]: number[], [from, to]: number[]) {
-  return (v: number) => {
-    const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
-    return from + (to - from) * t;
-  };
 }

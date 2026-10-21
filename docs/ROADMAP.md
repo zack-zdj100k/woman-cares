@@ -80,7 +80,7 @@ Owner decision: clients can request appointments before confirming their e-mail.
 ## Sign-in and sign-up, cinematic hero (2026-10-21)
 
 - Sign-in: two pills on top ("Entrer dans mon compte" and "Créer un compte"); the second opens "Je suis une cliente" and "Je suis professionnelle". The sign-up tab "Je cherche un soin" is now "Je suis une cliente" (FR and AR). New sign-in picture: the owner's nail-studio photo, with the other studio's sign cropped out and the apron logo blurred.
-- Home hero: the single film is replaced by four owner-supplied clips (hair, skin, nails, massage), one per chapter, entering over each other from the inline-end side, the top and the inline-start side as the visitor scrolls (details in docs/DESIGN.md). Chapter stills were refreshed from the new clips. The four scenes weigh 3.3 MB (1.7 MB for phones); the old film files were removed (restorable from git).
+- Home hero: the single film is replaced by four owner-supplied clips (hair, skin, nails, massage). The hero is full screen and locks the page: each scroll gesture, swipe or key press brings the next clip in over the previous one (from the inline-end side, the top, then the inline-start side); only after the last clip does the page release and glide to the landing content (details in docs/DESIGN.md). Chapter stills were refreshed from the new clips. The four scenes weigh 3.3 MB (1.7 MB for phones); the old film files were removed (restorable from git).
 
 ## Next session
 

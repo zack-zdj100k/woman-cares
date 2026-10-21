@@ -88,16 +88,22 @@ frame that opens to full bleed, the oversized display title (here the chapter na
 control button (play/pause).
 
 Owner direction (2026-10-21): four separate salon clips (hair, skin, nails, massage), one per chapter,
-replace the single joined film. The hair clip, which opens on the salon entrance, is on screen at load;
-the other three come in as the visitor scrolls, each over the previous one: scene 2 from the inline-end
-side, scene 3 from the top, scene 4 from the inline-start side (mirrored in Arabic). A scene enters as a
-clip that opens along the side it comes from while its picture pushes in (1.16 to 1 scale, 12 % drift);
-the scene underneath drifts the other way, scales to 1.05 and dims. Easing `cubic-bezier(0.77, 0, 0.18, 1)`,
-1.25 s. Before any scroll the scenes advance by themselves every 6.5 s; after it, each quarter of the
-pinned scroll is one scene and scrolling back reverses the stack. Only the visible clip plays. Texts, the
-chapter rail, the typed captions and the detail card are unchanged. Reduced motion: scenes cross-fade, no
-autoplay until the play button is pressed. Rules live in `src/lib/hero-film.ts` (unit-tested) and
-`src/config/hero-scenes.ts`; the previous single-film hero is in git history (before this change).
+replace the single joined film, and the hero takes over the whole screen. **The page is locked on it:**
+one scroll gesture (wheel, swipe, arrow or page keys) moves one scene, ignoring the rest of that gesture
+and any new one until the 1.3 s change has finished. Only after the last scene does one more gesture
+release the page, which glides down to the landing content. Scrolling back up from the landing content
+reaches the hero at its last scene and steps back through them; scrolling up from the first scene does
+nothing. The lock only applies at the very top of the page, is off while the menu or the search dialog is
+open, and is off with reduced motion (the hero is then an ordinary first screen).
+
+Each scene comes in over the previous one: scene 2 from the inline-end side, scene 3 from the top, scene 4
+from the inline-start side (mirrored in Arabic), as a clip that opens along the side it comes from while its
+picture pushes in (1.16 to 1 scale, 12 % drift); the scene underneath drifts the other way, scales to 1.05
+and dims. Easing `cubic-bezier(0.77, 0, 0.18, 1)`, 1.25 s. The frame opens from an inset rounded card to
+full bleed on load. Scene 1 carries the headline, calls to action and the detail card; the other scenes
+carry the large chapter title with its typed caption. Only the visible clip plays; the play button pauses
+it. Rules live in `src/lib/hero-film.ts` (unit-tested), the lock in `src/components/marketing/hero-film.tsx`
+and the scenes in `src/config/hero-scenes.ts`; the earlier scroll-linked hero is in git history.
 
 ## Assets
 

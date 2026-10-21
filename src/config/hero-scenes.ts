@@ -14,5 +14,4 @@ export const heroScenes: HeroScene[] = [
   { slug: "massage", key: "massage", poster: "/images/hero/scene-massage.jpg", position: "66% 55%" },
 ];
 
-/** Seconds each scene stays before the next one comes in, while the visitor has not scrolled. */
-export const SCENE_SECONDS = 6.5;
+
