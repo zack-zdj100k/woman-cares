@@ -77,6 +77,11 @@ Owner decision: clients can request appointments before confirming their e-mail.
 - Confirming, refusing, recording and deleting subscription payments is reserved for the Super Admin (`canVerifyPayment`). A failed payment whose invoice is still unpaid shows the "record a payment" form in place.
 - QA pass: unit 100, integration 132 (incl. 5 new for photos), end-to-end 16 (booking test now attaches and reads back a photo), and a crawl of 108 pages (public, client, provider and admin; FR and AR; 375/768/1440 widths) with no console errors, crashes or horizontal overflow after two layout fixes (profile editor tab bar, long unbroken text on the admin provider page).
 
+## Sign-in and sign-up, cinematic hero (2026-10-21)
+
+- Sign-in: two pills on top ("Entrer dans mon compte" and "Créer un compte"); the second opens "Je suis une cliente" and "Je suis professionnelle". The sign-up tab "Je cherche un soin" is now "Je suis une cliente" (FR and AR). New sign-in picture: the owner's nail-studio photo, with the other studio's sign cropped out and the apron logo blurred.
+- Home hero: the single film is replaced by four owner-supplied clips (hair, skin, nails, massage), one per chapter, entering over each other from the inline-end side, the top and the inline-start side as the visitor scrolls (details in docs/DESIGN.md). Chapter stills were refreshed from the new clips. The four scenes weigh 3.3 MB (1.7 MB for phones); the old film files were removed (restorable from git).
+
 ## Next session
 
 1. Phase 7: support requests (including promotional requests) for professionals.

@@ -1,26 +1,30 @@
-import { HERO_FILM_DURATION, categoryArt, heroFilmChapters } from "@/config/categories";
-
-/** Chapter start times (seconds) in public/media/hero-woman-cares.mp4. */
-export const starts = heroFilmChapters.map((slug) => categoryArt[slug].filmChapterStart ?? 0);
-
-/** The visible chapter switches halfway through each 0.8 s crossfade. */
-const switchAt = starts.map((s, i) => (i === 0 ? 0 : s + 0.4));
-
-/** Scroll progress beyond which the film follows the scroll instead of playing freely. */
+/** Scroll progress beyond which the chapter follows the scroll instead of advancing on its own. */
 export const ENGAGED = 0.03;
 
-/** Index of the chapter on screen at film time `t`. */
-export function chapterAt(t: number) {
-  let c = 0;
-  for (let i = 0; i < switchAt.length; i++) if (t >= switchAt[i]) c = i;
-  return c;
+/** Chapter shown at scroll progress `value` (each equal slice of the pinned scroll is one chapter). */
+export function chapterForProgress(value: number, count: number) {
+  return Math.min(count - 1, Math.max(0, Math.floor(value * count)));
 }
 
-/** 0..1 progress through chapter `c` at film time `t`. */
-export function progressWithin(t: number, c: number) {
-  const from = switchAt[c];
-  const to = switchAt[c + 1] ?? HERO_FILM_DURATION;
-  return Math.min(1, Math.max(0, (t - from) / (to - from)));
+/**
+ * Where each scene comes from when it enters: scene 1 from the inline-end side, scene 2 from the top,
+ * scene 3 from the inline-start side (mirrored in Arabic). Scene 0 is the base and never moves.
+ */
+export type Entry = { x: -1 | 0 | 1; y: -1 | 0 | 1 };
+export function entryFor(index: number, rtl: boolean): Entry {
+  const flip = rtl ? -1 : 1;
+  if (index === 1) return { x: (1 * flip) as 1 | -1, y: 0 };
+  if (index === 2) return { x: 0, y: -1 };
+  if (index === 3) return { x: (-1 * flip) as 1 | -1, y: 0 };
+  return { x: 0, y: 0 };
+}
+
+/** The clip that hides a scene entirely, shrunk toward the side it enters from. */
+export function hiddenClip({ x, y }: Entry) {
+  if (x > 0) return "inset(0% 0% 0% 100%)";
+  if (x < 0) return "inset(0% 100% 0% 0%)";
+  if (y < 0) return "inset(0% 0% 100% 0%)";
+  return "inset(100% 0% 0% 0%)";
 }
 
 /**

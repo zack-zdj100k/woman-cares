@@ -85,15 +85,26 @@ Glowence contributes the pill nav cluster with a centred wordmark, the serif hea
 accent, a light pill primary CTA beside a glass ghost CTA, the floating glass detail card with a typed
 caption, and the modal (here the "Trouver mon soin" search). Norvik contributes the inset rounded film
 frame that opens to full bleed, the oversized display title (here the chapter name), and the round
-control button (play/pause). Scroll drives four chapters (hair, skin, nails, massage); the chapter rail is
-the single chapter control.
+control button (play/pause).
+
+Owner direction (2026-10-21): four separate salon clips (hair, skin, nails, massage), one per chapter,
+replace the single joined film. The hair clip, which opens on the salon entrance, is on screen at load;
+the other three come in as the visitor scrolls, each over the previous one: scene 2 from the inline-end
+side, scene 3 from the top, scene 4 from the inline-start side (mirrored in Arabic). A scene enters as a
+clip that opens along the side it comes from while its picture pushes in (1.16 to 1 scale, 12 % drift);
+the scene underneath drifts the other way, scales to 1.05 and dims. Easing `cubic-bezier(0.77, 0, 0.18, 1)`,
+1.25 s. Before any scroll the scenes advance by themselves every 6.5 s; after it, each quarter of the
+pinned scroll is one scene and scrolling back reverses the stack. Only the visible clip plays. Texts, the
+chapter rail, the typed captions and the detail card are unchanged. Reduced motion: scenes cross-fade, no
+autoplay until the play button is pressed. Rules live in `src/lib/hero-film.ts` (unit-tested) and
+`src/config/hero-scenes.ts`; the previous single-film hero is in git history (before this change).
 
 ## Assets
 
 | Asset | Where | Replace by |
 |---|---|---|
-| Hero film | `public/media/hero-woman-cares.mp4` (+ `-960.mp4`) | Same filenames; update chapter times in `src/config/categories.ts` |
-| Chapter stills | `public/images/hero/chapter-*.jpg` | Frames from the film |
+| Hero scenes | `public/media/hero-{hair,skin,nails,massage}.mp4` (+ `-960.mp4` for phones), posters `public/images/hero/scene-*.jpg` | Same filenames, 16:9, no audio; order and crop in `src/config/hero-scenes.ts` |
+| Chapter stills | `public/images/hero/chapter-*.jpg` | Frames from the four scenes (cards and inner pages use them) |
 | Pro band clip | `public/media/pro-cta-nails.mp4` + poster | Any portrait 4:5 clip |
 | Illustrated frames | `public/images/backgrounds/*.jpg` | Same filenames; CMS-managed in Phase 10 |
 | Site backdrop | `public/images/backgrounds/site-texture.webp`, `corner-*.webp` | Replace `assets/source/*` and run `node scripts/build-backgrounds.mjs` |

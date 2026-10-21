@@ -8,6 +8,7 @@ import { safeNextPath } from "@/lib/auth/redirects";
 import { PageShell } from "@/components/layout/page-shell";
 import { AuthFrame } from "@/components/auth/auth-frame";
 import { SignInForm } from "@/components/auth/auth-forms";
+import { AccountSwitch } from "@/components/auth/account-switch";
 import { FormAlert } from "@/components/auth/fields";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,6 +24,14 @@ export default async function SignInPage({ searchParams }: PageProps<"/[locale]/
       <AuthFrame
         title={t.signIn.title}
         intro={t.signIn.intro}
+        image="/images/auth/sign-in-nails.webp"
+        imagePosition="50% 45%"
+        top={
+          <AccountSwitch
+            locale={locale}
+            labels={{ signIn: t.signIn.existingAccount, create: t.signIn.createAccount, choose: t.signIn.createChoose, client: t.signUp.clientTab, provider: t.signUp.providerTab }}
+          />
+        }
         footer={
           <>
             {t.signIn.noAccount}{" "}
