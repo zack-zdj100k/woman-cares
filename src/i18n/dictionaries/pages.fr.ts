@@ -166,8 +166,8 @@ const pagesFr = {
       seeOne: "Voir ce rendez-vous",
       seeMine: "Voir mes rendez-vous",
       another: "Faire une autre demande",
-      clientOnly: "Vous êtes connectée avec un compte professionnel ou administrateur. Pour demander un rendez-vous, connectez-vous avec un compte cliente : votre choix vous attendra.",
-      switchAccount: "Se connecter avec un compte cliente",
+      clientOnly: "Vous êtes connectée avec un compte professionnel ou administrateur, qui ne peut pas demander de rendez-vous. Le bouton ci-dessous vous déconnecte pour vous laisser vous connecter avec un compte cliente : votre choix vous attendra.",
+      switchAccount: "Me déconnecter et me connecter en cliente",
       errors: {
         signin: "Connectez-vous pour envoyer la demande.",
         verify: "Confirmez d’abord votre adresse e-mail depuis votre espace.",
