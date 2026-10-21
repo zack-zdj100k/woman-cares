@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { categorySlugs, type CategorySlug } from "@/config/categories";
 import type { Locale } from "@/i18n/config";
 import { getAuthDictionary, getDictionary, getPagesDictionary } from "@/i18n/get-dictionary";
@@ -38,6 +39,15 @@ async function SignUp({ searchParams, locale }: { searchParams: PageProps<"/[loc
     <AuthFrame
       title={role === "provider" ? t.signUp.providerTitle : t.signUp.clientTitle}
       intro={role === "provider" ? t.signUp.providerIntro : t.signUp.clientIntro}
+      top={
+        <Link
+          href={`/${locale}/auth/sign-in`}
+          className="inline-flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm text-ink-2 transition-colors hover:text-ink"
+        >
+          <ChevronLeft className="size-4 rtl:-scale-x-100" strokeWidth={1.75} aria-hidden="true" />
+          {t.signUp.back}
+        </Link>
+      }
       image={role === "provider" ? "/images/hero/pro-cta-nails.jpg" : "/images/hero/chapter-10.jpg"}
       imagePosition={role === "provider" ? "50% 50%" : "60% 50%"}
       footer={

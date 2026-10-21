@@ -43,6 +43,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         categories={dict.categories}
         overMedia
         account={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="header" />}
+        accountIcon={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="icon" />}
       />
       <main id="main">
         <HeroFilm locale={locale} copy={dict.hero} chapters={chapters} />

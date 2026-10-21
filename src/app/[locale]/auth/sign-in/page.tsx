@@ -26,12 +26,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/[locale]/
         intro={t.signIn.intro}
         image="/images/auth/sign-in-nails.webp"
         imagePosition="50% 45%"
-        top={
-          <AccountSwitch
-            locale={locale}
-            labels={{ signIn: t.signIn.existingAccount, create: t.signIn.createAccount, choose: t.signIn.createChoose, client: t.signUp.clientTab, provider: t.signUp.providerTab }}
-          />
-        }
+        top={<AccountSwitch locale={locale} labels={{ signIn: t.signIn.existingAccount, create: t.signIn.createAccount }} />}
         footer={
           <>
             {t.signIn.noAccount}{" "}

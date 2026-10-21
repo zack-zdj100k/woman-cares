@@ -23,9 +23,11 @@ type Props = {
   overMedia?: boolean;
   /** Server-rendered account control (sign-in link or account menu), streamed behind Suspense. */
   account?: ReactNode;
+  /** Round account button kept beside the search and menu circles at every width. */
+  accountIcon?: ReactNode;
 };
 
-export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categories, account, overMedia = false }: Props) {
+export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categories, account, accountIcon, overMedia = false }: Props) {
   const findCare = useFindCareOptional();
   const reduce = useReducedMotion();
   const [careOpen, setCareOpen] = useState(false);
@@ -179,6 +181,7 @@ export function SiteHeader({ locale, nav, findLabel, brand, categoryNames, categ
               <span className="max-md:hidden">{findLabel}</span>
             </Link>
           )}
+          {accountIcon}
           <button type="button" onClick={openDialMenu} aria-label={nav.menu} className={circle}>
             <Menu className="size-5" strokeWidth={1.75} />
           </button>

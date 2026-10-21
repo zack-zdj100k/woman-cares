@@ -25,6 +25,7 @@ export async function PageShell({ children }: { children: ReactNode }) {
         categoryNames={categoryNames}
         categories={dict.categories}
         account={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="header" />}
+        accountIcon={<AccountSlot locale={locale} signInLabel={dict.nav.signIn} variant="icon" />}
       />
       <main id="main" className="min-h-[70dvh] pt-24">
         {children}

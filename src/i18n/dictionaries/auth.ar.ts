@@ -20,7 +20,6 @@ const authAr: AuthDictionary = {
     noAccount: "ليس لديك حساب بعد؟",
     createAccount: "إنشاء حساب",
     existingAccount: "الدخول إلى حسابي",
-    createChoose: "أنتِ…",
     errors: {
       invalid: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
       locked: "محاولات كثيرة. أعيدي المحاولة بعد 15 دقيقة أو أعيدي تعيين كلمة المرور.",
@@ -34,6 +33,7 @@ const authAr: AuthDictionary = {
   },
   signUp: {
     metaTitle: "إنشاء حساب",
+    back: "العودة إلى تسجيل الدخول",
     clientTab: "أنا زبونة",
     providerTab: "أنا محترفة",
     clientTitle: "إنشاء حسابي",

@@ -5,6 +5,7 @@ import { BackLink } from "@/components/navigation/back-link";
 import { notFound } from "next/navigation";
 import { BadgeCheck, CalendarX, ChevronLeft, Clock, LayoutGrid, Mail, MapPin, MessageCircle, Phone, Scissors, ShieldCheck, Sparkles, Star, UserRound } from "lucide-react";
 import { categoryArt, isCategorySlug, type CategorySlug } from "@/config/categories";
+import { isDemoSlug } from "@/config/demo";
 import { specialtyLabel } from "@/config/specialties";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary, getPagesDictionary, type Dictionary, type PagesDictionary } from "@/i18n/get-dictionary";
@@ -34,6 +35,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: `${profile.provider.businessName}, ${category}`,
     description: profile.headline,
+    // Demo businesses are invented: keep them out of search results.
+    ...(isDemoSlug(profileSlug) ? { robots: { index: false, follow: false } } : {}),
   };
 }
 

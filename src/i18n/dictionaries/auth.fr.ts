@@ -18,7 +18,6 @@ const authFr = {
     noAccount: "Pas encore de compte ?",
     createAccount: "Créer un compte",
     existingAccount: "Entrer dans mon compte",
-    createChoose: "Vous êtes…",
     errors: {
       invalid: "E-mail ou mot de passe incorrect.",
       locked: "Trop de tentatives. Réessayez dans 15 minutes ou réinitialisez votre mot de passe.",
@@ -32,6 +31,7 @@ const authFr = {
   },
   signUp: {
     metaTitle: "Créer un compte",
+    back: "Retour à la connexion",
     clientTab: "Je suis une cliente",
     providerTab: "Je suis professionnelle",
     clientTitle: "Créer mon compte",

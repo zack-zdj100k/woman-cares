@@ -46,6 +46,12 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
 export const viewport: Viewport = {
   themeColor: "#f6eae2",
   colorScheme: "light",
+  // Owner decision (2026-10-21): the page keeps one fixed scale, so pinching never zooms it.
+  // Browser zoom (Ctrl/Cmd +/-) still works, which is what assistive users rely on.
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function LocaleLayout({ children, params }: LayoutProps<"/[locale]">) {
