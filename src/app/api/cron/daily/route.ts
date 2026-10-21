@@ -11,7 +11,8 @@ import { deliverPendingEmails } from "@/server/services/outbox";
  * Only the scheduler may call it: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`.
  * Without CRON_SECRET set the route refuses everyone, so it can never run unprotected.
  */
-export const dynamic = "force-dynamic";
+// It reads the Authorization header, so it is dynamic by nature; cacheComponents forbids
+// declaring that with a route segment config.
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
