@@ -3,7 +3,8 @@
  *
  * Creates a handful of clearly labelled demo businesses ("Démo · …") so the directories and
  * profile pages can be developed and tested before real professionals join. Portfolio images are
- * frames from the hero film (prisma/demo-media), copied into local storage. It creates no
+ * frames from the hero film (prisma/demo-media), copied into whichever storage STORAGE_DRIVER
+ * selects. It creates no
  * reviews, no bookings and no payments: those only ever come from real activity.
  * Demo accounts cannot sign in (their password hash is not a valid hash).
  *
@@ -11,7 +12,7 @@
  *        ALLOW_DEMO_SEED=1 npx tsx prisma/seed-demo.ts --remove   (delete demo data)
  */
 import "dotenv/config";
-import { copyFile, mkdir, readdir } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -227,12 +228,18 @@ async function remove() {
   console.log(`Removed ${providerIds.length} demo providers.`);
 }
 
-/** Copies the committed demo frames into public local storage (served at /uploads/demo/…). */
+/** Puts the committed demo frames into public storage (local /uploads/demo/…, or the CDN). */
 async function copyDemoMedia() {
   const from = path.resolve("prisma/demo-media");
+  const files = await readdir(from);
+  if ((process.env.STORAGE_DRIVER ?? "local") === "cloudinary") {
+    const { putObject } = await import("../src/lib/storage/cloudinary");
+    for (const f of files) await putObject("public", `demo/${f}`, await readFile(path.join(from, f)));
+    return;
+  }
   const to = path.resolve(process.env.STORAGE_LOCAL_DIR ?? ".storage", "public", "demo");
   await mkdir(to, { recursive: true });
-  for (const f of await readdir(from)) await copyFile(path.join(from, f), path.join(to, f));
+  for (const f of files) await copyFile(path.join(from, f), path.join(to, f));
 }
 
 async function main() {
