@@ -1,36 +1,35 @@
-/**
- * What one scroll gesture does while the hero is locked: move to the next or previous scene, release the
- * page to the landing content after the last scene (scrolling down), or nothing (already at the first
- * scene and the very top).
- */
-export type Step = { kind: "scene"; to: number } | { kind: "release" } | { kind: "none" };
+import { HERO_FILM_DURATION, categoryArt, heroFilmChapters } from "@/config/categories";
 
-export function nextStep(current: number, direction: 1 | -1, count: number): Step {
-  if (direction > 0) return current < count - 1 ? { kind: "scene", to: current + 1 } : { kind: "release" };
-  return current > 0 ? { kind: "scene", to: current - 1 } : { kind: "none" };
+/** Chapter start times (seconds) in public/media/hero-woman-cares.mp4. */
+export const starts = heroFilmChapters.map((slug) => categoryArt[slug].filmChapterStart ?? 0);
+
+/** The visible chapter switches halfway through each 0.8 s crossfade. */
+const switchAt = starts.map((s, i) => (i === 0 ? 0 : s + 0.4));
+
+/** Scroll progress beyond which the film follows the scroll instead of playing freely. */
+export const ENGAGED = 0.03;
+
+/** Index of the chapter on screen at film time `t`. */
+export function chapterAt(t: number) {
+  let c = 0;
+  for (let i = 0; i < switchAt.length; i++) if (t >= switchAt[i]) c = i;
+  return c;
 }
 
-/** Wheel and swipe sizes below these are treated as noise (trackpad rest, finger tremor). */
-export const WHEEL_MIN = 4;
-export const SWIPE_MIN = 36;
-
-/**
- * Where each scene comes from when it enters: scene 1 from the inline-end side, scene 2 from the top,
- * scene 3 from the inline-start side (mirrored in Arabic). Scene 0 is the base and never moves.
- */
-export type Entry = { x: -1 | 0 | 1; y: -1 | 0 | 1 };
-export function entryFor(index: number, rtl: boolean): Entry {
-  const flip = rtl ? -1 : 1;
-  if (index === 1) return { x: (1 * flip) as 1 | -1, y: 0 };
-  if (index === 2) return { x: 0, y: -1 };
-  if (index === 3) return { x: (-1 * flip) as 1 | -1, y: 0 };
-  return { x: 0, y: 0 };
+/** 0..1 progress through chapter `c` at film time `t`. */
+export function progressWithin(t: number, c: number) {
+  const from = switchAt[c];
+  const to = switchAt[c + 1] ?? HERO_FILM_DURATION;
+  return Math.min(1, Math.max(0, (t - from) / (to - from)));
 }
 
-/** The clip that hides a scene entirely, shrunk toward the side it enters from. */
-export function hiddenClip({ x, y }: Entry) {
-  if (x > 0) return "inset(0% 0% 0% 100%)";
-  if (x < 0) return "inset(0% 100% 0% 0%)";
-  if (y < 0) return "inset(0% 0% 100% 0%)";
-  return "inset(100% 0% 0% 0%)";
+/**
+ * Clamped linear mapping. Function-form transforms keep Motion on the JS path;
+ * its accelerated scroll path mis-mapped targeted offsets (opacities stuck mid-way).
+ */
+export function map([a, b]: number[], [from, to]: number[]) {
+  return (v: number) => {
+    const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+    return from + (to - from) * t;
+  };
 }

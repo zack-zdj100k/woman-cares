@@ -1,34 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { entryFor, hiddenClip, nextStep } from "@/lib/hero-film";
+import { chapterAt, map, progressWithin, starts } from "@/lib/hero-film";
 
-describe("locked hero steps", () => {
-  it("moves one scene per gesture, in both directions", () => {
-    expect(nextStep(0, 1, 4)).toEqual({ kind: "scene", to: 1 });
-    expect(nextStep(2, 1, 4)).toEqual({ kind: "scene", to: 3 });
-    expect(nextStep(3, -1, 4)).toEqual({ kind: "scene", to: 2 });
-    expect(nextStep(1, -1, 4)).toEqual({ kind: "scene", to: 0 });
+describe("hero film chapters", () => {
+  it("starts each chapter where the clips were joined", () => {
+    expect(starts).toEqual([0, 7.2, 14.4, 21.6]);
   });
 
-  it("releases the page to the landing content only after the last scene", () => {
-    expect(nextStep(3, 1, 4)).toEqual({ kind: "release" });
-    expect(nextStep(2, 1, 4).kind).toBe("scene");
+  it("switches chapter halfway through each crossfade", () => {
+    expect(chapterAt(0)).toBe(0);
+    expect(chapterAt(7.5)).toBe(0);
+    expect(chapterAt(7.7)).toBe(1);
+    expect(chapterAt(14.8)).toBe(2);
+    expect(chapterAt(29.5)).toBe(3);
   });
 
-  it("does nothing when scrolling up from the first scene", () => {
-    expect(nextStep(0, -1, 4)).toEqual({ kind: "none" });
+  it("reports progress within the current chapter, clamped", () => {
+    expect(progressWithin(0, 0)).toBe(0);
+    expect(progressWithin(7.6, 0)).toBeCloseTo(1, 6);
+    expect(progressWithin(29.58, 3)).toBeCloseTo(1, 2);
+    expect(progressWithin(-1, 0)).toBe(0);
   });
 });
 
-describe("hero scene entries", () => {
-  it("brings scenes in from the right, the top and the left, mirrored in Arabic", () => {
-    expect([1, 2, 3].map((i) => entryFor(i, false))).toEqual([{ x: 1, y: 0 }, { x: 0, y: -1 }, { x: -1, y: 0 }]);
-    expect([1, 2, 3].map((i) => entryFor(i, true))).toEqual([{ x: -1, y: 0 }, { x: 0, y: -1 }, { x: 1, y: 0 }]);
-    expect(entryFor(0, false)).toEqual({ x: 0, y: 0 });
-  });
-
-  it("hides a scene toward the side it enters from", () => {
-    expect(hiddenClip(entryFor(1, false))).toBe("inset(0% 0% 0% 100%)");
-    expect(hiddenClip(entryFor(2, false))).toBe("inset(0% 0% 100% 0%)");
-    expect(hiddenClip(entryFor(3, false))).toBe("inset(0% 100% 0% 0%)");
+describe("map", () => {
+  it("interpolates and clamps", () => {
+    const f = map([0.5, 0.7], [1, 0]);
+    expect(f(0)).toBe(1);
+    expect(f(0.6)).toBeCloseTo(0.5);
+    expect(f(1)).toBe(0);
   });
 });

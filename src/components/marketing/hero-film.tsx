@@ -1,12 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion, useMotionValue, useReducedMotion, type MotionValue } from "motion/react";
+import {
+  animate,
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+  type MotionValue,
+} from "motion/react";
 import { ArrowUpRight, Pause, Play } from "lucide-react";
-import { heroFilmChapters, type CategorySlug } from "@/config/categories";
-import { heroScenes, type HeroScene } from "@/config/hero-scenes";
+import {
+  HERO_FILM_SEEK_OFFSET,
+  heroFilmChapters,
+  type CategorySlug,
+} from "@/config/categories";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/dictionaries/fr";
 import { buttonClass } from "@/components/ui/button";
@@ -15,25 +28,22 @@ import { Typewriter } from "./typewriter";
 import { cn } from "@/lib/cn";
 
 /*
- * Home hero. A full-screen gallery of four salon scenes (hair, skin, nails, massage), one clip each.
- * The page is locked on it: one scroll gesture (wheel, swipe, arrow or page keys) moves to the next scene,
- * which slides in over the previous one (from the right, then the top, then the left; mirrored in
- * Arabic) while its clip pushes in and the scene underneath drifts away and dims. Only after the last
- * scene does one more gesture release the page and glide down to the landing content. Scrolling back up
- * from the landing content returns to the last scene and steps back through them.
+ * Hero film. One video (four crossfaded clips: hair, skin, nails, massage)
+ * pinned while the visitor scrolls through ~2 screens:
  *
- * Scene 0 carries the headline and calls to action; the other scenes carry the large chapter title.
- * Reduced motion: no lock (the hero is an ordinary first screen), scenes cross-fade from the chapter
- * rail, no autoplay until the play button is pressed.
+ *   0.00 - 0.28  the inset, rounded frame opens to full bleed; headline lines drift apart
+ *   0.00 - 1.00  each quarter of the scroll is one category chapter; entering a quarter
+ *                seeks the film to that chapter (and the chapter UI follows the film
+ *                when it simply plays)
+ *   0.55 - 0.70  headline and CTAs hand over to a large chapter title
+ *
+ * Reduced motion: no autoplay, no pinning, no frame animation. The film can still
+ * be started with the play button and chapters are still selectable.
  */
 
-import { SWIPE_MIN, WHEEL_MIN, entryFor, hiddenClip, nextStep } from "@/lib/hero-film";
+import { chapterAt, progressWithin, starts, map, ENGAGED } from "@/lib/hero-film";
 
 type Chapter = { slug: CategorySlug; name: string; caption: string; image: string };
-
-const EASE = [0.77, 0, 0.18, 1] as const;
-/** One scene change takes this long; the next gesture is ignored until it has finished. */
-const STEP_MS = 1300;
 
 export function HeroFilm({
   locale,
@@ -47,105 +57,104 @@ export function HeroFilm({
   const reduce = useReducedMotion() ?? false;
   const findCare = useFindCare();
   const sectionRef = useRef<HTMLElement>(null);
-  const videos = useRef<(HTMLVideoElement | null)[]>([]);
-  const shownRef = useRef(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const chapterRef = useRef(0);
-  const busyUntil = useRef(0);
+  const scrollChapterRef = useRef(0);
+  const userPausedRef = useRef(false);
 
   const [chapter, setChapter] = useState(0);
-  const [manual, setManual] = useState<"play" | "pause" | null>(null);
+  const [paused, setPaused] = useState(true);
   const [inView, setInView] = useState(true);
-  const rtl = locale === "ar";
-  const intro = chapter === 0;
 
   const fill = useMotionValue(0);
+  const filmOpacity = useMotionValue(1);
 
-  const go = useCallback((c: number) => {
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start start", "end end"] });
+  const p = scrollYProgress;
+
+  // Frame: inset rounded card (Norvik reference) opening to a full-bleed film.
+  const inset = useTransform(p, map([0, 0.28], [14, 0]));
+  const radius = useTransform(p, map([0, 0.28], [28, 0]));
+  const clipPath = useMotionTemplate`inset(${inset}px round ${radius}px)`;
+  const filmScale = useTransform(p, map([0, 1], [1.08, 1]));
+
+  // Headline choreography; RTL drifts mirror LTR.
+  const dir = locale === "ar" ? -1 : 1;
+  const lineA = useTransform(p, (v) => `${map([0, 0.6], [0, -5 * dir])(v)}%`);
+  const lineB = useTransform(p, (v) => `${map([0, 0.6], [0, 5 * dir])(v)}%`);
+  const introY = useTransform(p, map([0, 0.7], [0, -90]));
+  const introOpacity = useTransform(p, map([0.5, 0.66], [1, 0]));
+  const introVisibility = useTransform(introOpacity, (o) => (o < 0.02 ? "hidden" : "visible"));
+  const cardOpacity = useTransform(p, map([0.46, 0.6], [1, 0]));
+  const cardVisibility = useTransform(cardOpacity, (o) => (o < 0.02 ? "hidden" : "visible"));
+  const titleOpacity = useTransform(p, map([0.58, 0.72], [0, 1]));
+  const titleY = useTransform(p, map([0.58, 0.72], [40, 0]));
+  const titleVisibility = useTransform(titleOpacity, (o) => (o < 0.02 ? "hidden" : "visible"));
+  const scrim = useTransform(p, map([0.5, 0.75], [0, 0.14]));
+
+  function seek(c: number) {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = starts[c] + (c === 0 ? 0 : HERO_FILM_SEEK_OFFSET);
     chapterRef.current = c;
-    busyUntil.current = performance.now() + STEP_MS;
     setChapter(c);
-  }, []);
+    if (!reduce) animate(filmOpacity, [0.35, 1], { duration: 0.7, ease: [0.16, 1, 0.3, 1] });
+  }
 
-  // The lock: while the page is at its very top, wheel, swipe and keys move through the scenes.
-  useEffect(() => {
+  useMotionValueEvent(scrollYProgress, "change", (value) => {
     if (reduce) return;
-    const count = heroScenes.length;
-    const atTop = () => window.scrollY < 2;
-    const overlayOpen = () => !!document.querySelector('[aria-modal="true"], dialog[open]');
+    const c = Math.min(heroFilmChapters.length - 1, Math.floor(value * heroFilmChapters.length));
+    if (c === scrollChapterRef.current) return;
+    scrollChapterRef.current = c;
+    if (c !== chapterRef.current) seek(c);
+  });
 
-    /** Applies one gesture. Returns true when the gesture belongs to the hero (and must not scroll the page). */
-    const apply = (direction: 1 | -1) => {
-      if (performance.now() < busyUntil.current) return true;
-      const step = nextStep(chapterRef.current, direction, count);
-      if (step.kind === "scene") go(step.to);
-      else if (step.kind === "release") {
-        busyUntil.current = performance.now() + STEP_MS;
-        const end = sectionRef.current?.offsetHeight ?? window.innerHeight;
-        window.scrollTo({ top: end, behavior: "smooth" });
-      } else return false;
-      return true;
-    };
-
-    // One wheel gesture is a stream of events; it owns the hero only if it began at the top.
-    let lastWheel = 0;
-    let owned = false;
-    let consumed = false;
-    const onWheel = (e: WheelEvent) => {
-      const now = performance.now();
-      if (now - lastWheel > 180) {
-        owned = atTop() && !overlayOpen();
-        consumed = false;
+  // Keep chapter UI and the progress fill in sync with the film while it plays. Ten checks a
+  // second are enough (the fill eases between them in CSS); a per-frame loop kept phones busy.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !inView) return;
+    let timer = 0;
+    const tick = () => {
+      const t = v.currentTime;
+      let c = chapterAt(t);
+      // Once the visitor has scrolled into the film, the chapter they are on loops on itself.
+      if (!reduce && scrollYProgress.get() > ENGAGED && c !== scrollChapterRef.current && !v.seeking) {
+        c = scrollChapterRef.current;
+        v.currentTime = starts[c] + (c === 0 ? 0 : HERO_FILM_SEEK_OFFSET);
       }
-      lastWheel = now;
-      if (!owned || Math.abs(e.deltaY) < WHEEL_MIN) return;
-      e.preventDefault();
-      if (consumed) return;
-      consumed = true;
-      apply(e.deltaY > 0 ? 1 : -1);
+      if (c !== chapterRef.current) {
+        chapterRef.current = c;
+        setChapter(c);
+      }
+      fill.set(progressWithin(t, c));
     };
-
-    let touchY = 0;
-    let touchOwned = false;
-    let touchDone = false;
-    const onTouchStart = (e: TouchEvent) => {
-      touchY = e.touches[0].clientY;
-      touchOwned = atTop() && !overlayOpen();
-      touchDone = false;
+    const loop = () => {
+      tick();
+      timer = window.setTimeout(loop, 100);
     };
-    const onTouchMove = (e: TouchEvent) => {
-      if (!touchOwned) return;
-      const dy = touchY - e.touches[0].clientY;
-      if (e.cancelable) e.preventDefault();
-      if (touchDone || Math.abs(dy) < SWIPE_MIN) return;
-      touchDone = true;
-      apply(dy > 0 ? 1 : -1);
+    const start = () => {
+      window.clearTimeout(timer);
+      loop();
     };
-
-    const onKey = (e: KeyboardEvent) => {
-      if (!atTop() || overlayOpen() || e.altKey || e.ctrlKey || e.metaKey) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-      const space = e.key === " ";
-      if (space && t && t !== document.body) return;
-      const down = e.key === "ArrowDown" || e.key === "PageDown" || (space && !e.shiftKey);
-      const up = e.key === "ArrowUp" || e.key === "PageUp" || (space && e.shiftKey);
-      if (!down && !up) return;
-      if (apply(down ? 1 : -1)) e.preventDefault();
+    const stop = () => {
+      window.clearTimeout(timer);
+      tick();
     };
-
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("keydown", onKey);
+    v.addEventListener("play", start);
+    v.addEventListener("pause", stop);
+    v.addEventListener("seeked", tick);
+    if (!v.paused) start();
+    else tick();
     return () => {
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("keydown", onKey);
+      window.clearTimeout(timer);
+      v.removeEventListener("play", start);
+      v.removeEventListener("pause", stop);
+      v.removeEventListener("seeked", tick);
     };
-  }, [reduce, go]);
+  }, [inView, fill, reduce, scrollYProgress]);
 
-  // Pause everything while the hero is off screen.
+  // Pause the film while the hero is off screen; resume unless the visitor paused it.
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
@@ -154,43 +163,38 @@ export function HeroFilm({
     return () => io.disconnect();
   }, []);
 
-  const playing = inView && (manual ? manual === "play" : !reduce);
-
-  // Only the scene on screen plays (from its start); the others stop once the transition has covered them.
   useEffect(() => {
-    const timers: number[] = [];
-    const fresh = shownRef.current !== chapter;
-    shownRef.current = chapter;
-    videos.current.forEach((v, i) => {
-      if (!v) return;
-      if (!playing) {
-        v.pause();
-      } else if (i === chapter) {
-        if (fresh) v.currentTime = 0;
-        v.play().catch(() => setManual("pause"));
-      } else {
-        timers.push(window.setTimeout(() => v.pause(), 1500));
-      }
-    });
-    return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [chapter, playing]);
+    const v = videoRef.current;
+    if (!v) return;
+    if (inView && !userPausedRef.current && !reduce) {
+      v.play().catch(() => setPaused(true));
+    } else {
+      v.pause();
+    }
+  }, [inView, reduce]);
 
-  // Ten checks a second keep the chapter progress bar in step with the clip on screen.
-  useEffect(() => {
-    const read = () => {
-      const v = videos.current[chapter];
-      return v ? Math.min(1, v.currentTime / (v.duration || 8)) : 0;
-    };
-    if (!playing) {
-      fill.set(read());
+  /** Rail click: inside the pinned film, scroll to that chapter's quarter; at the top, just seek. */
+  function goToChapter(c: number) {
+    const el = sectionRef.current;
+    if (reduce || !el || scrollYProgress.get() <= ENGAGED) {
+      seek(c);
       return;
     }
-    const timer = window.setInterval(() => fill.set(read()), 100);
-    return () => window.clearInterval(timer);
-  }, [playing, chapter, fill]);
+    const travel = el.offsetHeight - window.innerHeight;
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top: top + travel * ((c + 0.5) / heroFilmChapters.length), behavior: "smooth" });
+  }
 
   function togglePlay() {
-    setManual(playing ? "pause" : "play");
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      userPausedRef.current = false;
+      v.play().catch(() => setPaused(true));
+    } else {
+      userPausedRef.current = true;
+      v.pause();
+    }
   }
 
   const active = chapters[chapter];
@@ -199,57 +203,46 @@ export function HeroFilm({
     <section
       ref={sectionRef}
       aria-labelledby="hero-title"
-      className="relative h-dvh"
+      className={cn("relative", reduce ? "h-dvh" : "h-[260vh] md:h-[300vh]")}
     >
-      <div className="relative h-dvh overflow-hidden">
+      <div className="sticky top-0 h-dvh overflow-hidden">
         {/* Film frame */}
         <motion.div
           className="absolute inset-0 overflow-hidden bg-[#e8d3cb]"
-          initial={reduce ? false : { clipPath: "inset(14px round 28px)" }}
-          animate={{ clipPath: "inset(0px round 0px)" }}
-          transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+          style={reduce ? undefined : { clipPath }}
         >
-          <motion.div
-            className="absolute inset-0"
-            initial={reduce ? false : { scale: 1.08 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 2.2, ease: [0.16, 1, 0.3, 1] }}
+          <motion.video
+            ref={videoRef}
+            className="absolute inset-0 size-full object-cover"
+            style={{ scale: reduce ? 1 : filmScale, opacity: filmOpacity }}
+            poster="/images/hero/chapter-3.jpg"
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+            tabIndex={-1}
+            onPlay={() => setPaused(false)}
+            onPause={() => setPaused(true)}
           >
-            {heroScenes.map((scene, i) => (
-              <SceneLayer
-                key={scene.key}
-                scene={scene}
-                index={i}
-                chapter={chapter}
-                rtl={rtl}
-                reduce={reduce}
-                videoRef={(el) => {
-                  videos.current[i] = el;
-                }}
-              />
-            ))}
-          </motion.div>
+            <source src="/media/hero-woman-cares-960.mp4" type="video/mp4" media="(max-width: 900px)" />
+            <source src="/media/hero-woman-cares.mp4" type="video/mp4" />
+          </motion.video>
 
           {/* Scrims: one under the copy side, one under the chapter rail, one global that deepens on scroll. */}
-          <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-r from-[rgb(var(--scrim)/0.46)] via-[rgb(var(--scrim)/0.12)] to-transparent rtl:bg-linear-to-l md:via-[rgb(var(--scrim)/0.08)]" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1/3 bg-linear-to-t from-[rgb(var(--scrim)/0.42)] to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-[rgb(var(--scrim)/0.46)] via-[rgb(var(--scrim)/0.12)] to-transparent rtl:bg-linear-to-l md:via-[rgb(var(--scrim)/0.08)]" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t from-[rgb(var(--scrim)/0.42)] to-transparent" />
           <motion.div
-            className="pointer-events-none absolute inset-0 z-10 bg-[rgb(var(--scrim))]"
-            initial={false}
-            animate={{ opacity: !reduce && !intro ? 0.14 : 0 }}
-            transition={{ duration: 0.9 }}
+            className="pointer-events-none absolute inset-0 bg-[rgb(var(--scrim))]"
+            style={{ opacity: reduce ? 0 : scrim }}
           />
         </motion.div>
 
         {/* Copy */}
         <div className="relative z-10 mx-auto flex h-full max-w-[1480px] flex-col px-5 pb-6 pt-28 text-on-media sm:px-8 md:pb-8 lg:px-14 lg:pt-32">
           <motion.div
-            initial={false}
-            animate={reduce || intro ? { y: 0, opacity: 1 } : { y: -70, opacity: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            style={reduce ? undefined : { y: introY, opacity: introOpacity, visibility: introVisibility }}
             className="max-w-[44rem] [text-shadow:0_1px_2px_rgb(22_10_16/0.35),0_2px_30px_rgb(22_10_16/0.45)]"
-            style={{ pointerEvents: reduce || intro ? undefined : "none" }}
-            inert={!reduce && !intro}
           >
             <motion.p
               initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -260,10 +253,10 @@ export function HeroFilm({
               {copy.eyebrow}
             </motion.p>
             <h1 id="hero-title" className="type-display text-[clamp(3rem,7.4vw,7rem)]">
-              <HeadlineLine delay={0.1} reduce={reduce}>
+              <HeadlineLine x={reduce ? 0 : lineA} delay={0.1} reduce={reduce}>
                 {copy.titleLines[0]} {copy.titleLines[1]}
               </HeadlineLine>
-              <HeadlineLine delay={0.25} reduce={reduce} className="italic text-on-media-accent rtl:not-italic">
+              <HeadlineLine x={reduce ? 0 : lineB} delay={0.25} reduce={reduce} className="italic text-on-media-accent rtl:not-italic">
                 {copy.titleLines[2]}
               </HeadlineLine>
             </h1>
@@ -298,13 +291,10 @@ export function HeroFilm({
             </motion.div>
           </motion.div>
 
-          {/* Chapter title that takes over from the headline once the first scene has gone */}
-          {!reduce && !intro && (
+          {/* Chapter title that takes over once the intro has scrolled away */}
+          {!reduce && (
             <motion.div
-              key={active.slug}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              style={{ opacity: titleOpacity, y: titleY, visibility: titleVisibility }}
               className="absolute inset-x-5 bottom-28 sm:inset-x-8 md:bottom-32 lg:inset-x-14"
               aria-live="polite"
             >
@@ -334,7 +324,7 @@ export function HeroFilm({
                   <li key={c.slug}>
                     <button
                       type="button"
-                      onClick={() => go(i)}
+                      onClick={() => goToChapter(i)}
                       aria-current={i === chapter ? "true" : undefined}
                       aria-label={`${copy.showChapter} ${c.name}`}
                       className="group/ch block w-full py-2 text-start"
@@ -358,21 +348,18 @@ export function HeroFilm({
             <button
               type="button"
               onClick={togglePlay}
-              aria-label={playing ? copy.pause : copy.play}
-              aria-pressed={playing}
+              aria-label={paused ? copy.play : copy.pause}
+              aria-pressed={!paused}
               className="grid size-12 shrink-0 place-items-center rounded-full border border-on-media/35 bg-on-media/10 text-on-media backdrop-blur-md transition-[background-color,transform] duration-300 hover:bg-on-media/25 active:scale-95"
             >
-              {playing ? <Pause className="size-4" strokeWidth={1.75} /> : <Play className="size-4 translate-x-px" strokeWidth={1.75} />}
+              {paused ? <Play className="size-4 translate-x-px" strokeWidth={1.75} /> : <Pause className="size-4" strokeWidth={1.75} />}
             </button>
           </div>
         </div>
 
         {/* Floating detail card (Glowence reference): close-up of the current chapter. */}
         <motion.aside
-          initial={false}
-          animate={{ opacity: reduce || intro ? 1 : 0 }}
-          transition={{ duration: 0.6 }}
-          style={{ visibility: reduce || intro ? "visible" : "hidden" }}
+          style={reduce ? undefined : { opacity: cardOpacity, visibility: cardVisibility }}
           className="absolute end-14 top-1/2 z-10 hidden w-[17.5rem] 2xl:end-[max(3.5rem,calc((100vw-1480px)/2+3.5rem))] -translate-y-[40%] overflow-hidden rounded-[22px] xl:block border border-on-media/20 bg-[rgb(var(--scrim)/0.35)] text-on-media shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_30px_80px_-30px_rgb(0_0_0/0.6)] backdrop-blur-xl"
           aria-label={active.name}
         >
@@ -386,7 +373,7 @@ export function HeroFilm({
                 sizes="280px"
                 className={cn(
                   "object-cover transition-[opacity,scale] duration-700 ease-(--ease-soft)",
-                  i === chapter ? "scale-[1.5] opacity-100" : "scale-[1.7] opacity-0",
+                  i === chapter ? "scale-[2.4] opacity-100" : "scale-[2.7] opacity-0",
                 )}
                 style={{ objectPosition: closeUps[c.slug], transformOrigin: closeUps[c.slug] }}
               />
@@ -415,106 +402,27 @@ export function HeroFilm({
 
 /** Where each close-up crops into the chapter still (the stylist, the facial, the manicure, the massage). */
 const closeUps: Partial<Record<CategorySlug, string>> = {
-  coiffeuses: "62% 45%",
-  esthetique: "50% 45%",
-  nails: "50% 50%",
-  massage: "62% 60%",
+  coiffeuses: "62% 38%",
+  esthetique: "62% 42%",
+  nails: "34% 78%",
+  massage: "72% 70%",
 };
-
-/**
- * One scene. Scene 0 is the base. Every other scene is hidden by a clip shrunk toward the side it enters
- * from; showing it opens the clip while the picture inside drifts and settles (a push-in). A scene that
- * a later one now covers drifts away from that scene and dims, which gives the stack its depth.
- */
-function SceneLayer({
-  scene,
-  index,
-  chapter,
-  rtl,
-  reduce,
-  videoRef,
-}: {
-  scene: HeroScene;
-  index: number;
-  chapter: number;
-  rtl: boolean;
-  reduce: boolean;
-  videoRef: (el: HTMLVideoElement | null) => void;
-}) {
-  const entry = entryFor(index, rtl);
-  const shown = index <= chapter;
-  const covered = index < chapter;
-  const above = entryFor(index + 1, rtl);
-  const open = "inset(0% 0% 0% 0%)";
-
-  const transition = { duration: reduce ? 0.6 : 1.25, ease: EASE, delay: shown ? 0 : reduce ? 0 : (heroScenes.length - 1 - index) * 0.08 };
-
-  let x = 0;
-  let y = 0;
-  let scale = 1;
-  if (!reduce && index > 0 && !shown) {
-    x = -entry.x * 12;
-    y = -entry.y * 12;
-    scale = 1.16;
-  } else if (!reduce && covered) {
-    x = -above.x * 7;
-    y = -above.y * 7;
-    scale = 1.05;
-  }
-
-  return (
-    <motion.div
-      className="absolute inset-0 overflow-hidden"
-      style={{ zIndex: index }}
-      initial={false}
-      animate={reduce ? { opacity: shown ? 1 : 0 } : { clipPath: index === 0 || shown ? open : hiddenClip(entry) }}
-      transition={transition}
-    >
-      <motion.div
-        className="absolute inset-0"
-        initial={false}
-        animate={{ x: `${x}%`, y: `${y}%`, scale }}
-        transition={transition}
-      >
-        <video
-          ref={videoRef}
-          className="absolute inset-0 size-full object-cover"
-          style={{ objectPosition: scene.position }}
-          poster={scene.poster}
-          muted
-          loop
-          playsInline
-          preload={index <= chapter + 1 ? "auto" : "none"}
-          aria-hidden="true"
-          tabIndex={-1}
-        >
-          <source src={`/media/hero-${scene.key}-960.mp4`} type="video/mp4" media="(max-width: 900px)" />
-          <source src={`/media/hero-${scene.key}.mp4`} type="video/mp4" />
-        </video>
-      </motion.div>
-      <motion.div
-        className="pointer-events-none absolute inset-0 bg-[rgb(var(--scrim))]"
-        initial={false}
-        animate={{ opacity: !reduce && covered ? 0.38 : 0 }}
-        transition={transition}
-      />
-    </motion.div>
-  );
-}
 
 function HeadlineLine({
   children,
+  x,
   delay,
   reduce,
   className,
 }: {
   children: React.ReactNode;
+  x: MotionValue<string> | number;
   delay: number;
   reduce: boolean;
   className?: string;
 }) {
   return (
-    <span className={cn("block pb-1", className)}>
+    <motion.span style={{ x }} className={cn("block pb-1", className)}>
       <motion.span
         className="block"
         initial={reduce ? false : { opacity: 0, y: "0.35em", filter: "blur(8px)" }}
@@ -523,7 +431,7 @@ function HeadlineLine({
       >
         {children}
       </motion.span>
-    </span>
+    </motion.span>
   );
 }
 
