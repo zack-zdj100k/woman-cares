@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { uniqueProviderSlug } from "./auth";
 import type { Prisma } from "@/generated/prisma/client";
 import {
   assignableRoles,
@@ -44,16 +45,44 @@ function providerTags(provider: Awaited<ReturnType<typeof target>>["provider"]) 
   return ["profiles", `provider:${provider.slug}`, ...provider.profiles.flatMap((p) => [`profile:${p.slug}`, `directory:${p.category.slug}`])];
 }
 
-/** Changes a role after the policy check; audited; the target's sessions are revoked so the new role applies at once. */
+/**
+ * Changes a role after the policy check; audited; the target's sessions are revoked so the new role
+ * applies at once.
+ *
+ * Becoming a professional needs more than the role: every professional page reads her
+ * ProviderAccount, so without one her space answers with an error. One is created here, in the same
+ * transaction, in ONBOARDING: it is never public (public listings want an APPROVED account), and she
+ * completes her business name, location and categories herself under "Établissement".
+ *
+ * Leaving the role needs no cleanup: public listings already require the owner to be a PROVIDER, so
+ * her profiles disappear from the site the moment the role changes.
+ */
 export async function changeUserRole(actor: Actor, targetId: string, next: Role) {
   const t = await target(targetId);
   if (!canChangeRole(actor, t, next)) throw new ForbiddenError();
-  await db.$transaction([
-    db.user.update({ where: { id: t.id }, data: { role: next } }),
-    db.session.deleteMany({ where: { userId: t.id } }),
-    db.auditLog.create({ data: { actorId: actor.id, action: "user.role.change", entityType: "User", entityId: t.id, metadata: { from: t.role, to: next } } }),
-  ]);
+  await db.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: t.id }, data: { role: next } });
+    await tx.session.deleteMany({ where: { userId: t.id } });
+    if (next === "PROVIDER" && !t.provider) await createOnboardingProvider(tx, t.id);
+    await tx.auditLog.create({ data: { actorId: actor.id, action: "user.role.change", entityType: "User", entityId: t.id, metadata: { from: t.role, to: next } } });
+  });
   return providerTags(t.provider);
+}
+
+/** The empty professional account a promoted user lands in, with her own details to complete. */
+async function createOnboardingProvider(tx: Prisma.TransactionClient, userId: string) {
+  const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { fullName: true, preferredWilayaCode: true } });
+  // Her own wilaya when we know it; otherwise the first one, which she changes under "Établissement".
+  const fallback = await tx.wilaya.findFirstOrThrow({ orderBy: { code: "asc" }, select: { code: true } });
+  await tx.providerAccount.create({
+    data: {
+      userId,
+      businessName: user.fullName,
+      slug: await uniqueProviderSlug(tx, user.fullName),
+      status: "ONBOARDING",
+      wilayaCode: user.preferredWilayaCode ?? fallback.code,
+    },
+  });
 }
 
 /**

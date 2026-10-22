@@ -137,6 +137,26 @@ describe("users: role changes", () => {
     await changeUserRole(admin, providerUserId, "PROVIDER");
     expect(slugs(await nailsDirectory())).toEqual(["nour-nails"]);
   });
+
+  it("gives a promoted client the professional account her space needs, without publishing anything", async () => {
+    const promoted = await person("CLIENT", "promue@test.invalid", "Yasmine Promue");
+    expect(await db.providerAccount.findUnique({ where: { userId: promoted.id } })).toBeNull();
+
+    await changeUserRole(admin, promoted.id, "PROVIDER");
+
+    const account = await db.providerAccount.findUniqueOrThrow({ where: { userId: promoted.id } });
+    expect(account.status).toBe("ONBOARDING"); // never public: listings want an APPROVED account
+    expect(account.businessName).toBe("Yasmine Promue");
+    expect(account.slug).toBe("yasmine-promue");
+    expect(account.wilayaCode).toBeGreaterThan(0);
+    expect(await db.providerServiceProfile.count({ where: { providerId: account.id } })).toBe(0);
+    expect(slugs(await nailsDirectory())).toEqual(["nour-nails"]); // nothing new on the public site
+
+    // Moving her back and forth must not create a second account or collide on the slug.
+    await changeUserRole(admin, promoted.id, "CLIENT");
+    await changeUserRole(admin, promoted.id, "PROVIDER");
+    expect(await db.providerAccount.count({ where: { userId: promoted.id } })).toBe(1);
+  });
 });
 
 describe("users: suspension", () => {

@@ -96,7 +96,7 @@ export function slugify(text: string) {
   return s || "pro";
 }
 
-async function uniqueProviderSlug(tx: Tx, businessName: string) {
+export async function uniqueProviderSlug(tx: Tx, businessName: string) {
   const base = slugify(businessName);
   for (let i = 0; i < 5; i++) {
     const candidate = i === 0 ? base : `${base}-${Math.random().toString(36).slice(2, 6)}`;
