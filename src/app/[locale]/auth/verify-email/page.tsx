@@ -7,6 +7,7 @@ import { getLocale } from "@/i18n/server";
 import { PageShell } from "@/components/layout/page-shell";
 import { FormAlert } from "@/components/auth/fields";
 import { buttonClass } from "@/components/ui/button";
+import { AutoConfirmForm } from "@/components/auth/auto-confirm-form";
 import { verifyEmailAction } from "../actions";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -56,13 +57,13 @@ async function Body({ searchParams, locale, t }: { searchParams: PageProps<"/[lo
   }
   if (!token) return <p className="mt-6 text-lg text-ink-2">{t.verify.missing}</p>;
   return (
-    <form action={verifyEmailAction} className="mt-6 grid justify-items-center gap-8">
+    <AutoConfirmForm action={verifyEmailAction} className="mt-6 grid justify-items-center gap-8">
       <p className="text-lg leading-relaxed text-ink-2">{t.verify.body}</p>
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="token" value={token} />
       <button type="submit" className={buttonClass({ variant: "solid", size: "lg" })}>
         {t.verify.submit}
       </button>
-    </form>
+    </AutoConfirmForm>
   );
 }

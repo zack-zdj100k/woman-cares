@@ -30,13 +30,9 @@ test("a client signs up, verifies her email, signs in and cannot open other area
   await f.getByRole("button", { name: "Créer mon compte" }).click();
   await expect(page.getByRole("heading", { name: "Vérifiez votre boîte mail" })).toBeVisible();
 
-  // Open the link from the email; confirmation is a deliberate POST.
+  // Open the link from the email; confirmation is a deliberate POST, and it signs her in.
   await page.goto(await linkFromEmail(email, "verify-email"));
   await page.getByRole("button", { name: "Confirmer mon adresse" }).click();
-  await expect(page.getByText("Votre adresse est confirmée")).toBeVisible();
-  await page.getByRole("link", { name: "Continuer" }).click();
-
-  await signIn(page, email);
   await expect(page).toHaveURL(/\/fr\/dashboard\/client$/);
   await expect(page.getByRole("heading", { name: "Bonjour Amina" })).toBeVisible();
   await expect(page.getByText("Confirmez votre adresse e-mail")).toHaveCount(0);
@@ -54,6 +50,10 @@ test("a client signs up, verifies her email, signs in and cannot open other area
   await expect(page.getByText("Vous êtes déconnectée.")).toBeVisible();
   await page.goto("/fr/dashboard/client");
   await expect(page).toHaveURL(/\/fr\/auth\/sign-in/);
+
+  // And she can sign back in with her password.
+  await signIn(page, email);
+  await expect(page).toHaveURL(/\/fr\/dashboard\/client$/);
 });
 
 test("a professional gets one account with draft profiles and a pending Botox request", async ({ page }) => {
@@ -135,4 +135,40 @@ test("after signing up with a Gmail address the page offers a button to Gmail, a
   await page.setExtraHTTPHeaders({ "x-forwarded-for": "10.31.4.8" });
   await signUp(`wc-mailbox-${Date.now()}@salon-test.invalid`);
   await expect(page.getByRole("link", { name: /^Ouvrir/ })).toHaveCount(0);
+});
+
+test("the link confirms on its own in a real browser and opens her space; an automated one leaves the token alone", async ({ page, browser }) => {
+  const email = `cliente-auto-${Date.now()}@test.invalid`;
+  await page.goto("/fr/auth/sign-up");
+  const f = form(page);
+  await f.getByLabel("Nom complet").fill("Samia Auto");
+  await f.getByLabel("E-mail").fill(email);
+  await f.getByLabel("Téléphone").fill("0550 12 34 56");
+  await f.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+  await f.getByRole("checkbox").check();
+  await f.getByRole("button", { name: "Créer mon compte" }).click();
+  await expect(page.getByRole("heading", { name: "Vérifiez votre boîte mail" })).toBeVisible();
+  const link = await linkFromEmail(email, "verify-email");
+
+  // A mail scanner is an automated browser: it must not use up the one-time token.
+  const scanner = await browser.newPage();
+  await scanner.goto(link);
+  await scanner.waitForTimeout(2500);
+  await expect(scanner).toHaveURL(/\/auth\/verify-email\?token=/);
+  await expect(scanner.getByRole("button", { name: "Confirmer mon adresse" })).toBeVisible();
+  await scanner.close();
+
+  // A person's browser submits it by itself and lands in her space, signed in.
+  const human = await browser.newContext();
+  await human.addInitScript(() => Object.defineProperty(navigator, "webdriver", { get: () => false }));
+  const tab = await human.newPage();
+  await tab.goto(link);
+  await expect(tab).toHaveURL(/\/fr\/dashboard\/client$/, { timeout: 15_000 });
+  await expect(tab.getByRole("heading", { name: "Bonjour Samia" })).toBeVisible();
+
+  // The same link cannot be used twice.
+  await tab.goto(link);
+  await tab.getByRole("button", { name: "Confirmer mon adresse" }).click();
+  await expect(tab.getByText("Ce lien n’est pas valide ou a déjà été utilisé.")).toBeVisible();
+  await human.close();
 });

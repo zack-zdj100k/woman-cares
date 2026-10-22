@@ -16,6 +16,7 @@ import {
   resetPassword,
   signUpClient,
   signUpProvider,
+  claimFirstSignIn,
   verifyEmail,
 } from "@/server/services/auth";
 import { deliverPendingEmails } from "@/server/services/outbox";
@@ -129,11 +130,22 @@ export async function resetPasswordAction(_prev: FormState, form: FormData): Pro
   redirect(`/${locale}/auth/sign-in?notice=reset`);
 }
 
-/** POST-only confirmation, so link scanners in mail clients cannot consume the token. */
+/**
+ * POST-only confirmation, so link scanners in mail clients cannot consume the token (the page submits
+ * it itself for a real browser). A first confirmation signs her in and opens her space; otherwise she
+ * lands on the confirmation page and signs in with her password.
+ */
 export async function verifyEmailAction(form: FormData) {
   const locale = localeOf(form);
   const token = String(form.get("token") ?? "");
   const result = token.length >= 20 && token.length <= 100 ? await verifyEmail(token) : { ok: false as const, reason: "invalid" as const };
+  if (result.ok) {
+    const role = await claimFirstSignIn(result.userId);
+    if (role) {
+      await startSession(result.userId);
+      redirect(`/${locale}/dashboard/${homeArea(role)}`);
+    }
+  }
   redirect(`/${locale}/auth/verify-email?status=${result.ok ? "ok" : result.reason}`);
 }
 

@@ -6,7 +6,7 @@ import { categoryArt } from "@/config/categories";
 import { dummyHash, hashPassword, passwordProblem, verifyPassword } from "@/lib/auth/password";
 import { hashToken, newToken } from "@/lib/auth/tokens";
 import type { ClientSignUp, ProviderSignUp } from "@/lib/validation/auth";
-import { canSignIn, type Status } from "@/server/policies/roles";
+import { canSignIn, type Role, type Status } from "@/server/policies/roles";
 import { enqueueEmail } from "./outbox";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -241,6 +241,22 @@ export async function verifyEmail(token: string, now = new Date()): Promise<Toke
   // Only a pending account becomes active; a suspended one stays suspended.
   await db.user.updateMany({ where: { id: result.userId, status: "PENDING_VERIFICATION" }, data: { status: "ACTIVE" } });
   return result;
+}
+
+/**
+ * After her first confirmation she is signed in straight away, as most sites do: the link proves she
+ * owns the address she just registered with. It applies only to a client or a professional who has
+ * never signed in (staff always use their password), and it is claimed with one conditional update,
+ * so two clicks cannot both open a session. Returns her role, or null when she must sign in herself.
+ */
+export async function claimFirstSignIn(userId: string, now = new Date()): Promise<Role | null> {
+  const claimed = await db.user.updateMany({
+    where: { id: userId, lastLoginAt: null, status: "ACTIVE", emailVerifiedAt: { not: null }, role: { in: ["CLIENT", "PROVIDER"] } },
+    data: { lastLoginAt: now },
+  });
+  if (claimed.count === 0) return null;
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { role: true } });
+  return user.role as Role;
 }
 
 /** Sends a new verification email (previous unused links stop working). */

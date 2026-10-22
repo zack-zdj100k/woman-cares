@@ -6,6 +6,7 @@ import { clientSignUpSchema, providerSignUpSchema } from "@/lib/validation/auth"
 import {
   LOCK_MS,
   authenticate,
+  claimFirstSignIn,
   requestPasswordReset,
   resetPassword,
   signUpClient,
@@ -149,6 +150,50 @@ describe("email verification", () => {
     await db.user.update({ where: { email: "nour@test.invalid" }, data: { status: "SUSPENDED" } });
     expect((await verifyEmail(token2)).ok).toBe(true);
     expect((await db.user.findUniqueOrThrow({ where: { email: "nour@test.invalid" } })).status).toBe("SUSPENDED");
+  });
+});
+
+describe("signing in right after the first confirmation", () => {
+  async function confirmed(role: Actor["role"], email: string, over: Record<string, unknown> = {}) {
+    const u = await db.user.create({ data: { email, fullName: role, passwordHash: "x", role, status: "ACTIVE", emailVerifiedAt: new Date(), ...over } });
+    return u.id;
+  }
+
+  it("opens her space once, for a client or a professional who has never signed in", async () => {
+    const clientId = await confirmed("CLIENT", "c@test.invalid");
+    const proId = await confirmed("PROVIDER", "p@test.invalid");
+    expect(await claimFirstSignIn(clientId)).toBe("CLIENT");
+    expect(await claimFirstSignIn(proId)).toBe("PROVIDER");
+    expect((await db.user.findUniqueOrThrow({ where: { id: clientId } })).lastLoginAt).not.toBeNull();
+    // A second click on the same link, or any later confirmation, must not open a session again.
+    expect(await claimFirstSignIn(clientId)).toBeNull();
+  });
+
+  it("is never offered to staff, who always use their password", async () => {
+    for (const role of ["SUPPORT", "ADMIN", "SUPER_ADMIN"] as const) {
+      expect(await claimFirstSignIn(await confirmed(role, `${role.toLowerCase()}@test.invalid`))).toBeNull();
+    }
+  });
+
+  it("is not offered to an unconfirmed, suspended or already signed-in account", async () => {
+    expect(await claimFirstSignIn(await confirmed("CLIENT", "u@test.invalid", { emailVerifiedAt: null }))).toBeNull();
+    expect(await claimFirstSignIn(await confirmed("CLIENT", "s@test.invalid", { status: "SUSPENDED" }))).toBeNull();
+    expect(await claimFirstSignIn(await confirmed("CLIENT", "a@test.invalid", { lastLoginAt: new Date() }))).toBeNull();
+  });
+
+  it("lets only one of two simultaneous clicks open a session", async () => {
+    const id = await confirmed("CLIENT", "race@test.invalid");
+    const results = await Promise.all([claimFirstSignIn(id), claimFirstSignIn(id), claimFirstSignIn(id)]);
+    expect(results.filter((r) => r === "CLIENT")).toHaveLength(1);
+  });
+
+  it("follows a real confirmation: a fresh sign-up is eligible once its link is used", async () => {
+    await signUpClient(client(), "fr");
+    const user = await db.user.findUniqueOrThrow({ where: { email: "amina@test.invalid" } });
+    expect(await claimFirstSignIn(user.id)).toBeNull(); // not confirmed yet
+    const result = await verifyEmail(await tokenFromOutbox("verify-email"));
+    expect(result).toMatchObject({ ok: true });
+    expect(await claimFirstSignIn(user.id)).toBe("CLIENT");
   });
 });
 

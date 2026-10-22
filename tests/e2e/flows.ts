@@ -31,14 +31,10 @@ export async function newVerifiedProvider(page: Page, email: string, business: s
   await f.getByRole("checkbox", { name: /J’accepte/ }).check();
   await f.getByRole("button", { name: "Créer mon compte professionnel" }).click();
   await expect(page.getByRole("heading", { name: "Vérifiez votre boîte mail" })).toBeVisible();
+  // Automated browsers do not confirm on their own (that protects the link from mail scanners): press
+  // the button. A first confirmation signs her in and opens her space.
   await page.goto(await linkFromEmail(email, "verify-email"));
   await page.getByRole("button", { name: "Confirmer mon adresse" }).click();
-  await expect(page.getByText("Votre adresse est confirmée")).toBeVisible();
-  await page.goto("/fr/auth/sign-in");
-  const s = form(page);
-  await s.getByLabel("E-mail").fill(email);
-  await s.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
-  await s.getByRole("button", { name: "Se connecter" }).click();
   await expect(page).toHaveURL(/\/fr\/dashboard\/provider$/);
 }
 
@@ -109,5 +105,7 @@ export async function newVerifiedClient(page: Page, email: string, name = "Amina
   await expect(page.getByRole("heading", { name: "Vérifiez votre boîte mail" })).toBeVisible();
   await page.goto(await linkFromEmail(email, "verify-email"));
   await page.getByRole("button", { name: "Confirmer mon adresse" }).click();
-  await expect(page.getByText("Votre adresse est confirmée")).toBeVisible();
+  await expect(page).toHaveURL(/\/fr\/dashboard\/client$/);
+  // Confirming signs her in; callers want a visitor who has not (they sign in themselves, or browse as a guest).
+  await page.context().clearCookies();
 }

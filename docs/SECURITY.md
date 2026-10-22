@@ -84,6 +84,18 @@ could change: swapping it redirects real money. It is therefore the most protect
 
 Rotating `AUTH_SECRET` invalidates the signature: the details are hidden until a Super Admin saves them again. Only professionals (and Super Admins) can read them; they are never on a public page.
 
+## Confirming the e-mail signs her in (2026-10-22)
+
+Owner decision: a click on the confirmation link verifies the address and opens her space, without a second step.
+
+| Risk | Control |
+|---|---|
+| A mail scanner opens the link and uses up the one-time token | The confirmation stays a POST. The page submits it itself only for a real browser (`navigator.webdriver` is false) after 0.7 s; an automated browser sees the page and leaves the token alone. The button remains for the manual path. Tested both ways. |
+| The link becomes a way into any account | It signs in only a client or a professional who has **never signed in** (`lastLoginAt` is empty), whose address is now confirmed and whose account is active. Staff always use their password. The right is claimed with one conditional update, so two clicks cannot both open a session. The token is single use and expires after 24 hours. |
+| Someone forwards the e-mail | Same as a password-reset link: whoever holds it before she clicks gets into a just-created account that holds nothing yet. Later confirmations, and any account that has signed in once, go back to the password. |
+
+After a first confirmation she lands on her dashboard; a second click, or an account that already signed in, shows the confirmation page and she signs in with her password.
+
 ## Production hardening checklist
 
 - **Client IP for rate limits (open, found 2026-10-17):** the app reads the first `X-Forwarded-For` value (`src/lib/auth/session.ts`, contact, availability and view routes). A client that reaches the app directly can send its own header and dodge the per-IP limits on sign-up, sign-in, reset and contact. Before launch: deploy behind a proxy that overwrites the header, and read the address that proxy appends (rightmost trusted hop) behind an explicit `TRUST_PROXY` setting, falling back to the socket address.

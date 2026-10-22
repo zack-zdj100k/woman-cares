@@ -23,7 +23,7 @@ export default async function CheckEmailPage() {
         <p className="mt-5 text-lg leading-relaxed text-ink-2">{t.checkEmail.body}</p>
         <p className="mt-3 text-ink-2">{t.checkEmail.spam}</p>
         <div>
-          <OpenMailbox labels={t.checkEmail.openMailbox} />
+          <OpenMailbox labels={{ open: t.checkEmail.openMailbox, app: t.checkEmail.openApp, web: t.checkEmail.openWeb }} />
         </div>
         <Link href={`/${locale}/auth/sign-in`} className={buttonClass({ variant: "outline", className: "mt-6" })}>
           {t.checkEmail.signIn}
