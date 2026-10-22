@@ -79,6 +79,7 @@ const authAr: AuthDictionary = {
     title: "تحققي من بريدك الإلكتروني",
     body: "إن كان هذا العنوان قابلًا للاستعمال، فقد أرسلنا إليه للتو رابط تأكيد صالحًا لمدة 24 ساعة.",
     spam: "لا تنسي التحقق من الرسائل غير المرغوب فيها.",
+    openMailbox: { gmail: "فتح Gmail", outlook: "فتح Outlook", yahoo: "فتح Yahoo Mail", icloud: "فتح iCloud Mail" },
     signIn: "الذهاب إلى تسجيل الدخول",
   },
   verify: {

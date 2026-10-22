@@ -77,6 +77,7 @@ const authFr = {
     title: "Vérifiez votre boîte mail",
     body: "Si cette adresse peut être utilisée, nous venons d’y envoyer un lien de confirmation. Il est valable 24 heures.",
     spam: "Pensez à regarder dans les courriers indésirables.",
+    openMailbox: { gmail: "Ouvrir Gmail", outlook: "Ouvrir Outlook", yahoo: "Ouvrir Yahoo Mail", icloud: "Ouvrir iCloud Mail" },
     signIn: "Aller à la connexion",
   },
   verify: {

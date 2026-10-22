@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, type ReactNode } from "react";
+import { MAILBOX_STORAGE_KEY, mailboxKeyFor } from "@/lib/mailbox";
 import Link from "next/link";
 import { CircleCheck } from "lucide-react";
 import { categorySlugs, type CategorySlug } from "@/config/categories";
@@ -95,7 +96,20 @@ export function SignUpForm({
   const chosen = new Set(Array.isArray(v.categories) ? v.categories : []);
 
   return (
-    <form key={JSON.stringify(v)} action={action} className="grid gap-5" noValidate>
+    <form
+      key={JSON.stringify(v)}
+      action={action}
+      onSubmit={(ev) => {
+        // The next page can offer a button to this inbox. Only the provider is kept, never the address.
+        try {
+          const key = mailboxKeyFor(String(new FormData(ev.currentTarget).get("email") ?? ""));
+          if (key) sessionStorage.setItem(MAILBOX_STORAGE_KEY, key);
+          else sessionStorage.removeItem(MAILBOX_STORAGE_KEY);
+        } catch {}
+      }}
+      className="grid gap-5"
+      noValidate
+    >
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="role" value={role} />
       {msg && <FormAlert>{msg}</FormAlert>}

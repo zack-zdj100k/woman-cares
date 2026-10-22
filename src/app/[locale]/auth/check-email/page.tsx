@@ -5,6 +5,7 @@ import { getAuthDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { PageShell } from "@/components/layout/page-shell";
 import { buttonClass } from "@/components/ui/button";
+import { OpenMailbox } from "@/components/auth/open-mailbox";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getAuthDictionary(await getLocale());
@@ -21,7 +22,10 @@ export default async function CheckEmailPage() {
         <h1 className="type-display mt-6 text-[clamp(2.6rem,5vw,4rem)]">{t.checkEmail.title}</h1>
         <p className="mt-5 text-lg leading-relaxed text-ink-2">{t.checkEmail.body}</p>
         <p className="mt-3 text-ink-2">{t.checkEmail.spam}</p>
-        <Link href={`/${locale}/auth/sign-in`} className={buttonClass({ variant: "outline", className: "mt-10" })}>
+        <div>
+          <OpenMailbox labels={t.checkEmail.openMailbox} />
+        </div>
+        <Link href={`/${locale}/auth/sign-in`} className={buttonClass({ variant: "outline", className: "mt-6" })}>
           {t.checkEmail.signIn}
         </Link>
       </div>

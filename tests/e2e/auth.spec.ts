@@ -110,3 +110,29 @@ test("a super admin created with the CLI can open the admin area", async ({ page
   await expect(page.getByRole("heading", { name: "Vue d’ensemble", level: 1 })).toBeVisible();
   await expect(page.getByText("Super administratrice")).toBeVisible();
 });
+
+test("after signing up with a Gmail address the page offers a button to Gmail, and none for other addresses", async ({ page }) => {
+  const signUp = async (email: string) => {
+    await page.goto("/fr/auth/sign-up");
+    const f = form(page);
+    await f.getByLabel("Nom complet").fill("Amel Test");
+    await f.getByLabel("E-mail").fill(email);
+    await f.getByLabel("Téléphone").fill("0550 12 34 56");
+    await f.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+    await f.getByRole("checkbox").check();
+    await f.getByRole("button", { name: "Créer mon compte" }).click();
+    await expect(page.getByRole("heading", { name: "Vérifiez votre boîte mail" })).toBeVisible();
+  };
+
+  // Each sign-up comes from its own address, as real visitors do (the limit is per address).
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": "10.31.4.7" });
+  await signUp(`wc-mailbox-${Date.now()}@gmail.com`);
+  const gmail = page.getByRole("link", { name: "Ouvrir Gmail" });
+  await expect(gmail).toBeVisible();
+  await expect(gmail).toHaveAttribute("href", "https://mail.google.com/");
+  await expect(gmail).toHaveAttribute("rel", /noopener/);
+
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": "10.31.4.8" });
+  await signUp(`wc-mailbox-${Date.now()}@salon-test.invalid`);
+  await expect(page.getByRole("link", { name: /^Ouvrir/ })).toHaveCount(0);
+});
