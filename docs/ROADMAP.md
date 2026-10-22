@@ -100,7 +100,7 @@ Owner decision: clients can request appointments before confirming their e-mail.
 
 ### Known gaps in production
 
-1. **E-mail does not send.** `EMAIL_TRANSPORT=log` throws in production by design, so verification, password reset and every booking or billing notice fail into the outbox. Needs SMTP credentials.
+1. **E-mail sends through a Gmail account** (`smtp.gmail.com:587`, an App password, `EMAIL_FROM` set to the same address; 2026-10-22). Verified on the live site: a password-reset request and a queued staff alert both reached `SENT`. Limits to keep in mind: about 500 messages a day for a regular Gmail account (vendor figure; check Google's current documentation), recipients see that Gmail address as the sender, and changing that account's password revokes the App password. Once a domain is bought: verify it with a sender service (SPF, DKIM, DMARC), change `EMAIL_FROM` and the SMTP settings, and set `APP_URL` to the new domain; no code change. Failed e-mails are retried only when the app next sends or the nightly job runs, so on a VPS run `npm run outbox:deliver` every few minutes from cron.
 2. **Rate limiting is per-instance.** `src/lib/rate-limit.ts` keeps counters in process memory; serverless runs many short-lived instances, so the limits are far weaker than they look. Needs a shared store.
 3. Point-in-time recovery on the Neon free plan is 6 hours, storage capped at 1 GB.
 4. The Cloudinary key carries the Master Admin role on a cloud shared with other projects.
