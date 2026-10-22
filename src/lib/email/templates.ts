@@ -39,7 +39,7 @@ export type TemplateData = {
   when?: string;
   client?: string;
   /** staff-alert: what happened. */
-  kind?: "provider" | "contact" | "payment";
+  kind?: "provider" | "contact" | "payment" | "payment-details" | "payment-tampered";
   /** booking-cancelled: who cancelled. */
   by?: "client" | "provider";
   /** Billing: amount already formatted. */
@@ -271,12 +271,20 @@ const copy: Record<EmailTemplate, Record<Locale, (d: TemplateData) => Copy>> = {
     fr: (d) =>
       d.kind === "provider"
         ? { subject: `Nouvelle professionnelle inscrite : ${d.client ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} vient de créer un compte professionnel (${d.note ?? ""}).`, d.category ? `Catégories : ${d.category}.` : "", "Ouvrez sa fiche pour vérifier ses informations."], button: "Voir la fiche", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
+        : d.kind === "payment-details"
+          ? { subject: "Coordonnées de paiement modifiées", heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} vient de modifier le compte affiché aux professionnelles pour payer leur abonnement (se termine par ${d.reference ?? ""}).`, "Si ce n’est pas vous ou une autre super administratrice, changez votre mot de passe tout de suite et consultez le journal."], button: "Ouvrir les réglages", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
+          : d.kind === "payment-tampered"
+            ? { subject: "Alerte : coordonnées de paiement modifiées hors de l’application", heading: `Bonjour ${d.name},`, body: ["Les coordonnées de paiement enregistrées ne portent plus la signature de l’application : elles ont été changées directement dans la base de données.", "Elles ne sont plus montrées aux professionnelles. Enregistrez-les à nouveau, puis consultez le journal et changez vos mots de passe."], button: "Ouvrir les réglages", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
         : d.kind === "contact"
           ? { subject: `Nouveau message : ${d.reference ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} a écrit depuis le formulaire de contact.`, `Objet : ${d.reference ?? ""}`], button: "Lire le message", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
           : { subject: `Paiement déclaré : ${d.reference ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} déclare avoir réglé la facture ${d.reference ?? ""} (${d.amount ?? ""}).`, "Vérifiez la réception puis validez ou refusez le paiement."], button: "Vérifier le paiement", footnote: "Alerte envoyée aux super administratrices de Woman Cares." },
     ar: (d) =>
       d.kind === "provider"
         ? { subject: `محترفة جديدة مسجلة: ${d.client ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`أنشأت ${d.client ?? ""} حسابًا مهنيًا (${d.note ?? ""}).`, d.category ? `الفئات: ${d.category}.` : "", "افتحي ملفها للتحقق من معلوماتها."], button: "عرض الملف", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
+        : d.kind === "payment-details"
+          ? { subject: "تم تعديل بيانات الدفع", heading: `مرحبًا ${d.name}،`, body: [`عدّلت ${d.client ?? ""} الحساب الذي يظهر للمحترفات لدفع اشتراكهن (ينتهي بـ ${d.reference ?? ""}).`, "إن لم تكوني أنتِ ولا مشرفة عامة أخرى، فغيّري كلمة المرور فورًا وراجعي السجل."], button: "فتح الإعدادات", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
+          : d.kind === "payment-tampered"
+            ? { subject: "تنبيه: عُدّلت بيانات الدفع خارج التطبيق", heading: `مرحبًا ${d.name}،`, body: ["لم تعد بيانات الدفع المحفوظة تحمل توقيع التطبيق، أي أنها غُيّرت مباشرة في قاعدة البيانات.", "لم تعد تظهر للمحترفات. احفظيها من جديد، ثم راجعي السجل وغيّري كلمات المرور."], button: "فتح الإعدادات", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
         : d.kind === "contact"
           ? { subject: `رسالة جديدة: ${d.reference ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`كتب(ت) ${d.client ?? ""} عبر نموذج الاتصال.`, `الموضوع: ${d.reference ?? ""}`], button: "قراءة الرسالة", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
           : { subject: `دفع مصرَّح به: ${d.reference ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`تصرّح ${d.client ?? ""} بأنها دفعت الفاتورة ${d.reference ?? ""} (${d.amount ?? ""}).`, "تحققي من الاستلام ثم اقبلي الدفع أو ارفضيه."], button: "التحقق من الدفع", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." },

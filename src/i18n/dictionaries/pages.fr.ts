@@ -321,6 +321,7 @@ const pagesFr = {
   legal: {
     draftNotice: "Version provisoire, en cours de validation juridique avant le lancement.",
     updated: "Dernière mise à jour",
+    publisher: { title: "Éditeur du site", name: "Nom ou raison sociale", rc: "Registre du commerce", nif: "NIF", address: "Adresse", phone: "Téléphone", email: "E-mail" },
   },
 };
 

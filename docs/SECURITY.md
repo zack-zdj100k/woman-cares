@@ -69,6 +69,21 @@ No default administrator exists. `npm run admin:create -- --email â€¦ --name "â€
 SUPER_ADMIN (password from `SUPER_ADMIN_PASSWORD` or a hidden prompt, 12+ characters), or `--promote`s an
 existing verified account. Each run is written to the audit log.
 
+## Payment details (2026-10-22)
+
+The account professionals send their subscription payment to is the most valuable thing an attacker
+could change: swapping it redirects real money. It is therefore the most protected setting.
+
+| Threat | Control |
+|---|---|
+| A non-Super-Admin changes it | `canManageSiteSettings` (verified Super Admin) in the page, the Server Action and the service; the settings page answers 404 to everyone else. Tested for ADMIN, SUPPORT, PROVIDER, CLIENT and an unverified Super Admin. |
+| A stolen session cookie (XSS, shared computer) | The Super Admin's password is asked again on every save. Wrong attempts are written to the audit log, so the lock (5 in 15 minutes, per person) holds across servers. |
+| The row is edited straight in the database (SQL injection, leaked database credentials) | The value is stored with an HMAC-SHA256 signature keyed from `AUTH_SECRET` (domain-separated). A row that does not verify is never shown; professionals see "unavailable, do not pay", the Super Admins get an alert (at most once a day) and the settings page shows a warning. Saving again restores it. |
+| A silent change | Every change is journalled with the old and new value and alerts every Super Admin in the app and by e-mail. Professionals see the date it was last updated. |
+| A change in the code | The value lives in the database, not in the code, so a code change does not move it; changing the code needs write access to the repository and a deploy: protect both with two-factor authentication and, on GitHub, branch protection on `main`. |
+
+Rotating `AUTH_SECRET` invalidates the signature: the details are hidden until a Super Admin saves them again. Only professionals (and Super Admins) can read them; they are never on a public page.
+
 ## Production hardening checklist
 
 - **Client IP for rate limits (open, found 2026-10-17):** the app reads the first `X-Forwarded-For` value (`src/lib/auth/session.ts`, contact, availability and view routes). A client that reaches the app directly can send its own header and dodge the per-IP limits on sign-up, sign-in, reset and contact. Before launch: deploy behind a proxy that overwrites the header, and read the address that proxy appends (rightmost trusted hop) behind an explicit `TRUST_PROXY` setting, falling back to the socket address.

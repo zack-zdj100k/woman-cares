@@ -90,6 +90,14 @@ Owner decision: clients can request appointments before confirming their e-mail.
 - **Search engines**: `robots.txt` and `sitemap.xml` exist; demo businesses are `noindex, nofollow` and are left out of the sitemap, so invented salons never reach search results.
 - **Page security headers** (CSP, nosniff, `X-Frame-Options: DENY`, referrer, permissions) ship from `next.config.ts`; the API and `/uploads` keep their own. Verified: no CSP violation on eight pages.
 
+### Payment details, publisher information and speed (2026-10-22)
+
+- **Payment model (owner decision):** no online payment gateway, because of the risk in Algeria. Professionals pay by transfer; the Super Admin confirms and records it in the payments journal. Clients never pay anything on the platform; the professional records what a client paid her, as a note.
+- **Payment details** (`/dashboard/admin/settings`, Super Admin only): holder name and RIP/RIB, shown to professionals on their Subscription page with a copy button. Password re-entry on every save, signed value, journal, alerts: see docs/SECURITY.md.
+- **Publisher information** (same page): name, commercial register, NIF, address, phone, e-mail, shown at the foot of the terms and privacy pages when filled in.
+- **Speed**: Vercel functions now run in Frankfurt (`vercel.json`, `fra1`) next to the Neon database. Measured before and after: database-backed API 0.65 to 1.0 s, now 0.3 to 0.7 s; profile page first visit 11.7 s, now 0.2 to 0.9 s.
+- The e-mails of the two professionals stuck without confirmation were confirmed by the Super Admin (journalled), since e-mail cannot be sent yet.
+
 ### Known gaps in production
 
 1. **E-mail does not send.** `EMAIL_TRANSPORT=log` throws in production by design, so verification, password reset and every booking or billing notice fail into the outbox. Needs SMTP credentials.

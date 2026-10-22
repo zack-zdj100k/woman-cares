@@ -318,6 +318,7 @@ const pagesAr: PagesDictionary = {
   legal: {
     draftNotice: "نسخة مؤقتة قيد المراجعة القانونية قبل الإطلاق.",
     updated: "آخر تحديث",
+    publisher: { title: "ناشر الموقع", name: "الاسم أو التسمية الاجتماعية", rc: "السجل التجاري", nif: "الرقم الجبائي NIF", address: "العنوان", phone: "الهاتف", email: "البريد الإلكتروني" },
   },
 };
 

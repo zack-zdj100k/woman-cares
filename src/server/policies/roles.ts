@@ -132,6 +132,14 @@ export function canVerifyProvider(actor: Actor) {
   return canSignIn(actor.status) && actor.emailVerified && hasStaffRank(actor.role, "ADMIN");
 }
 
+/**
+ * Site-wide settings that other people rely on or act upon (where professionals send their
+ * payment, who publishes the site): the Super Admin only, with a confirmed e-mail.
+ */
+export function canManageSiteSettings(actor: Actor) {
+  return canSignIn(actor.status) && actor.emailVerified && actor.role === "SUPER_ADMIN";
+}
+
 /** Confirming or refusing subscription payments is reserved for the Super Admin (owner decision, 2026-10-19). */
 export function canVerifyPayment(actor: Actor) {
   return canSignIn(actor.status) && actor.emailVerified && actor.role === "SUPER_ADMIN";

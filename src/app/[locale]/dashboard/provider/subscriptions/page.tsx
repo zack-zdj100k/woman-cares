@@ -7,6 +7,9 @@ import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
 import { formatDate, formatDzd } from "@/lib/format";
 import { getMyBilling } from "@/server/services/billing";
+import { getPaymentDetails } from "@/server/services/site-settings";
+import { formatRip } from "@/lib/payment-details";
+import { CopyValue } from "@/components/dashboard/copy-value";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { InvoiceList } from "@/components/dashboard/invoice-list";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +33,7 @@ async function Billing({ params }: { params: PageProps<"/[locale]/dashboard/prov
   const { locale: l } = await params;
   const locale: Locale = isLocale(l) ? l : "fr";
   const user = await requireArea(locale, "provider", `/${locale}/dashboard/provider/subscriptions`);
-  const [d, site, data] = await Promise.all([getDashboardDictionary(locale), getDictionary(locale), getMyBilling(user)]);
+  const [d, site, data, pay] = await Promise.all([getDashboardDictionary(locale), getDictionary(locale), getMyBilling(user), getPaymentDetails(user)]);
   const b = d.billing;
   const sub = data.subscription;
   const name = (slug: string) => site.categories[slug as CategorySlug]?.name ?? slug;
@@ -115,6 +118,40 @@ async function Billing({ params }: { params: PageProps<"/[locale]/dashboard/prov
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{b.payTo.title}</CardTitle>
+          <CardDescription>{pay.status === "ok" ? b.payTo.hint : pay.status === "tampered" ? b.payTo.tampered : b.payTo.none}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 text-sm">
+          {pay.status === "ok" && (
+            <>
+              <dl className="grid gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">{b.payTo.holder}</dt>
+                  <dd className="font-medium">{pay.holder}</dd>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">{b.payTo.rip}</dt>
+                  <dd className="flex flex-wrap items-center gap-2">
+                    <span dir="ltr" className="font-medium tabular-nums tracking-wide">{formatRip(pay.rip)}</span>
+                    <CopyValue value={pay.rip} copyLabel={b.payTo.copy} copiedLabel={b.payTo.copied} />
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {b.payTo.warn} {b.payTo.updated} {formatDate(pay.updatedAt, locale, { dateStyle: "medium" })}.
+              </p>
+            </>
+          )}
+          {pay.status !== "ok" && (
+            <Link href={`/${locale}/contact`} className="w-fit text-sm underline underline-offset-4">
+              {b.payTo.contact}
+            </Link>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="mt-8 flex items-end justify-between gap-4">
         <h2 className="text-lg font-semibold">{b.invoicesTitle}</h2>

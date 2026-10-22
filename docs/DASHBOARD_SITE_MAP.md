@@ -61,6 +61,6 @@ flowchart LR
 | `/audit-logs` | Live (ADMIN+) | Filtered audit log; Super Admins can delete entries (the deletion is logged) |
 | `/messages` | Live (SUPER_ADMIN) | Contact-form messages: new, in progress, handled; reply by email, delete |
 | `/notifications` | Live | Staff alerts: new professional, new message, declared payment |
-| `/settings` | Live (SUPER_ADMIN) | Reference rates for the professionals' statistics |
+| `/settings` | Live (SUPER_ADMIN) | Payment details shown to professionals (holder and RIP/RIB, password asked on every change), the publisher's legal information shown on the legal pages, reference rates for the professionals' statistics |
 | `/account` (all areas; `/client/profile` for clients) | Live | Name, phone, language, password; opened from the avatar menu |
 | `/bookings`, `/content`, `/moderation`, `/analytics`, `/settings` | Planned | Hidden from the sidebar until built |

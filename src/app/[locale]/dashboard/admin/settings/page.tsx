@@ -4,10 +4,15 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getAdminDictionary, getDashboardDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { requireArea } from "@/lib/auth/session";
-import { canDelete } from "@/server/policies/roles";
+import { canManageSiteSettings } from "@/server/policies/roles";
 import { getTargets, HIGHER_IS_BETTER, TARGET_KEYS } from "@/server/services/targets";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { TargetsForm } from "@/components/admin/targets-form";
+import { PaymentDetailsForm } from "@/components/admin/payment-details-form";
+import { PublisherForm } from "@/components/admin/publisher-form";
+import { formatDate } from "@/lib/format";
+import { formatRip } from "@/lib/payment-details";
+import { getPaymentDetails, getPublisherForEditing } from "@/server/services/site-settings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Waits for its data on navigation (see the dashboard layout). */
@@ -26,12 +31,48 @@ async function Settings({ params }: { params: PageProps<"/[locale]/dashboard/adm
   const { locale: l } = await params;
   const locale: Locale = isLocale(l) ? l : "fr";
   const user = await requireArea(locale, "admin", `/${locale}/dashboard/admin/settings`);
-  if (!canDelete(user)) notFound();
-  const [at, d, targets] = await Promise.all([getAdminDictionary(locale), getDashboardDictionary(locale), getTargets()]);
+  if (!canManageSiteSettings(user)) notFound();
+  const [at, d, targets, payment, publisher] = await Promise.all([getAdminDictionary(locale), getDashboardDictionary(locale), getTargets(), getPaymentDetails(user), getPublisherForEditing(user)]);
   const s = at.settings;
   return (
     <div className={pageClass}>
       <PageHeader title={s.title} description={s.intro} />
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{s.payment.title}</CardTitle>
+          <CardDescription>{s.payment.hint}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {payment.status === "tampered" && (
+            <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
+              {s.payment.tampered}
+            </p>
+          )}
+          {payment.status === "none" && <p className="text-sm text-muted-foreground">{s.payment.none}</p>}
+          {payment.status === "ok" && (
+            <p className="text-sm text-muted-foreground">
+              {s.payment.updated} : {formatDate(payment.updatedAt, locale, { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          )}
+          <PaymentDetailsForm
+            holder={payment.status === "ok" ? payment.holder : ""}
+            rip={payment.status === "ok" ? formatRip(payment.rip) : ""}
+            labels={{ holder: s.payment.holder, rip: s.payment.rip, ripHint: s.payment.ripHint, password: s.payment.password, passwordHint: s.payment.passwordHint, save: s.payment.save, saved: s.payment.saved, errors: s.payment.errors }}
+          />
+        </CardContent>
+      </Card>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{s.publisher.title}</CardTitle>
+          <CardDescription>{s.publisher.hint}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PublisherForm
+            values={publisher}
+            labels={{ name: s.publisher.name, rc: s.publisher.rc, nif: s.publisher.nif, address: s.publisher.address, phone: s.publisher.phone, email: s.publisher.email, save: s.publisher.save, saved: s.publisher.saved, errors: s.publisher.errors }}
+          />
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>{s.targets}</CardTitle>

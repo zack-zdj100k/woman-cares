@@ -8,6 +8,7 @@ import { isLocale, locales } from "@/i18n/config";
 import { getPagesDictionary } from "@/i18n/get-dictionary";
 import { formatDate } from "@/lib/format";
 import { getLegalDocument } from "@/server/services/legal";
+import { getPublisher } from "@/server/services/site-settings";
 import { PageShell } from "@/components/layout/page-shell";
 
 export function generateStaticParams() {
@@ -38,7 +39,8 @@ async function LegalBody({ params }: { params: PageProps<"/[locale]/legal/[doc]"
   const { locale, doc } = await params;
   if (!isLocale(locale) || !isDoc(doc)) notFound();
   await connection();
-  const [{ doc: content, draft, publishedAt }, pages] = await Promise.all([getLegalDocument(doc, locale), getPagesDictionary(locale)]);
+  const [{ doc: content, draft, publishedAt }, pages, publisher] = await Promise.all([getLegalDocument(doc, locale), getPagesDictionary(locale), getPublisher()]);
+  const pub = pages.legal.publisher;
   return (
     <article className="mx-auto max-w-[46rem] px-5 pt-12 pb-24 sm:px-8 md:pt-16">
       <h1 className="type-display text-[clamp(2.75rem,5vw,4.5rem)]">{content.title}</h1>
@@ -65,6 +67,32 @@ async function LegalBody({ params }: { params: PageProps<"/[locale]/legal/[doc]"
             </div>
           </section>
         ))}
+        {publisher && (
+          <section aria-labelledby="publisher-title">
+            <h2 id="publisher-title" className="text-xl font-medium">
+              {pub.title}
+            </h2>
+            <dl className="mt-3 grid gap-2 leading-relaxed text-ink-2">
+              {(
+                [
+                  [pub.name, publisher.name, false],
+                  [pub.rc, publisher.rc, true],
+                  [pub.nif, publisher.nif, true],
+                  [pub.address, publisher.address, false],
+                  [pub.phone, publisher.phone, true],
+                  [pub.email, publisher.email, true],
+                ] as const
+              )
+                .filter(([, value]) => value)
+                .map(([label, value, ltr]) => (
+                  <div key={label} className="flex flex-wrap gap-x-3">
+                    <dt className="font-medium text-ink">{label}</dt>
+                    <dd dir={ltr ? "ltr" : undefined}>{value}</dd>
+                  </div>
+                ))}
+            </dl>
+          </section>
+        )}
       </div>
     </article>
   );
