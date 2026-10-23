@@ -14,6 +14,7 @@ import { AdminTitle, Chip, ReadOnlyNote, adminPage } from "@/components/admin/ad
 import { ManageForm } from "@/components/admin/manage-form";
 import { DecisionFeedback } from "@/components/ui/decision-feedback";
 import { fieldClass } from "@/components/ui/field-class";
+import { DatePicker } from "@/components/ui/date-picker";
 
 /** Waits for its data on navigation (see the dashboard layout). */
 export const instant = false;
@@ -147,7 +148,7 @@ async function Pricing({ params }: { params: PageProps<"/[locale]/dashboard/admi
                             </label>
                             <label className="grid gap-1.5 text-sm font-medium">
                               {p.day}
-                              <input name="day" type="date" required min="2020-01-01" defaultValue={data.today} className={cn(fieldClass, "border-ink/20 font-normal")} dir="ltr" />
+                              <DatePicker name="day" required min="2020-01-01" defaultValue={data.today} label={p.day} className="font-normal" />
                             </label>
                           </div>
                         }

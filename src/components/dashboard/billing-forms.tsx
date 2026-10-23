@@ -18,6 +18,7 @@ import {
 } from "@/app/[locale]/dashboard/billing-actions";
 import { buttonClass } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { useAnnounce } from "@/components/ui/decision-feedback";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { showToast } from "@/components/ui/toast";
@@ -119,7 +120,7 @@ export function RecordPaymentForm({
       </label>
       <label className={field}>
         {labels.paidOn}
-        <Input name="paidOn" type="date" defaultValue={today} max={today} min="2020-01-01" required dir="ltr" className="w-[10.5rem]" />
+        <DatePicker name="paidOn" defaultValue={today} max={today} min="2020-01-01" required label={labels.paidOn} />
       </label>
       <label className={field}>
         {labels.reference}
@@ -177,7 +178,7 @@ export function DirectPaymentForm({
         </label>
         <label className={field}>
           {labels.paidOn}
-          <Input name="paidOn" type="date" defaultValue={today} max={today} min="2020-01-01" required dir="ltr" />
+          <DatePicker name="paidOn" defaultValue={today} max={today} min="2020-01-01" required label={labels.paidOn} />
         </label>
         <label className={field}>
           {labels.reference}
@@ -371,7 +372,7 @@ export function TrialForm({ providerId, endsOn, current, labels }: { providerId:
       <div className="flex flex-wrap items-end gap-2">
         <label className={field}>
           {labels.endsOn}
-          <Input name="endsOn" type="date" defaultValue={endsOn} min="2020-01-01" dir="ltr" className="w-[11rem]" />
+          <DatePicker name="endsOn" defaultValue={endsOn} min="2020-01-01" label={labels.endsOn} />
         </label>
         <button type="submit" name="mode" value="date" disabled={pending} className={buttonClass({ variant: "solid", size: "sm" })}>
           {labels.save}

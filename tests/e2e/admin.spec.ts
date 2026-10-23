@@ -10,7 +10,11 @@ test("a CLI-created Super Admin schedules a category price and finds it in the h
   await nails.getByLabel("Prix mensuel (DA)").fill("41250");
   // Tomorrow (Algiers), so the new price is scheduled rather than in force at once.
   const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Algiers" }).format(new Date(Date.now() + 86_400_000));
-  await nails.getByLabel("À partir du").fill(tomorrow);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Algiers" }).format(new Date());
+  await nails.locator("button[aria-haspopup=dialog]").click();
+  const calendar = page.getByRole("dialog");
+  if (Number(tomorrow.slice(8)) < Number(today.slice(8))) await calendar.getByRole("button", { name: "›" }).click(); // tomorrow is next month
+  await calendar.getByRole("button", { name: String(Number(tomorrow.slice(8))), exact: true }).click();
   await nails.getByRole("button", { name: "Programmer" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Modification enregistrée." })).toBeVisible();
 
@@ -21,8 +25,7 @@ test("a CLI-created Super Admin schedules a category price and finds it in the h
 
   // A date before 2020 is refused by the server, whatever the browser allows.
   await nails.getByLabel("Prix mensuel (DA)").fill("39000");
-  await nails.getByLabel("À partir du").evaluate((el: HTMLInputElement) => {
-    el.removeAttribute("min");
+  await nails.locator("input[name=day]").evaluate((el: HTMLInputElement) => {
     el.value = "2019-01-01";
   });
   await nails.getByRole("button", { name: "Programmer" }).click();

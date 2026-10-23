@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buttonClass } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type Labels = { title: string; hint: string; file: string; note: string; from: string; to: string; save: string; saved: string; errors: Record<string, string> };
 
@@ -38,11 +39,11 @@ export function ReceiptForm({ paymentId, note, from, to, labels }: { paymentId: 
         <div className="flex flex-wrap items-end gap-3">
           <label className="grid gap-1.5 text-sm">
             {labels.from}
-            <Input name="from" type="date" defaultValue={from} dir="ltr" className="w-[11rem]" />
+            <DatePicker name="from" defaultValue={from} label={labels.from} />
           </label>
           <label className="grid gap-1.5 text-sm">
             {labels.to}
-            <Input name="to" type="date" defaultValue={to} dir="ltr" className="w-[11rem]" />
+            <DatePicker name="to" defaultValue={to} label={labels.to} />
           </label>
         </div>
         <label className="grid gap-1.5 text-sm">

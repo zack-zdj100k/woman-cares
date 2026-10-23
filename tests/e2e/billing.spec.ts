@@ -116,3 +116,39 @@ test("stopping a trial asks in the site's own dialog, then says it worked", asyn
   await admin.screenshot({ path: test.info().outputPath("toast.png") });
   await admin.close();
 });
+
+test("the trial end is chosen in the site's own calendar, on a phone and a computer", async ({ page, browser }) => {
+  const business = `Atelier Date ${Date.now()}`;
+  await newVerifiedProvider(page, `date-${Date.now()}@test.invalid`, business);
+  await page.getByRole("link", { name: "Mes profils" }).first().click();
+  await page.getByRole("link", { name: "Modifier" }).click();
+  await completeAndSubmitProfile(page);
+  const admin = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await newSuperAdmin(admin);
+  await openInQueue(admin, business);
+  await admin.getByRole("button", { name: "Publier le profil" }).click();
+  await expect(admin.getByText("Profil publié")).toBeVisible();
+  await admin.reload();
+
+  for (const size of [{ width: 375, height: 800, name: "phone" }, { width: 1280, height: 900, name: "desktop" }]) {
+    await admin.setViewportSize({ width: size.width, height: size.height });
+    const field = admin.locator("form:has(input[name=endsOn]) button[aria-haspopup=dialog]");
+    await field.scrollIntoViewIfNeeded();
+    await field.click();
+    const calendar = admin.getByRole("dialog");
+    await expect(calendar).toBeVisible();
+    await admin.waitForTimeout(350);
+    await admin.screenshot({ path: test.info().outputPath(`calendrier-${size.name}.png`) });
+    // Every day is a comfortable touch target.
+    const box = await calendar.getByRole("button", { name: "15", exact: true }).boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(40);
+    expect(box!.height).toBeGreaterThanOrEqual(40);
+    await calendar.getByRole("button", { name: "›" }).click();
+    await calendar.getByRole("button", { name: "15", exact: true }).click();
+    await expect(calendar).toBeHidden();
+  }
+
+  await admin.getByRole("button", { name: "Enregistrer la date" }).click();
+  await expect(admin.getByRole("status").filter({ hasText: /Essai mis à jour/ }).or(admin.getByText("Essai mis à jour. La facturation suit la nouvelle date."))).toBeVisible();
+  await admin.close();
+});
