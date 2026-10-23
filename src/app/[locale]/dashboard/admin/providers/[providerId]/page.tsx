@@ -14,8 +14,8 @@ import {
   getDashboardDictionary,
   getProviderDictionary,
 } from "@/i18n/get-dictionary";
-import { getProviderBilling } from "@/server/services/billing";
-import { RecordPaymentForm, TermsForm, TrialForm } from "@/components/dashboard/billing-forms";
+import { getProviderBilling, previewDirectPayment } from "@/server/services/billing";
+import { DirectPaymentForm, RecordPaymentForm, TermsForm, TrialForm } from "@/components/dashboard/billing-forms";
 import { ReceiptForm } from "@/components/dashboard/receipt-form";
 import { algiersDate } from "@/lib/periods";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +74,8 @@ async function Review({ params }: { params: Params }) {
   const { account, profiles, audit } = data;
   const decide = canReview(user);
   const canPay = canVerifyPayment(user);
+  const hasUnpaid = billing.invoices.some((inv) => inv.status === "OPEN" || inv.status === "OVERDUE");
+  const direct = canPay && sub && !hasUnpaid ? await previewDirectPayment(user, providerId) : null;
   const labels = {
     note: at.actions.note,
     notePlaceholder: at.actions.notePlaceholder,
@@ -303,6 +305,26 @@ async function Review({ params }: { params: Params }) {
               {canDelete(user) && (
                 <ManageForm op="subscription.delete" id={sub.id} label={at.deletes.subscription} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.subscriptionConfirm} />
               )}
+              {direct && (
+                <DirectPaymentForm
+                  providerId={account.id}
+                  amount={sub.billingBasis === "NEGOTIATED" && sub.negotiatedMonthlyPrice ? Math.round(Number(sub.negotiatedMonthlyPrice)) : billing.standardMonthly || null}
+                  today={algiersDate(new Date())}
+                  labels={{
+                    title: b.direct.title,
+                    help: b.direct.help(formatDate(direct.start, locale, { dateStyle: "medium" }), formatDate(new Date(direct.end.getTime() - 1), locale, { dateStyle: "medium" })),
+                    amount: b.direct.amount,
+                    method: b.method,
+                    reference: b.reference,
+                    paidOn: b.paidOn,
+                    save: b.direct.save,
+                    done: b.direct.done,
+                    methods: b.methods,
+                    errors: b.errors,
+                  }}
+                />
+              )}
+              {canPay && hasUnpaid && <p className="text-xs text-muted-foreground">{b.direct.useInvoice}</p>}
               <div>
                 <p className="mb-2 text-sm font-medium">{b.invoicesTitle}</p>
                 {billing.invoices.length === 0 ? (

@@ -409,7 +409,7 @@ const dashboardFr = {
     send: "Envoyer",
     pending: "Paiement déclaré, en cours de vérification.",
     declared: "Merci, votre paiement est en cours de vérification.",
-    errors: { date: "Choisissez une date valide (pas dans le futur pour un paiement).", state: "Cette facture ne peut plus recevoir de paiement.", pending: "Un paiement est déjà en cours de vérification pour cette facture.", note: "Indiquez une référence d’au moins 3 caractères.", amount: "Montant invalide.", forbidden: "Action impossible.", generic: "Une erreur est survenue." } as Record<string, string>,
+    errors: { unpaid: "Une facture attend son paiement : enregistrez-le sur cette facture.", date: "Choisissez une date valide (pas dans le futur pour un paiement).", state: "Cette facture ne peut plus recevoir de paiement.", pending: "Un paiement est déjà en cours de vérification pour cette facture.", note: "Indiquez une référence d’au moins 3 caractères.", amount: "Montant invalide.", forbidden: "Action impossible.", generic: "Une erreur est survenue." } as Record<string, string>,
     // Admin
     adminTitle: "Abonnements",
     adminDescription: "Statut de facturation de chaque professionnelle. Lancez le cycle pour émettre les factures dues.",
@@ -436,6 +436,14 @@ const dashboardFr = {
     noSubscription: "Pas encore d’abonnement : il démarre à l’approbation du compte.",
     record: "Enregistrer un paiement reçu",
     recordHelp: "Pour un paiement constaté directement (espèces en agence, virement vu sur le compte).",
+    direct: {
+      title: "Paiement reçu",
+      help: (from: string, to: string) => `Elle vous a payé ? Enregistrez-le ici : la facture du ${from} au ${to} est créée et marquée payée, et elle en est informée.`,
+      amount: "Montant reçu (DA)",
+      save: "Confirmer le paiement",
+      done: "Paiement confirmé. La facture payée figure ci-dessous.",
+      useInvoice: "Une facture attend son paiement : enregistrez-le sur cette facture, ci-dessous.",
+    },
     paymentsTitle: "Paiements à vérifier",
     paymentsDescription: "Virements déclarés par les professionnelles. Seul un paiement vérifié marque la facture payée.",
     verify: "Confirmer",

@@ -24,6 +24,17 @@ test("an admin gives one professional an agreed monthly price, and the professio
   await admin.reload();
   await expect(admin.getByRole("radio", { name: "Prix convenu" })).toBeChecked();
   await expect(admin.getByLabel("Montant mensuel (DA)")).toHaveValue("18000");
+
+  // She pays before any invoice exists: the Super Admin confirms it in one step.
+  const received = admin.locator("form").filter({ hasText: "Paiement reçu" });
+  await expect(received.getByLabel("Montant reçu (DA)")).toHaveValue("18000");
+  await received.getByLabel("Moyen de paiement").selectOption("CASH");
+  await received.getByLabel("Référence du virement").fill("Espèces au salon");
+  await received.getByRole("button", { name: "Confirmer le paiement" }).click();
+  await expect(admin.getByText("Paiement confirmé. La facture payée figure ci-dessous.")).toBeVisible();
+  await admin.reload();
+  await expect(admin.locator("#abonnement ~ *").getByText("Payée").first()).toBeVisible();
+  await admin.locator("#abonnement + *").screenshot({ path: test.info().outputPath("paiement-recu.png") });
   await admin.close();
 
   await page.goto("/fr/dashboard/provider/subscriptions");

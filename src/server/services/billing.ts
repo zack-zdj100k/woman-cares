@@ -16,7 +16,7 @@ const DAY = 86_400_000;
 
 /** The request cannot be done in the current state (reason for the UI). */
 export class BillingBlocked extends Error {
-  constructor(public reason: "state" | "amount" | "note" | "pending" | "basis" | "date") {
+  constructor(public reason: "state" | "amount" | "note" | "pending" | "basis" | "date" | "unpaid") {
     super(reason);
   }
 }
@@ -379,6 +379,93 @@ export async function recordPayment(actor: Actor, invoiceId: string, input: { me
     await settleInvoice(tx, invoiceId, paidAt);
     await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.payment.record", entityType: "SubscriptionPayment", entityId: payment.id, metadata: { invoice: invoice.number, amount: invoice.total.toString(), method: input.method, paidAt: paidAt.toISOString() } } });
     await notify(tx, invoice.providerId, "billing-paid", { reference: invoice.number, amount: invoice.total.toString() }, `payment:${payment.id}:ok`);
+  });
+}
+
+/**
+ * The month a payment received now pays for: the first period with no invoice yet, from the current
+ * period (or, before any period, the end of the trial, or today). Same period boundaries as the
+ * billing cycle, so the cycle later finds this invoice and never bills the month twice.
+ */
+async function nextPeriodToPay(tx: Prisma.TransactionClient, sub: { id: string; currentPeriodStart: Date | null; trialEndsAt: Date | null }, now: Date) {
+  let start = sub.currentPeriodStart ?? (sub.trialEndsAt && sub.trialEndsAt > now ? sub.trialEndsAt : now);
+  for (let i = 0; i < 24; i++) {
+    const taken = await tx.invoice.findUnique({ where: { subscriptionId_periodStart: { subscriptionId: sub.id, periodStart: start } }, select: { id: true } });
+    if (!taken) return { start, end: addMonths(start, 1), fresh: !sub.currentPeriodStart && start === now };
+    start = addMonths(start, 1);
+  }
+  throw new BillingBlocked("state");
+}
+
+/** The period the "Paiement reçu" form would pay, shown beside it (null without a subscription). */
+export async function previewDirectPayment(actor: Actor, providerId: string, now = new Date()) {
+  requirePaymentAdmin(actor);
+  if (!UUID.test(providerId)) throw new ForbiddenError();
+  const sub = await db.providerSubscription.findFirst({ where: { providerId }, orderBy: { createdAt: "desc" } });
+  if (!sub || sub.status === "EXEMPT") return null;
+  const { start, end } = await nextPeriodToPay(db, sub, now);
+  return { start, end };
+}
+
+/**
+ * The Super Admin records money received from a professional who has no invoice to pay (none was due:
+ * no published profile yet, or she pays in advance). One step: the invoice for the next unpaid month
+ * is created at the amount received, already paid, journalled, and she is told. An unpaid invoice must
+ * be settled from that invoice instead, so nothing is counted twice.
+ */
+export async function recordDirectPayment(
+  actor: Actor,
+  providerId: string,
+  input: { amount: number; method: "MANUAL_TRANSFER" | "CCP" | "BARIDIMOB" | "CASH"; reference: string; paidAt?: Date | null },
+) {
+  requirePaymentAdmin(actor);
+  if (!UUID.test(providerId)) throw new ForbiddenError();
+  if (!Number.isInteger(input.amount) || input.amount <= 0 || input.amount > 1_000_000) throw new BillingBlocked("amount");
+  const reference = input.reference.trim().slice(0, 120);
+  if (reference.length < 3) throw new BillingBlocked("note");
+  const paidAt = input.paidAt ?? new Date();
+  if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + DAY || paidAt.getTime() < Date.UTC(2020, 0, 1)) throw new BillingBlocked("date");
+  const account = await db.providerAccount.findUnique({ where: { id: providerId }, select: { id: true } });
+  if (!account) throw new ForbiddenError();
+
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "ProviderAccount" WHERE id = ${providerId}::uuid FOR UPDATE`;
+    const sub = await ensureSubscription(tx, providerId);
+    if (sub.status === "EXEMPT") throw new BillingBlocked("basis");
+    if (await tx.invoice.findFirst({ where: { subscriptionId: sub.id, status: { in: ["OPEN", "OVERDUE"] } }, select: { id: true } })) throw new BillingBlocked("unpaid");
+    const now = new Date();
+    const period = await nextPeriodToPay(tx, sub, now);
+    const invoice = await tx.invoice.create({
+      data: {
+        number: invoiceNumber(period.start, rand6()),
+        subscriptionId: sub.id,
+        providerId,
+        periodStart: period.start,
+        periodEnd: period.end,
+        subtotal: input.amount,
+        total: input.amount,
+        dueAt: paidAt,
+        pricingBasisSnapshot: { basis: sub.billingBasis, negotiated: sub.negotiatedMonthlyPrice?.toString() ?? null, recordedByStaff: true },
+        lines: { create: [{ categoryId: null, description: "Abonnement, paiement reçu", amount: input.amount }] },
+      },
+    });
+    const payment = await tx.subscriptionPayment.create({
+      data: { invoiceId: invoice.id, amount: input.amount, status: "PAID", method: input.method, externalReference: reference, verifiedById: actor.id, verifiedAt: paidAt, createdAt: paidAt },
+    });
+    // A subscription with no period yet starts its months here.
+    if (period.fresh) await tx.providerSubscription.update({ where: { id: sub.id }, data: { currentPeriodStart: period.start, currentPeriodEnd: period.end } });
+    await settleInvoice(tx, invoice.id, paidAt);
+    await tx.auditLog.create({
+      data: {
+        actorId: actor.id,
+        action: "subscription.payment.record",
+        entityType: "SubscriptionPayment",
+        entityId: payment.id,
+        metadata: { invoice: invoice.number, amount: String(input.amount), method: input.method, paidAt: paidAt.toISOString(), period: { from: period.start.toISOString(), to: period.end.toISOString() }, withoutInvoice: true },
+      },
+    });
+    await notify(tx, providerId, "billing-paid", { reference: invoice.number, amount: String(input.amount) }, `payment:${payment.id}:ok`);
+    return invoice;
   });
 }
 

@@ -9,7 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { canReview, canVerifyPayment } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { addMonths } from "@/lib/billing";
-import { BillingBlocked, declarePayment, recordPayment, runBillingCycle, setSubscriptionTerms, setTrialDefault, setTrialEnd, verifyPayment } from "@/server/services/billing";
+import { BillingBlocked, declarePayment, recordDirectPayment, recordPayment, runBillingCycle, setSubscriptionTerms, setTrialDefault, setTrialEnd, verifyPayment } from "@/server/services/billing";
 import { deliverPendingEmails } from "@/server/services/outbox";
 
 export type BillingState = { status: "idle" } | { status: "done"; at: number; info?: string } | { status: "error"; code: string };
@@ -55,6 +55,16 @@ export async function recordPaymentAction(_prev: BillingState, form: FormData): 
   const day = String(form.get("paidOn") ?? "");
   const paidAt = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T12:00:00+01:00`) : null;
   return run(() => recordPayment(user, String(form.get("invoiceId") ?? ""), { method: method(form.get("method")), reference: String(form.get("reference") ?? ""), paidAt }));
+}
+
+/** Super Admin: money received from a professional with no invoice to pay (creates it, paid). */
+export async function recordDirectPaymentAction(_prev: BillingState, form: FormData): Promise<BillingState> {
+  const user = await getSessionUser();
+  if (!user || !canVerifyPayment(user)) return { status: "error", code: "forbidden" };
+  const day = String(form.get("paidOn") ?? "");
+  const paidAt = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T12:00:00+01:00`) : null;
+  const amount = Number(String(form.get("amount") ?? "").replace(/[\s .]/g, ""));
+  return run(() => recordDirectPayment(user, String(form.get("providerId") ?? ""), { amount, method: method(form.get("method")), reference: String(form.get("reference") ?? ""), paidAt }));
 }
 
 /** Admin: when one professional's free trial ends (a date, a few more months, or no trial). */

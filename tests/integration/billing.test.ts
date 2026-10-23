@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import type { Actor, Role } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
-import { BillingBlocked, declarePayment, ensureSubscription, getMyBilling, recordPayment, runBillingCycle, setSubscriptionTerms, verifyPayment } from "@/server/services/billing";
+import { BillingBlocked, declarePayment, ensureSubscription, getMyBilling, recordDirectPayment, recordPayment, runBillingCycle, setSubscriptionTerms, verifyPayment } from "@/server/services/billing";
 import { searchDirectory } from "@/server/services/directory";
 import { parseDirectoryQuery } from "@/lib/validation/directory";
 import { createProfile, createProvider, resetDatabase } from "./fixtures";
@@ -143,5 +143,52 @@ describe("payments", () => {
     await recordPayment(superAdmin, invoice.id, { method: "CASH", reference: "Agence Alger centre" });
     expect((await db.providerSubscription.findFirstOrThrow()).status).toBe("ACTIVE");
     expect(await slugs()).toContain("facture-nails");
+  });
+});
+
+describe("a payment received with no invoice to pay (Super Admin)", () => {
+  const cash = { amount: 20000, method: "CASH" as const, reference: "Reçu en agence" };
+
+  it("creates the invoice for her current month, already paid, and the cycle never bills that month again", async () => {
+    // Like the real case: an agreed price, her profiles still drafts, so the cycle issued nothing.
+    await db.providerServiceProfile.updateMany({ where: { providerId }, data: { status: "DRAFT", publishedAt: null } });
+    await trialEndedAt(new Date(Date.now() - 2 * DAY));
+    await setSubscriptionTerms(superAdmin, providerId, { basis: "NEGOTIATED", negotiatedPrice: 20000, reason: "Prix convenu au salon" });
+    expect((await runBillingCycle()).invoices).toBe(0);
+    const before = await db.providerSubscription.findFirstOrThrow({ where: { providerId } });
+
+    const invoice = await recordDirectPayment(superAdmin, providerId, cash);
+    expect(invoice.periodStart.getTime()).toBe(before.currentPeriodStart!.getTime());
+    const saved = await db.invoice.findUniqueOrThrow({ where: { id: invoice.id }, include: { payments: true } });
+    expect(saved.status).toBe("PAID");
+    expect(Number(saved.total)).toBe(20000);
+    expect(saved.payments).toHaveLength(1);
+    expect(saved.payments[0]).toMatchObject({ status: "PAID", method: "CASH", verifiedById: superAdmin.id });
+    expect(await db.auditLog.count({ where: { action: "subscription.payment.record", actorId: superAdmin.id } })).toBe(1);
+
+    // Published later: the cycle bills the following months, never the paid one.
+    await db.providerServiceProfile.updateMany({ where: { providerId }, data: { status: "PUBLISHED", publishedAt: new Date() } });
+    await runBillingCycle(new Date(saved.periodEnd.getTime() + DAY));
+    const starts = (await db.invoice.findMany({ where: { providerId }, orderBy: { periodStart: "asc" } })).map((i) => i.periodStart.getTime());
+    expect(new Set(starts).size).toBe(starts.length);
+  });
+
+  it("pays the next month in advance when the current one is already paid", async () => {
+    await trialEndedAt(new Date(Date.now() - 2 * DAY));
+    const first = await recordDirectPayment(superAdmin, providerId, cash);
+    const second = await recordDirectPayment(superAdmin, providerId, { ...cash, reference: "Mois suivant" });
+    expect(second.periodStart.getTime()).toBe(first.periodEnd.getTime());
+  });
+
+  it("refuses when an invoice is waiting, for anyone but a Super Admin, and bad amounts", async () => {
+    await trialEndedAt(new Date(Date.now() - DAY));
+    await runBillingCycle(); // published categories: an invoice is due
+    await expect(recordDirectPayment(superAdmin, providerId, cash)).rejects.toMatchObject({ reason: "unpaid" });
+    await db.invoiceLine.deleteMany({ where: { invoice: { providerId } } });
+    await db.invoice.deleteMany({ where: { providerId } });
+    for (const actor of [admin, support, pro]) await expect(recordDirectPayment(actor, providerId, cash)).rejects.toBeInstanceOf(ForbiddenError);
+    for (const amount of [0, -5, 1.5, 2_000_000]) await expect(recordDirectPayment(superAdmin, providerId, { ...cash, amount })).rejects.toBeInstanceOf(BillingBlocked);
+    await expect(recordDirectPayment(superAdmin, providerId, { ...cash, reference: "x" })).rejects.toMatchObject({ reason: "note" });
+    expect(await db.subscriptionPayment.count()).toBe(0);
   });
 });

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import {
   declarePaymentAction,
+  recordDirectPaymentAction,
   recordPaymentAction,
   runCycleAction,
   setTermsAction,
@@ -123,6 +124,61 @@ export function RecordPaymentForm({
       </button>
       <div className="sm:col-span-4">
         <Feedback state={state} errors={labels.errors} />
+      </div>
+    </form>
+  );
+}
+
+/** Super Admin: money received from a professional who has no invoice to pay. */
+export function DirectPaymentForm({
+  providerId,
+  amount,
+  today,
+  labels,
+}: {
+  providerId: string;
+  /** Suggested amount: her agreed or standard monthly price (editable). */
+  amount: number | null;
+  today: string;
+  labels: { title: string; help: string; amount: string; method: string; reference: string; paidOn: string; save: string; done: string; methods: Record<string, string>; errors: Errors };
+}) {
+  const [state, action, pending] = useActionState<BillingState, FormData>(recordDirectPaymentAction, { status: "idle" });
+  return (
+    <form action={action} className="grid gap-3 rounded-xl border border-chart-1/40 bg-chart-1/5 p-4">
+      <input type="hidden" name="providerId" value={providerId} />
+      <div>
+        <p className="text-sm font-medium">{labels.title}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{labels.help}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+        <label className={field}>
+          {labels.amount}
+          <Input name="amount" inputMode="numeric" defaultValue={amount ? String(amount) : ""} required className="tabular-nums" dir="ltr" />
+        </label>
+        <label className={field}>
+          {labels.method}
+          <select name="method" className={select}>
+            {METHODS.map((m) => (
+              <option key={m} value={m}>
+                {labels.methods[m]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={field}>
+          {labels.paidOn}
+          <Input name="paidOn" type="date" defaultValue={today} max={today} min="2020-01-01" required dir="ltr" />
+        </label>
+        <label className={field}>
+          {labels.reference}
+          <Input name="reference" required minLength={3} maxLength={120} />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending} className={buttonClass({ variant: "solid", size: "sm" })}>
+          {labels.save}
+        </button>
+        <Feedback state={state} errors={labels.errors} done={labels.done} />
       </div>
     </form>
   );
