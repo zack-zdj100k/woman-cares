@@ -260,13 +260,20 @@ async function shrinkPhoto(file: File): Promise<Blob> {
   }
 }
 
-/** Professional: declare a transfer for an invoice, with a proof (receipt photo, screenshot or PDF). */
+/**
+ * Professional: declare a transfer, with a proof (receipt photo, screenshot or PDF). For an invoice, or,
+ * without `invoiceId`, a payment she makes on her own (she says how much she sent).
+ */
 export function DeclarePaymentForm({
   invoiceId,
+  amount,
+  open = true,
   labels,
 }: {
-  invoiceId: string;
-  labels: { declare: string; help: string; method: string; reference: string; message: string; proof: string; proofHelp: string; send: string; done: string; methods: Record<string, string>; errors: Errors };
+  invoiceId?: string;
+  amount?: number | null;
+  open?: boolean;
+  labels: { declare: string; help: string; amount?: string; method: string; reference: string; message: string; proof: string; proofHelp: string; send: string; done: string; methods: Record<string, string>; errors: Errors };
 }) {
   const [key] = useState(newKey);
   const [state, setState] = useState<BillingState>({ status: "idle" });
@@ -282,7 +289,7 @@ export function DeclarePaymentForm({
     form.delete("file");
     if (file instanceof File && file.size > 0) form.set("file", await shrinkPhoto(file), file.name);
     try {
-      const res = await fetch(`/api/v1/billing/invoices/${invoiceId}/declare`, { method: "POST", body: form });
+      const res = await fetch(invoiceId ? `/api/v1/billing/invoices/${invoiceId}/declare` : "/api/v1/billing/own-payment", { method: "POST", body: form });
       if (res.ok) {
         setState({ status: "done", at: Date.now() });
         router.refresh();
@@ -297,11 +304,17 @@ export function DeclarePaymentForm({
   }
 
   return (
-    <details className="group rounded-xl border border-border p-4" open>
+    <details className="group rounded-xl border border-border p-4" open={open}>
       <summary className="cursor-pointer list-none text-sm font-medium [&::-webkit-details-marker]:hidden">{labels.declare}</summary>
       <form onSubmit={submit} className="mt-4 grid gap-3">
         <p className="text-xs text-muted-foreground">{labels.help}</p>
         <input type="hidden" name="key" value={key} />
+        {!invoiceId && labels.amount && (
+          <label className={field}>
+            {labels.amount}
+            <Input name="amount" inputMode="numeric" defaultValue={amount ? String(amount) : ""} required className="max-w-[14rem] tabular-nums" dir="ltr" />
+          </label>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={field}>
             {labels.method}

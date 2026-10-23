@@ -292,6 +292,28 @@ async function Review({ params }: { params: Params }) {
                   {billing.categories.length > 0 && <span className="text-muted-foreground"> · {b.billable} : {billing.categories.map((c) => cat(c.slug)).join(", ")}</span>}
                 </p>
                 {sub.exemptReason && <p className="text-sm text-muted-foreground">{sub.exemptReason}</p>}
+                {billing.priceList.length > 0 && (
+                  <div className="grid gap-2 rounded-xl border border-border p-4 text-sm">
+                    <p className="font-medium">{b.priceList.title}</p>
+                    <ul className="grid gap-1.5">
+                      {billing.priceList.map((c) => (
+                        <li key={c.slug} className="flex flex-wrap items-baseline justify-between gap-x-4">
+                          <span>
+                            {cat(c.slug)} <span className="text-xs text-muted-foreground">· {c.billed ? b.priceList.billed : b.priceList.notBilled}</span>
+                          </span>
+                          <span className={c.billed ? "tabular-nums" : "tabular-nums text-muted-foreground line-through"}>{formatDzd(String(c.price), locale)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="border-t border-border pt-2">
+                      {b.priceList.today} <strong className="tabular-nums">{formatDzd(String(billing.standardMonthly), locale)}</strong>
+                      {billing.standardMonthly !== billing.standardIfAllPublished && (
+                        <span className="text-muted-foreground"> · {b.priceList.ifAll(formatDzd(String(billing.standardIfAllPublished), locale))}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{b.priceList.hint}</p>
+                  </div>
+                )}
               {decide && (
                 <TermsForm
                   providerId={account.id}

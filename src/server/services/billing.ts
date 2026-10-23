@@ -225,6 +225,65 @@ export async function getMyBilling(actor: Actor, now = new Date()) {
   return { accountStatus: account.status, subscription: sub, categories, estimate, invoices };
 }
 
+/**
+ * She pays on her own initiative, with no invoice waiting: an invoice for her next unpaid month is
+ * created at the amount she sent, with her declaration (and proof) pending. The Super Admin confirms it
+ * on Paiements like any other; a refusal cancels that invoice, so she owes nothing for it.
+ */
+export async function declareOwnPayment(
+  actor: Actor,
+  input: { amount: number; method: "MANUAL_TRANSFER" | "CCP" | "BARIDIMOB" | "CASH"; reference: string; note: string | null; idempotencyKey: string; proof?: Buffer | null },
+) {
+  const account = await ownAccount(actor);
+  if (!UUID.test(input.idempotencyKey)) throw new ForbiddenError();
+  if (!Number.isInteger(input.amount) || input.amount <= 0 || input.amount > 1_000_000) throw new BillingBlocked("amount");
+  const reference = input.reference.trim().slice(0, 120);
+  if (reference.length < 3) throw new BillingBlocked("note");
+  const key = `${actor.id}:${input.idempotencyKey}`;
+  const same = await db.subscriptionPayment.findUnique({ where: { idempotencyKey: key } });
+  if (same) return same;
+  const paymentId = randomUUID();
+  const proofKey = input.proof && input.proof.length > 0 ? await storePaymentProof(account.id, paymentId, input.proof) : null;
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "ProviderAccount" WHERE id = ${account.id}::uuid FOR UPDATE`;
+    const sub = await ensureSubscription(tx, account.id);
+    if (sub.status === "EXEMPT") throw new BillingBlocked("basis");
+    if (await tx.invoice.findFirst({ where: { subscriptionId: sub.id, status: { in: ["OPEN", "OVERDUE"] } }, select: { id: true } })) throw new BillingBlocked("unpaid");
+    if (await tx.subscriptionPayment.findFirst({ where: { invoice: { providerId: account.id }, status: "PENDING" }, select: { id: true } })) throw new BillingBlocked("pending");
+    const now = new Date();
+    const { dueDays } = await settings(tx);
+    const period = await nextPeriodToPay(tx, sub, now);
+    const invoice = await tx.invoice.create({
+      data: {
+        number: invoiceNumber(period.start, rand6()),
+        subscriptionId: sub.id,
+        providerId: account.id,
+        periodStart: period.start,
+        periodEnd: period.end,
+        subtotal: input.amount,
+        total: input.amount,
+        dueAt: new Date(now.getTime() + dueDays * DAY),
+        pricingBasisSnapshot: { basis: sub.billingBasis, negotiated: sub.negotiatedMonthlyPrice?.toString() ?? null, selfDeclared: true },
+        lines: { create: [{ categoryId: null, description: "Abonnement", amount: input.amount }] },
+      },
+    });
+    if (period.fresh) await tx.providerSubscription.update({ where: { id: sub.id }, data: { currentPeriodStart: period.start, currentPeriodEnd: period.end } });
+    const payment = await tx.subscriptionPayment.create({
+      data: { id: paymentId, invoiceId: invoice.id, amount: input.amount, status: "PENDING", method: input.method, externalReference: reference, note: input.note?.trim().slice(0, 500) || null, idempotencyKey: key, declaredById: actor.id, proofStorageKey: proofKey },
+    });
+    await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.payment.declare", entityType: "SubscriptionPayment", entityId: payment.id, metadata: { invoice: invoice.number, method: input.method, amount: String(input.amount), withoutInvoice: true } } });
+    const owner = await tx.providerAccount.findUniqueOrThrow({ where: { id: account.id }, select: { businessName: true } });
+    await notifyStaff(tx, {
+      kind: "payment",
+      path: "/dashboard/admin/payments?status=PENDING",
+      data: { client: owner.businessName, reference: invoice.number, amount: formatDzd(String(input.amount), "fr") },
+      dedupeKey: `staff:payment:${payment.id}`,
+    });
+    await refreshState(tx, sub.id, now);
+    return payment;
+  });
+}
+
 /** The professional declares a transfer for one of her invoices; staff verify it before it counts. */
 export async function declarePayment(
   actor: Actor,
@@ -303,7 +362,11 @@ export async function getProviderBilling(actor: Actor, providerId: string, now =
   const categories = await billableCategories(db, providerId, now);
   const invoices = await db.invoice.findMany({ where: { providerId }, orderBy: { periodStart: "desc" }, take: 12, include: { payments: { orderBy: { createdAt: "desc" } } } });
   const standard = invoiceLines({ basis: "PER_CATEGORY", categories, negotiatedPrice: null, packagePrice: null, labels: LABELS_FR }).total;
-  return { subscription: sub, categories, invoices, standardMonthly: standard };
+  // Every category she has (published or not) with today's price, so the standard total is explained.
+  const billed = new Set(categories.map((c) => c.slug));
+  const profiles = await db.providerServiceProfile.findMany({ where: { providerId, status: { not: "ARCHIVED" } }, select: { status: true, category: { select: { id: true, slug: true, sortOrder: true } } }, orderBy: { category: { sortOrder: "asc" } } });
+  const priceList = await Promise.all(profiles.map(async (p) => ({ slug: p.category.slug, status: p.status, billed: billed.has(p.category.slug), price: await categoryPriceAt(db, p.category.id, now) })));
+  return { subscription: sub, categories, invoices, standardMonthly: standard, priceList, standardIfAllPublished: priceList.reduce((s, c) => s + c.price, 0) };
 }
 
 /**
@@ -364,6 +427,11 @@ export async function verifyPayment(actor: Actor, paymentId: string, approve: bo
       data: { status: approve ? "PAID" : "FAILED", verifiedById: actor.id, verifiedAt: new Date(), ...(approve ? {} : { note: note!.trim() }) },
     });
     if (updated.count !== 1) throw new BillingBlocked("state");
+    // A refused payment she made on her own cancels the invoice created for it (she owes nothing for it).
+    const snapshot = payment.invoice.pricingBasisSnapshot as { selfDeclared?: boolean } | null;
+    if (!approve && snapshot?.selfDeclared && !(await tx.subscriptionPayment.count({ where: { invoiceId: payment.invoiceId, status: "PAID" } }))) {
+      await tx.invoice.update({ where: { id: payment.invoiceId }, data: { status: "VOID" } });
+    }
     await settleInvoice(tx, payment.invoiceId);
     await tx.auditLog.create({
       data: { actorId: actor.id, action: approve ? "subscription.payment.verify" : "subscription.payment.reject", entityType: "SubscriptionPayment", entityId: payment.id, metadata: { invoice: payment.invoice.number, amount: payment.amount.toString(), note } },

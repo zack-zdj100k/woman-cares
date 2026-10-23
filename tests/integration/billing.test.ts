@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import type { Actor, Role } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
-import { BillingBlocked, declarePayment, ensureSubscription, getMyBilling, recordDirectPayment, recordPayment, runBillingCycle, sendInvoice, setFreeTrialForAll, startSubscription, stopTrial, setSubscriptionTerms, verifyPayment } from "@/server/services/billing";
+import { BillingBlocked, declarePayment, ensureSubscription, getMyBilling, declareOwnPayment, recordDirectPayment, recordPayment, runBillingCycle, sendInvoice, setFreeTrialForAll, startSubscription, stopTrial, setSubscriptionTerms, verifyPayment } from "@/server/services/billing";
 import { searchDirectory } from "@/server/services/directory";
 import { parseDirectoryQuery } from "@/lib/validation/directory";
 import sharp from "sharp";
@@ -280,5 +280,45 @@ describe("a deleted subscription", () => {
     await startSubscription(admin, providerId);
     expect(await db.providerSubscription.count({ where: { providerId } })).toBe(1);
     expect(await db.auditLog.count({ where: { action: "subscription.start" } })).toBe(1);
+  });
+});
+
+describe("a professional paying on her own, with no invoice", () => {
+  const own = (over: Record<string, unknown> = {}) => ({ amount: 30000, method: "CCP" as const, reference: "CCP 2026-11", note: null, idempotencyKey: randomUUID(), ...over });
+
+  it("creates her month's invoice with the declaration pending; the Super Admin confirms it", async () => {
+    await stopTrial(admin, providerId);
+    await db.invoiceLine.deleteMany({ where: { invoice: { providerId } } });
+    await db.invoice.deleteMany({ where: { providerId } }); // as if nothing had been sent to her
+    const photo = await sharp({ create: { width: 30, height: 30, channels: 3, background: "#ffffff" } }).jpeg().toBuffer();
+    const payment = await declareOwnPayment(pro, own({ proof: photo }));
+    expect(payment).toMatchObject({ status: "PENDING", declaredById: pro.id });
+    expect(payment.proofStorageKey).toBeTruthy();
+    expect(await db.notification.count({ where: { userId: superAdmin.id, type: "staff.payment" } })).toBe(1);
+    // A second declaration waits for this one.
+    await expect(declareOwnPayment(pro, own())).rejects.toBeInstanceOf(BillingBlocked);
+
+    await verifyPayment(superAdmin, payment.id, true, null);
+    const invoice = await db.invoice.findUniqueOrThrow({ where: { id: payment.invoiceId } });
+    expect(invoice.status).toBe("PAID");
+    expect(Number(invoice.total)).toBe(30000);
+    expect((await db.providerSubscription.findFirstOrThrow({ where: { providerId } })).status).toBe("ACTIVE");
+  });
+
+  it("a refused declaration cancels the invoice created for it, so she owes nothing", async () => {
+    await db.providerServiceProfile.updateMany({ where: { providerId }, data: { status: "DRAFT", publishedAt: null } });
+    await runBillingCycle(); // in trial, nothing due
+    const payment = await declareOwnPayment(pro, own());
+    await verifyPayment(superAdmin, payment.id, false, "Aucun virement reçu");
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: payment.invoiceId } })).status).toBe("VOID");
+    expect(await db.invoice.count({ where: { providerId, status: { in: ["OPEN", "OVERDUE"] } } })).toBe(0);
+  });
+
+  it("is refused while an invoice waits, for other roles, and for bad amounts", async () => {
+    await trialEndedAt(new Date(Date.now() - DAY));
+    await runBillingCycle(); // an invoice is due: she declares on that one
+    await expect(declareOwnPayment(pro, own())).rejects.toMatchObject({ reason: "unpaid" });
+    await expect(declareOwnPayment(superAdmin, own())).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(declareOwnPayment(pro, own({ amount: 0 }))).rejects.toMatchObject({ reason: "amount" });
   });
 });

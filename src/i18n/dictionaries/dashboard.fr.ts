@@ -439,6 +439,19 @@ const dashboardFr = {
     proof: "Preuve du paiement (photo du reçu, capture d’écran ou PDF)",
     proofHelp: "Conseillée, pour une confirmation plus rapide. 4 Mo au plus ; les photos sont réduites automatiquement.",
     proofView: "Voir la preuve",
+    payOwn: {
+      title: "J’ai payé mon abonnement",
+      help: "Vous avez envoyé votre paiement sans attendre de facture ? Indiquez le montant, le moyen et la référence, et joignez une preuve. Nous vérifions puis confirmons ; la facture du mois apparaît alors comme payée.",
+      amount: "Montant envoyé (DA)",
+    },
+    priceList: {
+      title: "Tarif standard, catégorie par catégorie",
+      billed: "publiée, facturée",
+      notBilled: "pas encore publiée, non facturée",
+      today: "Tarif standard aujourd’hui :",
+      ifAll: (amount: string) => `${amount} une fois toutes publiées`,
+      hint: "Au tarif standard, seules les catégories publiées sont facturées, au prix fixé dans Tarifs (à une date d’effet). Pour un autre montant, choisissez « Prix convenu ».",
+    },
     trialBlock: {
       title: "Essai gratuit",
       stop: "Arrêter l’essai gratuit maintenant",

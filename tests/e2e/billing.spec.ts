@@ -60,5 +60,23 @@ test("an admin gives one professional an agreed monthly price, and the professio
   expect(res.headers()["content-type"]).toBe("image/webp");
   await row.getByRole("button", { name: "Confirmer" }).click();
   await expect(admin.getByRole("row").filter({ hasText: business })).toHaveCount(0);
+
+  // She pays the following month on her own, with no invoice from us; it lands on Paiements.
+  // (She needs the account to pay into: the Super Admin publishes it in Paramètres.)
+  await admin.goto("/fr/dashboard/admin/settings");
+  await admin.getByLabel("Nom du titulaire").fill("Woman Cares Test");
+  await admin.getByLabel("RIP ou RIB").fill("00799999000123456789");
+  await admin.getByLabel("Votre mot de passe").fill("Bootstrap owner 2026 ok");
+  await admin.getByRole("button", { name: "Enregistrer les coordonnées" }).click();
+  await expect(admin.getByLabel("Votre mot de passe")).toHaveValue("");
+  await page.goto("/fr/dashboard/provider/subscriptions");
+  await page.getByText("J’ai payé mon abonnement").click();
+  const ownPay = page.locator("form").filter({ hasText: "Montant envoyé (DA)" });
+  await expect(ownPay.getByLabel("Montant envoyé (DA)")).toHaveValue("18000");
+  await ownPay.getByLabel("Référence du virement").fill("CCP 2026-12");
+  await ownPay.getByRole("button", { name: "Envoyer" }).click();
+  await expect(page.getByText("Merci, votre paiement est en cours de vérification.")).toBeVisible();
+  await admin.goto("/fr/dashboard/admin/payments?status=PENDING");
+  await expect(admin.getByRole("row").filter({ hasText: business }).getByRole("button", { name: "Confirmer" })).toBeVisible();
   await admin.close();
 });

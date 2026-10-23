@@ -12,6 +12,7 @@ import { formatRip } from "@/lib/payment-details";
 import { CopyValue } from "@/components/dashboard/copy-value";
 import { PageHeader, pageClass } from "@/components/dashboard/shell/dashboard-shell";
 import { InvoiceList } from "@/components/dashboard/invoice-list";
+import { DeclarePaymentForm } from "@/components/dashboard/billing-forms";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -34,6 +35,10 @@ async function Billing({ params }: { params: PageProps<"/[locale]/dashboard/prov
   const locale: Locale = isLocale(l) ? l : "fr";
   const user = await requireArea(locale, "provider", `/${locale}/dashboard/provider/subscriptions`);
   const [d, site, data, pay] = await Promise.all([getDashboardDictionary(locale), getDictionary(locale), getMyBilling(user), getPaymentDetails(user)]);
+  // Paying on her own: when no invoice is waiting (that one has its own form below) and none is being checked.
+  const canPayOwn =
+    data.subscription?.status !== "EXEMPT" &&
+    !data.invoices.some((i) => i.status === "OPEN" || i.status === "OVERDUE" || i.payments.some((p) => p.status === "PENDING"));
   const b = d.billing;
   const sub = data.subscription;
   const name = (slug: string) => site.categories[slug as CategorySlug]?.name ?? slug;
@@ -97,7 +102,7 @@ async function Billing({ params }: { params: PageProps<"/[locale]/dashboard/prov
           <CardContent>
             {sub?.status === "EXEMPT" ? (
               <p className="text-sm text-muted-foreground">{b.exempt}</p>
-            ) : data.categories.length === 0 ? (
+            ) : data.categories.length === 0 && sub?.billingBasis !== "NEGOTIATED" ? (
               <p className="text-sm text-muted-foreground">{b.noBillable}</p>
             ) : (
               <>
@@ -144,6 +149,13 @@ async function Billing({ params }: { params: PageProps<"/[locale]/dashboard/prov
                 {b.payTo.warn} {b.payTo.updated} {formatDate(pay.updatedAt, locale, { dateStyle: "medium" })}.
               </p>
             </>
+          )}
+          {pay.status === "ok" && canPayOwn && (
+            <DeclarePaymentForm
+              amount={data.estimate.total || null}
+              open={false}
+              labels={{ declare: b.payOwn.title, help: b.payOwn.help, amount: b.payOwn.amount, method: b.method, reference: b.reference, message: b.message, proof: b.proof, proofHelp: b.proofHelp, send: b.send, done: b.declared, methods: b.methods, errors: b.errors }}
+            />
           )}
           {pay.status !== "ok" && (
             <Link href={`/${locale}/contact`} className="w-fit text-sm underline underline-offset-4">
