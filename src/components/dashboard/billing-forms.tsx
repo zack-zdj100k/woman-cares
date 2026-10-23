@@ -1,9 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
-  declarePaymentAction,
   recordDirectPaymentAction,
+  sendInvoiceAction,
+  setFreeTrialForAllAction,
+  startSubscriptionAction,
+  stopTrialAction,
   recordPaymentAction,
   runCycleAction,
   setTermsAction,
@@ -150,7 +154,7 @@ export function DirectPaymentForm({
         <p className="text-sm font-medium">{labels.title}</p>
         <p className="mt-1 text-xs text-muted-foreground">{labels.help}</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+      <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
         <label className={field}>
           {labels.amount}
           <Input name="amount" inputMode="numeric" defaultValue={amount ? String(amount) : ""} required className="tabular-nums" dir="ltr" />
@@ -239,23 +243,64 @@ export function RunCycleButton({ locale, labels }: { locale: string; labels: { r
 
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`);
 
-/** Professional: declare a transfer for an invoice. */
+/** Phone photos are often larger than the upload limit: shrink them to a readable JPEG first. */
+async function shrinkPhoto(file: File): Promise<Blob> {
+  if (!file.type.startsWith("image/") || file.size <= 1_500_000) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
+}
+
+/** Professional: declare a transfer for an invoice, with a proof (receipt photo, screenshot or PDF). */
 export function DeclarePaymentForm({
   invoiceId,
   labels,
 }: {
   invoiceId: string;
-  labels: { declare: string; help: string; method: string; reference: string; message: string; send: string; done: string; methods: Record<string, string>; errors: Errors };
+  labels: { declare: string; help: string; method: string; reference: string; message: string; proof: string; proofHelp: string; send: string; done: string; methods: Record<string, string>; errors: Errors };
 }) {
   const [key] = useState(newKey);
-  const [state, action, pending] = useActionState<BillingState, FormData>(declarePaymentAction, { status: "idle" });
+  const [state, setState] = useState<BillingState>({ status: "idle" });
+  const [pending, setPending] = useState(false);
+  const router = useRouter();
   if (state.status === "done") return <p role="status" className="text-sm text-success">{labels.done}</p>;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    const form = new FormData(event.currentTarget);
+    const file = form.get("file");
+    form.delete("file");
+    if (file instanceof File && file.size > 0) form.set("file", await shrinkPhoto(file), file.name);
+    try {
+      const res = await fetch(`/api/v1/billing/invoices/${invoiceId}/declare`, { method: "POST", body: form });
+      if (res.ok) {
+        setState({ status: "done", at: Date.now() });
+        router.refresh();
+      } else {
+        const code = ((await res.json().catch(() => null)) as { error?: { code?: string } } | null)?.error?.code?.toLowerCase() ?? "generic";
+        setState({ status: "error", code });
+      }
+    } catch {
+      setState({ status: "error", code: "generic" });
+    }
+    setPending(false);
+  }
+
   return (
-    <details className="group rounded-xl border border-border p-4">
+    <details className="group rounded-xl border border-border p-4" open>
       <summary className="cursor-pointer list-none text-sm font-medium [&::-webkit-details-marker]:hidden">{labels.declare}</summary>
-      <form action={action} className="mt-4 grid gap-3">
+      <form onSubmit={submit} className="mt-4 grid gap-3">
         <p className="text-xs text-muted-foreground">{labels.help}</p>
-        <input type="hidden" name="invoiceId" value={invoiceId} />
         <input type="hidden" name="key" value={key} />
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={field}>
@@ -274,6 +319,11 @@ export function DeclarePaymentForm({
           </label>
         </div>
         <label className={field}>
+          {labels.proof}
+          <input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="text-sm file:me-3 file:rounded-full file:border file:border-border file:bg-transparent file:px-3 file:py-1.5 file:text-sm" />
+          <span className="text-xs text-muted-foreground">{labels.proofHelp}</span>
+        </label>
+        <label className={field}>
           {labels.message}
           <Input name="note" maxLength={500} />
         </label>
@@ -289,9 +339,9 @@ export function DeclarePaymentForm({
 }
 
 /** `plus` holds ready-made button texts (functions cannot cross into client components). */
-type TrialLabels = { endsOn: string; save: string; plus: { months: number; label: string }[]; none: string; noneHint: string; done: string; errors: Errors };
+type TrialLabels = { endsOn: string; save: string; plus: { months: number; label: string }[]; done: string; errors: Errors };
 
-/** Admin: when this professional's free trial ends. Any date; quick extensions; or no trial at all. */
+/** Admin: when this professional's free trial ends. Any date, or quick extensions (stopping it is StopTrialButton). */
 export function TrialForm({ providerId, endsOn, current, labels }: { providerId: string; endsOn: string; current: string | null; labels: TrialLabels }) {
   const [state, action, pending] = useActionState<BillingState, FormData>(setTrialAction, { status: "idle" });
   return (
@@ -312,12 +362,6 @@ export function TrialForm({ providerId, endsOn, current, labels }: { providerId:
           </button>
         ))}
         <input type="hidden" name="months" defaultValue="1" />
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" name="mode" value="none" disabled={pending} className={buttonClass({ variant: "ghost", size: "sm", className: "text-destructive" })}>
-          {labels.none}
-        </button>
-        <span className="text-xs text-muted-foreground">{labels.noneHint}</span>
       </div>
       <Feedback state={state} errors={labels.errors} done={labels.done} />
     </form>
@@ -342,5 +386,83 @@ export function TrialDefaultForm({ days, labels }: { days: number; labels: { tit
       </div>
       <Feedback state={state} errors={labels.errors} done={labels.done} />
     </form>
+  );
+}
+
+/** Super Admin: send a professional an invoice now. */
+export function SendInvoiceForm({ providerId, amount, labels }: { providerId: string; amount: number | null; labels: { title: string; help: string; amount: string; send: string; sent: string; errors: Errors } }) {
+  const [state, action, pending] = useActionState<BillingState, FormData>(sendInvoiceAction, { status: "idle" });
+  return (
+    <form action={action} className="grid content-start gap-3 rounded-xl border border-border p-4">
+      <input type="hidden" name="providerId" value={providerId} />
+      <div>
+        <p className="text-sm font-medium">{labels.title}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{labels.help}</p>
+      </div>
+      <label className={field}>
+        {labels.amount}
+        <Input name="amount" inputMode="numeric" defaultValue={amount ? String(amount) : ""} required className="max-w-[14rem] tabular-nums" dir="ltr" />
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending} className={buttonClass({ variant: "outline", size: "sm" })}>
+          {labels.send}
+        </button>
+        <Feedback state={state} errors={labels.errors} done={labels.sent} />
+      </div>
+    </form>
+  );
+}
+
+/** A one-button form that asks before acting (the message says what will happen). */
+function ConfirmButton({
+  action,
+  fields,
+  label,
+  confirm,
+  done,
+  tone = "outline",
+  errors,
+}: {
+  action: (prev: BillingState, form: FormData) => Promise<BillingState>;
+  fields: Record<string, string>;
+  label: string;
+  confirm?: string;
+  done?: string;
+  tone?: "outline" | "solid" | "danger";
+  errors: Errors;
+}) {
+  const [state, run, pending] = useActionState<BillingState, FormData>(action, { status: "idle" });
+  return (
+    <form action={run} onSubmit={(e) => { if (confirm && !window.confirm(confirm)) e.preventDefault(); }} className="flex flex-wrap items-center gap-3">
+      {Object.entries(fields).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
+      <button
+        type="submit"
+        disabled={pending}
+        className={buttonClass({ variant: tone === "solid" ? "solid" : "outline", size: "sm", className: tone === "danger" ? "text-destructive" : undefined })}
+      >
+        {label}
+      </button>
+      {state.status === "done" && (state.info || done) && <p role="status" className="text-sm text-success">{state.info ?? done}</p>}
+      {state.status === "error" && <p role="alert" className="text-sm text-destructive">{errors[state.code] ?? errors.generic}</p>}
+    </form>
+  );
+}
+
+export function StopTrialButton({ providerId, labels }: { providerId: string; labels: { stop: string; stopConfirm: string; stopped: string; errors: Errors } }) {
+  return <ConfirmButton action={stopTrialAction} fields={{ providerId }} label={labels.stop} confirm={labels.stopConfirm} done={labels.stopped} tone="danger" errors={labels.errors} />;
+}
+
+export function StartSubscriptionButton({ providerId, labels }: { providerId: string; labels: { start: string; started: string; errors: Errors } }) {
+  return <ConfirmButton action={startSubscriptionAction} fields={{ providerId }} label={labels.start} done={labels.started} tone="solid" errors={labels.errors} />;
+}
+
+/** Super Admin (Paramètres): free time for everyone, on or off. */
+export function FreeTrialSwitch({ on, locale, labels }: { on: boolean; locale: string; labels: { stop: string; stopConfirm: string; resume: string; errors: Errors } }) {
+  return on ? (
+    <ConfirmButton action={setFreeTrialForAllAction} fields={{ on: "0", locale }} label={labels.stop} confirm={labels.stopConfirm} tone="danger" errors={labels.errors} />
+  ) : (
+    <ConfirmButton action={setFreeTrialForAllAction} fields={{ on: "1", locale }} label={labels.resume} tone="solid" errors={labels.errors} />
   );
 }

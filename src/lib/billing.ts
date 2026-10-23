@@ -35,10 +35,14 @@ export function invoiceLines(input: {
   labels: { negotiated: string; package: string; category: (name: string) => string };
 }): { lines: Line[]; total: number } {
   const { basis, categories } = input;
-  if (basis === "EXEMPT" || categories.length === 0) return { lines: [], total: 0 };
+  if (basis === "EXEMPT") return { lines: [], total: 0 };
+  // An agreed price is what was agreed, published profiles or not (one amount for all her categories).
+  if (basis === "NEGOTIATED" && input.negotiatedPrice !== null && input.negotiatedPrice > 0) {
+    return { lines: [{ categoryId: null, description: input.labels.negotiated, amount: input.negotiatedPrice }], total: input.negotiatedPrice };
+  }
+  if (categories.length === 0) return { lines: [], total: 0 };
   let lines: Line[];
-  if (basis === "NEGOTIATED" && input.negotiatedPrice !== null) lines = [{ categoryId: null, description: input.labels.negotiated, amount: input.negotiatedPrice }];
-  else if (basis === "PACKAGE" && input.packagePrice !== null) lines = [{ categoryId: null, description: input.labels.package, amount: input.packagePrice }];
+  if (basis === "PACKAGE" && input.packagePrice !== null) lines = [{ categoryId: null, description: input.labels.package, amount: input.packagePrice }];
   else lines = categories.map((c) => ({ categoryId: c.categoryId, description: input.labels.category(c.name), amount: c.monthlyPrice }));
   lines = lines.filter((l) => l.amount > 0);
   return { lines, total: lines.reduce((s, l) => s + l.amount, 0) };

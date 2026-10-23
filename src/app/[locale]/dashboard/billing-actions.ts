@@ -9,7 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { canReview, canVerifyPayment } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
 import { addMonths } from "@/lib/billing";
-import { BillingBlocked, declarePayment, recordDirectPayment, recordPayment, runBillingCycle, setSubscriptionTerms, setTrialDefault, setTrialEnd, verifyPayment } from "@/server/services/billing";
+import { BillingBlocked, recordDirectPayment, sendInvoice, setFreeTrialForAll, startSubscription, stopTrial, recordPayment, runBillingCycle, setSubscriptionTerms, setTrialDefault, setTrialEnd, verifyPayment } from "@/server/services/billing";
 import { deliverPendingEmails } from "@/server/services/outbox";
 
 export type BillingState = { status: "idle" } | { status: "done"; at: number; info?: string } | { status: "error"; code: string };
@@ -110,17 +110,39 @@ export async function runCycleAction(_prev: BillingState, form: FormData): Promi
   return { ...state, info: d.billing.cycleDone(r.invoices, r.changed) };
 }
 
-/** Professional: declare a transfer for one of her invoices. */
-export async function declarePaymentAction(_prev: BillingState, form: FormData): Promise<BillingState> {
+/** Super Admin: send a professional an invoice now (she pays, then declares with a proof). */
+export async function sendInvoiceAction(_prev: BillingState, form: FormData): Promise<BillingState> {
   const user = await getSessionUser();
-  if (!user) return { status: "error", code: "forbidden" };
-  if (!rateLimit(`declare:${user.id}`, 10, 60 * 60_000).ok) return { status: "error", code: "generic" };
-  return run(() =>
-    declarePayment(user, String(form.get("invoiceId") ?? ""), {
-      method: method(form.get("method")),
-      reference: String(form.get("reference") ?? ""),
-      note: String(form.get("note") ?? "") || null,
-      idempotencyKey: String(form.get("key") ?? ""),
-    }),
-  );
+  if (!user || !canVerifyPayment(user)) return { status: "error", code: "forbidden" };
+  const amount = Number(String(form.get("amount") ?? "").replace(/[\s .]/g, ""));
+  return run(() => sendInvoice(user, String(form.get("providerId") ?? ""), { amount }));
+}
+
+/** Admin: stop one professional's free time now (paid months only from here). */
+export async function stopTrialAction(_prev: BillingState, form: FormData): Promise<BillingState> {
+  const user = await getSessionUser();
+  if (!user || !canReview(user)) return { status: "error", code: "forbidden" };
+  return run(() => stopTrial(user, String(form.get("providerId") ?? "")));
+}
+
+/** Admin: a new subscription for a professional whose subscription was deleted. */
+export async function startSubscriptionAction(_prev: BillingState, form: FormData): Promise<BillingState> {
+  const user = await getSessionUser();
+  if (!user || !canReview(user)) return { status: "error", code: "forbidden" };
+  return run(() => startSubscription(user, String(form.get("providerId") ?? "")));
+}
+
+/** Super Admin: free time for everyone, on or off. The result is written in the admin's language. */
+export async function setFreeTrialForAllAction(_prev: BillingState, form: FormData): Promise<BillingState> {
+  const user = await getSessionUser();
+  if (!user || !canVerifyPayment(user)) return { status: "error", code: "forbidden" };
+  const on = form.get("on") === "1";
+  let r = { hidden: 0, total: 0 };
+  const state = await run(async () => {
+    r = await setFreeTrialForAll(user, on);
+  });
+  if (state.status !== "done") return state;
+  const locale = String(form.get("locale") ?? "");
+  const d = await getDashboardDictionary(isLocale(locale) ? locale : "fr");
+  return { ...state, info: on ? d.billing.freeTrialAll.resumed : d.billing.freeTrialAll.stopped(r.hidden, r.total) };
 }

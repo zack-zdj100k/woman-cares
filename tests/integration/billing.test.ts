@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import type { Actor, Role } from "@/server/policies/roles";
 import { ForbiddenError } from "@/server/services/admin-users";
-import { BillingBlocked, declarePayment, ensureSubscription, getMyBilling, recordDirectPayment, recordPayment, runBillingCycle, setSubscriptionTerms, verifyPayment } from "@/server/services/billing";
+import { BillingBlocked, declarePayment, ensureSubscription, getMyBilling, recordDirectPayment, recordPayment, runBillingCycle, sendInvoice, setFreeTrialForAll, startSubscription, stopTrial, setSubscriptionTerms, verifyPayment } from "@/server/services/billing";
 import { searchDirectory } from "@/server/services/directory";
 import { parseDirectoryQuery } from "@/lib/validation/directory";
+import sharp from "sharp";
+import { readPaymentProof } from "@/server/services/payment-proofs";
 import { createProfile, createProvider, resetDatabase } from "./fixtures";
 
 const DAY = 86_400_000;
@@ -150,11 +152,11 @@ describe("a payment received with no invoice to pay (Super Admin)", () => {
   const cash = { amount: 20000, method: "CASH" as const, reference: "Reçu en agence" };
 
   it("creates the invoice for her current month, already paid, and the cycle never bills that month again", async () => {
-    // Like the real case: an agreed price, her profiles still drafts, so the cycle issued nothing.
     await db.providerServiceProfile.updateMany({ where: { providerId }, data: { status: "DRAFT", publishedAt: null } });
     await trialEndedAt(new Date(Date.now() - 2 * DAY));
-    await setSubscriptionTerms(superAdmin, providerId, { basis: "NEGOTIATED", negotiatedPrice: 20000, reason: "Prix convenu au salon" });
+    // Standard prices with nothing published: nothing was invoiced, so there was nothing to confirm.
     expect((await runBillingCycle()).invoices).toBe(0);
+    await setSubscriptionTerms(superAdmin, providerId, { basis: "NEGOTIATED", negotiatedPrice: 20000, reason: "Prix convenu au salon" });
     const before = await db.providerSubscription.findFirstOrThrow({ where: { providerId } });
 
     const invoice = await recordDirectPayment(superAdmin, providerId, cash);
@@ -190,5 +192,93 @@ describe("a payment received with no invoice to pay (Super Admin)", () => {
     for (const amount of [0, -5, 1.5, 2_000_000]) await expect(recordDirectPayment(superAdmin, providerId, { ...cash, amount })).rejects.toBeInstanceOf(BillingBlocked);
     await expect(recordDirectPayment(superAdmin, providerId, { ...cash, reference: "x" })).rejects.toMatchObject({ reason: "note" });
     expect(await db.subscriptionPayment.count()).toBe(0);
+  });
+});
+
+describe("free time stopped: visible only while a paid month covers today", () => {
+  const visible = async () => (await db.providerServiceProfile.findMany({ where: { providerId }, select: { billingVisible: true } })).every((p) => p.billingVisible);
+  const sub = () => db.providerSubscription.findFirstOrThrow({ where: { providerId } });
+
+  it("stopping her trial hides her at once; a payment shows her for the paid month; the next month hides her again", async () => {
+    await runBillingCycle(); // trial: visible
+    expect(await visible()).toBe(true);
+    await stopTrial(admin, providerId);
+    expect(await sub()).toMatchObject({ paidOnly: true, status: "EXPIRED" });
+    expect(await visible()).toBe(false);
+    // An invoice for the month went out (she has published categories at standard prices).
+    expect(await db.invoice.count({ where: { providerId, status: "OPEN" } })).toBe(1);
+    const invoice = await db.invoice.findFirstOrThrow({ where: { providerId, status: "OPEN" } });
+    await recordPayment(superAdmin, invoice.id, { method: "CCP", reference: "CCP 778899" });
+    expect((await sub()).status).toBe("ACTIVE");
+    expect(await visible()).toBe(true);
+    // After the paid month: hidden at once, no grace.
+    await runBillingCycle(new Date(invoice.periodEnd.getTime() + 60_000));
+    expect((await sub()).status).toBe("EXPIRED");
+    expect(await visible()).toBe(false);
+  });
+
+  it("a new trial date gives free time back", async () => {
+    await runBillingCycle();
+    await stopTrial(admin, providerId);
+    const { setTrialEnd } = await import("@/server/services/billing");
+    await setTrialEnd(admin, providerId, new Date(Date.now() + 30 * DAY));
+    expect(await sub()).toMatchObject({ paidOnly: false, status: "TRIALING" });
+    expect(await visible()).toBe(true);
+  });
+
+  it("the switch for everyone stops every trial and new professionals start without one; switching back gives new ones a trial", async () => {
+    await runBillingCycle();
+    expect(await setFreeTrialForAll(superAdmin, false)).toEqual({ hidden: 1, total: 1 });
+    expect(await visible()).toBe(false);
+    const next = await createProvider({ name: "Nouvelle Sans Essai" });
+    await createProfile(next.id, "nails", { slug: "sans-essai-nails" });
+    await runBillingCycle();
+    expect(await db.providerSubscription.findFirstOrThrow({ where: { providerId: next.id } })).toMatchObject({ paidOnly: true, status: "EXPIRED" });
+
+    await setFreeTrialForAll(superAdmin, true);
+    const later = await createProvider({ name: "Nouvelle Avec Essai" });
+    await runBillingCycle();
+    expect(await db.providerSubscription.findFirstOrThrow({ where: { providerId: later.id } })).toMatchObject({ paidOnly: false, status: "TRIALING" });
+    expect((await sub()).paidOnly).toBe(true); // already stopped: stays paid-only
+    for (const actor of [admin, support, pro]) await expect(setFreeTrialForAll(actor, false)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("sending an invoice, and the professional declaring her transfer with a proof", () => {
+  it("she is told, declares with a photo, the Super Admin sees the proof and confirms", async () => {
+    await db.providerServiceProfile.updateMany({ where: { providerId }, data: { status: "DRAFT", publishedAt: null } });
+    await stopTrial(admin, providerId); // nothing published at standard prices: no invoice yet
+    expect(await db.invoice.count({ where: { providerId } })).toBe(0);
+    for (const actor of [admin, support, pro]) await expect(sendInvoice(actor, providerId, { amount: 15000 })).rejects.toBeInstanceOf(ForbiddenError);
+
+    const invoice = await sendInvoice(superAdmin, providerId, { amount: 15000 });
+    expect(invoice.status).toBe("OPEN");
+    const mail = (await db.outboxEvent.findMany()).map((e) => e.payload as { template: string }).filter((p) => p.template === "billing-invoice");
+    expect(mail).toHaveLength(1);
+    expect(await db.notification.count({ where: { userId: pro.id, type: "billing.billing-invoice" } })).toBe(1);
+    await expect(sendInvoice(superAdmin, providerId, { amount: 15000 })).rejects.toMatchObject({ reason: "unpaid" });
+
+    const photo = await sharp({ create: { width: 40, height: 30, channels: 3, background: "#c25a73" } }).png().toBuffer();
+    await expect(declarePayment(pro, invoice.id, { method: "BARIDIMOB", reference: "BM-1", note: null, idempotencyKey: randomUUID(), proof: Buffer.from("not an image") })).rejects.toMatchObject({ reason: "type" });
+    const payment = await declarePayment(pro, invoice.id, { method: "BARIDIMOB", reference: "BM-2026-10", note: null, idempotencyKey: randomUUID(), proof: photo });
+    expect(payment.proofStorageKey).toMatch(/^payment-proofs\//);
+    expect((await readPaymentProof(superAdmin, payment.id)).data.length).toBeGreaterThan(0);
+    expect((await readPaymentProof(pro, payment.id)).pdf).toBe(false);
+    await expect(readPaymentProof(admin, payment.id)).rejects.toBeInstanceOf(ForbiddenError);
+
+    await verifyPayment(superAdmin, payment.id, true, null);
+    expect((await db.invoice.findUniqueOrThrow({ where: { id: invoice.id } })).status).toBe("PAID");
+    expect((await db.providerSubscription.findFirstOrThrow({ where: { providerId } })).status).toBe("ACTIVE");
+  });
+});
+
+describe("a deleted subscription", () => {
+  it("can be started again from her page", async () => {
+    await runBillingCycle();
+    await db.providerSubscription.deleteMany({ where: { providerId } });
+    await expect(startSubscription(support, providerId)).rejects.toBeInstanceOf(ForbiddenError);
+    await startSubscription(admin, providerId);
+    expect(await db.providerSubscription.count({ where: { providerId } })).toBe(1);
+    expect(await db.auditLog.count({ where: { action: "subscription.start" } })).toBe(1);
   });
 });

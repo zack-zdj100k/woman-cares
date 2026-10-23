@@ -15,7 +15,7 @@ import {
   getProviderDictionary,
 } from "@/i18n/get-dictionary";
 import { getProviderBilling, previewDirectPayment } from "@/server/services/billing";
-import { DirectPaymentForm, RecordPaymentForm, TermsForm, TrialForm } from "@/components/dashboard/billing-forms";
+import { DirectPaymentForm, RecordPaymentForm, SendInvoiceForm, StartSubscriptionButton, StopTrialButton, TermsForm, TrialForm } from "@/components/dashboard/billing-forms";
 import { ReceiptForm } from "@/components/dashboard/receipt-form";
 import { algiersDate } from "@/lib/periods";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +76,10 @@ async function Review({ params }: { params: Params }) {
   const canPay = canVerifyPayment(user);
   const hasUnpaid = billing.invoices.some((inv) => inv.status === "OPEN" || inv.status === "OVERDUE");
   const direct = canPay && sub && !hasUnpaid ? await previewDirectPayment(user, providerId) : null;
+  const suggested = sub?.billingBasis === "NEGOTIATED" && sub.negotiatedMonthlyPrice ? Math.round(Number(sub.negotiatedMonthlyPrice)) : billing.standardMonthly || null;
+  // Paid-only: the paid month that covers today, if any (its end is when she leaves the directory).
+  const today = new Date();
+  const paidUntil = billing.invoices.find((inv) => inv.status === "PAID" && inv.periodStart <= today && inv.periodEnd > today)?.periodEnd ?? null;
   const labels = {
     note: at.actions.note,
     notePlaceholder: at.actions.notePlaceholder,
@@ -231,56 +235,63 @@ async function Review({ params }: { params: Params }) {
         </Block>
 
         <span id="abonnement" className="block scroll-mt-24" aria-hidden="true" />
-        {/* Subscription: how this professional is billed (Admin can set an agreed price). */}
-        <Block title={b.termsTitle}>
-          {!sub ? (
-            <p className="text-sm text-muted-foreground">{b.noSubscription}</p>
-          ) : (
-            <div className="grid gap-6">
-              <dl className="grid gap-4 text-sm sm:grid-cols-4">
-                <div>
-                  <dt className="text-muted-foreground">{b.status}</dt>
-                  <dd className="mt-1">
-                    <Badge variant={sub.status === "EXPIRED" ? "destructive" : sub.status === "GRACE" ? "warning" : sub.status === "EXEMPT" ? "outline" : "success"}>{b.statuses[sub.status]}</Badge>
-                  </dd>
+        {!sub ? (
+          <Block title={b.termsTitle}>
+            <div className="grid gap-3">
+              <p className="text-sm text-muted-foreground">{b.startBlock.none}</p>
+              {decide && <StartSubscriptionButton providerId={account.id} labels={{ start: b.startBlock.start, started: b.startBlock.started, errors: b.errors }} />}
+            </div>
+          </Block>
+        ) : (
+          <>
+            {/* 1. Free time: when it ends, or stop it now (paid months only from then). */}
+            <Block title={b.trialBlock.title}>
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <Badge variant={sub.status === "EXPIRED" ? "destructive" : sub.status === "GRACE" ? "warning" : sub.status === "EXEMPT" ? "outline" : "success"}>{b.statuses[sub.status]}</Badge>
+                  {sub.paidOnly && <Badge variant="outline">{b.trialBlock.paidOnly}</Badge>}
+                  <span className="text-muted-foreground">
+                    {sub.paidOnly
+                      ? paidUntil
+                        ? b.trialBlock.visibleUntil(formatDate(new Date(paidUntil.getTime() - 1), locale))
+                        : b.trialBlock.hiddenNow
+                      : sub.trialEndsAt
+                        ? b.trialCurrent(formatDate(sub.trialEndsAt, locale), sub.trialEndsAt > new Date())
+                        : b.trialNoneYet}
+                  </span>
                 </div>
-                <div>
-                  <dt className="text-muted-foreground">{b.current}</dt>
-                  <dd className="mt-1">
-                    {b.bases[sub.billingBasis]}
-                    {sub.billingBasis === "NEGOTIATED" && sub.negotiatedMonthlyPrice && ` · ${formatDzd(sub.negotiatedMonthlyPrice.toString(), locale)} ${b.perMonth}`}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{sub.status === "TRIALING" ? b.trialEnds : b.period}</dt>
-                  <dd className="mt-1">
-                    {sub.status === "TRIALING" && sub.trialEndsAt
-                      ? formatDate(sub.trialEndsAt, locale)
-                      : sub.currentPeriodStart && sub.currentPeriodEnd
-                        ? `${formatDate(sub.currentPeriodStart, locale, { dateStyle: "medium" })} – ${formatDate(sub.currentPeriodEnd, locale, { dateStyle: "medium" })}`
-                        : "-"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{b.billable}</dt>
-                  <dd className="mt-1">{billing.categories.length ? billing.categories.map((c) => cat(c.slug)).join(", ") : "-"}</dd>
-                </div>
-              </dl>
-              {sub.exemptReason && <p className="text-sm text-muted-foreground">{sub.exemptReason}</p>}
-              {decide && (
-                <div className="grid gap-3 rounded-xl border border-border p-4">
-                  <p className="text-sm font-medium">{b.trialTitle}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {sub.trialEndsAt ? b.trialCurrent(formatDate(sub.trialEndsAt, locale), sub.trialEndsAt > new Date()) : b.trialNoneYet}
-                  </p>
-                  <TrialForm
+                {decide && sub.status !== "EXEMPT" && (
+                  <>
+                    {!sub.paidOnly && (
+                      <div className="grid gap-2 rounded-xl border border-destructive/30 p-4">
+                        <p className="text-xs text-muted-foreground">{b.trialBlock.stopHelp}</p>
+                        <StopTrialButton providerId={account.id} labels={{ stop: b.trialBlock.stop, stopConfirm: b.trialBlock.stopConfirm, stopped: b.trialBlock.stopped, errors: b.errors }} />
+                      </div>
+                    )}
+                    <div className="grid gap-3 rounded-xl border border-border p-4">
+                      <p className="text-sm font-medium">{b.trialEndsOn}</p>
+                      {sub.paidOnly && <p className="text-xs text-muted-foreground">{b.trialBlock.giveBack}</p>}
+                      <TrialForm
                     providerId={account.id}
                     endsOn={sub.trialEndsAt ? algiersDate(new Date(sub.trialEndsAt.getTime() - 1)) : algiersDate(new Date())}
                     current={sub.trialEndsAt?.toISOString() ?? null}
-                    labels={{ endsOn: b.trialEndsOn, save: b.trialSave, plus: [1, 2, 3, 6].map((months) => ({ months, label: b.trialPlus(months) })), none: b.trialNone, noneHint: b.trialNoneHint, done: b.trialDone, errors: b.errors }}
+                    labels={{ endsOn: b.trialEndsOn, save: b.trialSave, plus: [1, 2, 3, 6].map((months) => ({ months, label: b.trialPlus(months) })), done: b.trialDone, errors: b.errors }}
                   />
-                </div>
-              )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </Block>
+
+            {/* 2. Price: standard, agreed or exempt. */}
+            <Block title={b.termsTitle}>
+              <div className="grid gap-4">
+                <p className="text-sm">
+                  {b.current} : {b.bases[sub.billingBasis]}
+                  {sub.billingBasis === "NEGOTIATED" && sub.negotiatedMonthlyPrice && ` · ${formatDzd(sub.negotiatedMonthlyPrice.toString(), locale)} ${b.perMonth}`}
+                  {billing.categories.length > 0 && <span className="text-muted-foreground"> · {b.billable} : {billing.categories.map((c) => cat(c.slug)).join(", ")}</span>}
+                </p>
+                {sub.exemptReason && <p className="text-sm text-muted-foreground">{sub.exemptReason}</p>}
               {decide && (
                 <TermsForm
                   providerId={account.id}
@@ -302,16 +313,22 @@ async function Review({ params }: { params: Params }) {
                   }}
                 />
               )}
-              {canDelete(user) && (
-                <ManageForm op="subscription.delete" id={sub.id} label={at.deletes.subscription} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.subscriptionConfirm} />
-              )}
-              {direct && (
-                <DirectPaymentForm
+              </div>
+            </Block>
+
+            {/* 3. Payments: she already paid, or send her an invoice; then the invoices. */}
+            <Block title={b.paymentsBlock.title}>
+              <div className="grid gap-5">
+                <p className="text-sm text-muted-foreground">{b.paymentsBlock.oneForAll}</p>
+                {direct && (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <DirectPaymentForm
+
                   providerId={account.id}
                   amount={sub.billingBasis === "NEGOTIATED" && sub.negotiatedMonthlyPrice ? Math.round(Number(sub.negotiatedMonthlyPrice)) : billing.standardMonthly || null}
                   today={algiersDate(new Date())}
                   labels={{
-                    title: b.direct.title,
+                    title: b.paymentsBlock.option1,
                     help: b.direct.help(formatDate(direct.start, locale, { dateStyle: "medium" }), formatDate(new Date(direct.end.getTime() - 1), locale, { dateStyle: "medium" })),
                     amount: b.direct.amount,
                     method: b.method,
@@ -323,8 +340,21 @@ async function Review({ params }: { params: Params }) {
                     errors: b.errors,
                   }}
                 />
-              )}
-              {canPay && hasUnpaid && <p className="text-xs text-muted-foreground">{b.direct.useInvoice}</p>}
+                    <SendInvoiceForm
+                      providerId={account.id}
+                      amount={suggested}
+                      labels={{
+                        title: b.paymentsBlock.option2,
+                        help: b.paymentsBlock.sendHelp(formatDate(direct.start, locale, { dateStyle: "medium" }), formatDate(new Date(direct.end.getTime() - 1), locale, { dateStyle: "medium" })),
+                        amount: b.paymentsBlock.amount,
+                        send: b.paymentsBlock.send,
+                        sent: b.paymentsBlock.sent,
+                        errors: b.errors,
+                      }}
+                    />
+                  </div>
+                )}
+                {canPay && hasUnpaid && <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">{b.direct.useInvoice}</p>}
               <div>
                 <p className="mb-2 text-sm font-medium">{b.invoicesTitle}</p>
                 {billing.invoices.length === 0 ? (
@@ -367,9 +397,13 @@ async function Review({ params }: { params: Params }) {
                   </ul>
                 )}
               </div>
-            </div>
-          )}
-        </Block>
+              {canDelete(user) && (
+                <ManageForm op="subscription.delete" id={sub.id} label={at.deletes.subscription} labels={{ done: at.manage.done, errors: at.manage.errors }} tone="danger" confirm={at.deletes.subscriptionConfirm} />
+              )}
+              </div>
+            </Block>
+          </>
+        )}
 
         <Block title={at.detail.profiles}>
           {profiles.length === 0 && (

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import sharp from "sharp";
 import { completeAndSubmitProfile, newSuperAdmin, newVerifiedProvider, openInQueue } from "./flows";
 
 test("an admin gives one professional an agreed monthly price, and the professional sees her trial", async ({ page, browser }) => {
@@ -26,18 +27,38 @@ test("an admin gives one professional an agreed monthly price, and the professio
   await expect(admin.getByLabel("Montant mensuel (DA)")).toHaveValue("18000");
 
   // She pays before any invoice exists: the Super Admin confirms it in one step.
-  const received = admin.locator("form").filter({ hasText: "Paiement reçu" });
+  const received = admin.locator("form").filter({ hasText: "Option 1" });
   await expect(received.getByLabel("Montant reçu (DA)")).toHaveValue("18000");
   await received.getByLabel("Moyen de paiement").selectOption("CASH");
   await received.getByLabel("Référence du virement").fill("Espèces au salon");
   await received.getByRole("button", { name: "Confirmer le paiement" }).click();
   await expect(admin.getByText("Paiement confirmé. La facture payée figure ci-dessous.")).toBeVisible();
   await admin.reload();
-  await expect(admin.locator("#abonnement ~ *").getByText("Payée").first()).toBeVisible();
-  await admin.locator("#abonnement + *").screenshot({ path: test.info().outputPath("paiement-recu.png") });
-  await admin.close();
+  await expect(admin.getByText("Payée").first()).toBeVisible();
+  await admin.getByRole("heading", { name: "Essai gratuit" }).scrollIntoViewIfNeeded();
+  await admin.screenshot({ path: test.info().outputPath("abonnement.png"), fullPage: true });
+
+  // Option 2: send her the next month's invoice; she declares her transfer with a photo of the receipt.
+  await admin.getByRole("button", { name: "Envoyer la facture" }).click();
+  await expect(admin.getByText("Une facture attend son paiement (ci-dessous).")).toBeVisible();
+  await expect(admin.getByText("À payer").first()).toBeVisible();
 
   await page.goto("/fr/dashboard/provider/subscriptions");
-  await expect(page.getByText("Essai gratuit").first()).toBeVisible();
   await expect(page.getByText("Prix convenu").first()).toBeVisible();
+  const declare = page.locator("form").filter({ hasText: "Preuve du paiement" });
+  await declare.getByLabel("Référence du virement").fill("BaridiMob 2026-11");
+  await declare.getByLabel(/Preuve du paiement/).setInputFiles({ name: "recu.png", mimeType: "image/png", buffer: await sharp({ create: { width: 60, height: 40, channels: 3, background: "#8e3249" } }).png().toBuffer() });
+  await declare.getByRole("button", { name: "Envoyer" }).click();
+  await expect(page.getByText("Merci, votre paiement est en cours de vérification.")).toBeVisible();
+
+  await admin.goto("/fr/dashboard/admin/payments?status=PENDING");
+  const row = admin.getByRole("row").filter({ hasText: business });
+  const proof = row.getByRole("link", { name: "Voir la preuve" });
+  await expect(proof).toBeVisible();
+  const res = await admin.request.get((await proof.getAttribute("href"))!);
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toBe("image/webp");
+  await row.getByRole("button", { name: "Confirmer" }).click();
+  await expect(admin.getByRole("row").filter({ hasText: business })).toHaveCount(0);
+  await admin.close();
 });

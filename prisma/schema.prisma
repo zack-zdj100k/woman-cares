@@ -717,6 +717,8 @@ model ProviderSubscription {
   currentPeriodStart     DateTime?          @db.Timestamptz
   currentPeriodEnd       DateTime?          @db.Timestamptz
   graceEndsAt            DateTime?          @db.Timestamptz
+  /// Free time stopped (for her, or for everyone): visible only while a paid month covers today.
+  paidOnly               Boolean            @default(false)
   cancelledAt            DateTime?          @db.Timestamptz
   createdAt              DateTime           @default(now()) @db.Timestamptz
   updatedAt              DateTime           @updatedAt @db.Timestamptz

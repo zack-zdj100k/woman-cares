@@ -84,7 +84,7 @@ export function InvoiceList({ invoices, locale, b, limit }: { invoices: Invoice[
                 ) : (
                   <DeclarePaymentForm
                     invoiceId={inv.id}
-                    labels={{ declare: b.declare, help: b.declareHelp, method: b.method, reference: b.reference, message: b.message, send: b.send, done: b.declared, methods: b.methods, errors: b.errors }}
+                    labels={{ declare: b.declare, help: b.declareHelp, method: b.method, reference: b.reference, message: b.message, proof: b.proof, proofHelp: b.proofHelp, send: b.send, done: b.declared, methods: b.methods, errors: b.errors }}
                   />
                 )}
               </div>

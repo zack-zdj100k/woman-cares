@@ -13,6 +13,8 @@ import { PublisherForm } from "@/components/admin/publisher-form";
 import { formatDate } from "@/lib/format";
 import { formatRip } from "@/lib/payment-details";
 import { getPaymentDetails, getPublisherForEditing } from "@/server/services/site-settings";
+import { getFreeTrialForAll } from "@/server/services/billing";
+import { FreeTrialSwitch } from "@/components/dashboard/billing-forms";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 /** Waits for its data on navigation (see the dashboard layout). */
@@ -32,11 +34,25 @@ async function Settings({ params }: { params: PageProps<"/[locale]/dashboard/adm
   const locale: Locale = isLocale(l) ? l : "fr";
   const user = await requireArea(locale, "admin", `/${locale}/dashboard/admin/settings`);
   if (!canManageSiteSettings(user)) notFound();
-  const [at, d, targets, payment, publisher] = await Promise.all([getAdminDictionary(locale), getDashboardDictionary(locale), getTargets(), getPaymentDetails(user), getPublisherForEditing(user)]);
+  const [at, d, targets, payment, publisher, freeTrial] = await Promise.all([getAdminDictionary(locale), getDashboardDictionary(locale), getTargets(), getPaymentDetails(user), getPublisherForEditing(user), getFreeTrialForAll(user)]);
   const s = at.settings;
   return (
     <div className={pageClass}>
       <PageHeader title={s.title} description={s.intro} />
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>{d.billing.freeTrialAll.title}</CardTitle>
+          <CardDescription>{freeTrial ? d.billing.freeTrialAll.on : d.billing.freeTrialAll.off}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {!freeTrial && <p className="text-xs text-muted-foreground">{d.billing.freeTrialAll.resumeHelp}</p>}
+          <FreeTrialSwitch
+            on={freeTrial}
+            locale={locale}
+            labels={{ stop: d.billing.freeTrialAll.stop, stopConfirm: d.billing.freeTrialAll.stopConfirm, resume: d.billing.freeTrialAll.resume, errors: d.billing.errors }}
+          />
+        </CardContent>
+      </Card>
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>{s.payment.title}</CardTitle>

@@ -19,10 +19,14 @@ describe("invoice lines", () => {
     expect(r).toEqual({ lines: [{ categoryId: null, description: "Prix convenu", amount: 20000 }], total: 20000 });
   });
 
-  it("bills nothing when exempt or when nothing is published", () => {
-    expect(invoiceLines({ basis: "EXEMPT", categories: cats, negotiatedPrice: null, packagePrice: null, labels }).total).toBe(0);
+  it("bills nothing when exempt, or at standard prices when nothing is published", () => {
+    expect(invoiceLines({ basis: "EXEMPT", categories: cats, negotiatedPrice: 20000, packagePrice: null, labels }).total).toBe(0);
     expect(invoiceLines({ basis: "PER_CATEGORY", categories: [], negotiatedPrice: null, packagePrice: null, labels }).lines).toEqual([]);
-    expect(invoiceLines({ basis: "NEGOTIATED", categories: [], negotiatedPrice: 20000, packagePrice: null, labels }).total).toBe(0);
+  });
+
+  it("bills an agreed price as agreed, one line for all her categories, published or not (owner decision, 2026-10-23)", () => {
+    expect(invoiceLines({ basis: "NEGOTIATED", categories: [], negotiatedPrice: 20000, packagePrice: null, labels }).total).toBe(20000);
+    expect(invoiceLines({ basis: "NEGOTIATED", categories: cats, negotiatedPrice: 20000, packagePrice: null, labels }).lines).toHaveLength(1);
   });
 });
 

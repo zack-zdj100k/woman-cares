@@ -98,6 +98,12 @@ Owner decision: a click on the confirmation link verifies the address and opens 
 
 After a first confirmation she lands on her dashboard; a second click, or an account that already signed in, shows the confirmation page and she signs in with her password.
 
+## Payment proofs (2026-10-23)
+
+A professional may attach a proof to her declared transfer (photo, screenshot or PDF, 4 MB at most, the page shrinks photos first). Checked by signature (images re-encoded, which drops metadata; PDFs by `%PDF-`), stored in private storage under `payment-proofs/`, served by `GET /api/v1/billing/payments/{id}/proof` only to the Super Admins (who confirm payments) and to the professional herself, with `no-store`, `nosniff` and a sandboxing CSP. The upload goes through `POST /api/v1/billing/invoices/{id}/declare` (same-origin check, size check before reading, 10 per hour).
+
+Stopping free time (one professional: ADMIN and above; everyone: Super Admin) and sending an invoice (Super Admin) are journalled.
+
 ## Production hardening checklist
 
 - **Client IP for rate limits (open, found 2026-10-17):** the app reads the first `X-Forwarded-For` value (`src/lib/auth/session.ts`, contact, availability and view routes). A client that reaches the app directly can send its own header and dodge the per-IP limits on sign-up, sign-in, reset and contact. Before launch: deploy behind a proxy that overwrites the header, and read the address that proxy appends (rightmost trusted hop) behind an explicit `TRUST_PROXY` setting, falling back to the socket address.

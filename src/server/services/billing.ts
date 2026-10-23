@@ -1,6 +1,6 @@
 import "server-only";
 import { notifyStaff } from "./staff-alerts";
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { isLocale } from "@/i18n/config";
@@ -10,6 +10,7 @@ import { renderEmail, type EmailTemplate, type TemplateData } from "@/lib/email/
 import { canReview, canSignIn, canVerifyPayment, canViewModeration, type Actor } from "@/server/policies/roles";
 import { ForbiddenError } from "./admin-users";
 import { enqueueEmail } from "./outbox";
+import { storePaymentProof } from "./payment-proofs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = 86_400_000;
@@ -24,12 +25,14 @@ export class BillingBlocked extends Error {
 const LABELS_FR = { negotiated: "Abonnement, prix convenu", package: "Abonnement, formule", category: (name: string) => `Abonnement ${name}` };
 
 async function settings(tx: Prisma.TransactionClient = db) {
-  const rows = await tx.platformSetting.findMany({ where: { key: { in: ["billing.trialDays", "billing.graceDays", "billing.dueDays"] } } });
+  const rows = await tx.platformSetting.findMany({ where: { key: { in: ["billing.trialDays", "billing.graceDays", "billing.dueDays", "billing.freeTrial"] } } });
   const num = (k: string, d: number) => {
     const v = rows.find((r) => r.key === k)?.value;
     return typeof v === "number" && v >= 0 ? v : d;
   };
-  return { trialDays: num("billing.trialDays", 30), graceDays: num("billing.graceDays", 7), dueDays: num("billing.dueDays", 7) };
+  // The Super Admin's switch: false stops free time for everyone (new professionals get none either).
+  const freeTrial = rows.find((r) => r.key === "billing.freeTrial")?.value !== false;
+  return { trialDays: num("billing.trialDays", 30), graceDays: num("billing.graceDays", 7), dueDays: num("billing.dueDays", 7), freeTrial };
 }
 
 function rand6() {
@@ -60,7 +63,10 @@ async function billableCategories(tx: Prisma.TransactionClient, providerId: stri
 export async function ensureSubscription(tx: Prisma.TransactionClient, providerId: string, now = new Date()) {
   const existing = await tx.providerSubscription.findFirst({ where: { providerId }, orderBy: { createdAt: "desc" } });
   if (existing) return existing;
-  const [{ trialDays }, plan] = await Promise.all([settings(tx), tx.subscriptionPlan.findFirst({ where: { code: "per-category", active: true } })]);
+  const [{ trialDays, freeTrial }, plan] = await Promise.all([settings(tx), tx.subscriptionPlan.findFirst({ where: { code: "per-category", active: true } })]);
+  if (!freeTrial) {
+    return tx.providerSubscription.create({ data: { providerId, planId: plan?.id, status: "EXPIRED", billingBasis: "PER_CATEGORY", trialEndsAt: now, paidOnly: true } });
+  }
   return tx.providerSubscription.create({
     data: { providerId, planId: plan?.id, status: "TRIALING", billingBasis: "PER_CATEGORY", trialEndsAt: new Date(now.getTime() + trialDays * DAY) },
   });
@@ -86,12 +92,21 @@ async function notify(tx: Prisma.TransactionClient, providerId: string, template
   await enqueueEmail(tx, { to: u.email, template, locale, data: full, dedupeKey });
 }
 
+/** Free time stopped: visible only while a paid month covers today. Admin decisions stay as they are. */
+function paidOnlyStatus(status: SubStatus, covered: boolean): { status: SubStatus; graceEndsAt: Date | null } {
+  if (status === "EXEMPT" || status === "SUSPENDED" || status === "CANCELLED") return { status, graceEndsAt: null };
+  return { status: covered ? "ACTIVE" : "EXPIRED", graceEndsAt: null };
+}
+
 /** Recompute status and directory visibility for one subscription; notify on transitions. */
 async function refreshState(tx: Prisma.TransactionClient, subscriptionId: string, now: Date) {
   const sub = await tx.providerSubscription.findUniqueOrThrow({ where: { id: subscriptionId } });
   const { graceDays } = await settings(tx);
   const unpaid = await tx.invoice.findFirst({ where: { subscriptionId, status: { in: ["OPEN", "OVERDUE"] } }, orderBy: { dueAt: "asc" } });
-  const next = billingStatus({ status: sub.status as SubStatus, trialEndsAt: sub.trialEndsAt, oldestUnpaidDueAt: unpaid?.dueAt ?? null, graceDays, now });
+  const covered = sub.paidOnly ? await tx.invoice.findFirst({ where: { subscriptionId, status: "PAID", periodStart: { lte: now }, periodEnd: { gt: now } }, select: { id: true } }) : null;
+  const next = sub.paidOnly
+    ? paidOnlyStatus(sub.status as SubStatus, Boolean(covered))
+    : billingStatus({ status: sub.status as SubStatus, trialEndsAt: sub.trialEndsAt, oldestUnpaidDueAt: unpaid?.dueAt ?? null, graceDays, now });
   if (next.status !== sub.status || (next.graceEndsAt?.getTime() ?? 0) !== (sub.graceEndsAt?.getTime() ?? 0)) {
     await tx.providerSubscription.update({ where: { id: sub.id }, data: { status: next.status, graceEndsAt: next.graceEndsAt } });
     if (unpaid && next.status !== sub.status) {
@@ -214,7 +229,7 @@ export async function getMyBilling(actor: Actor, now = new Date()) {
 export async function declarePayment(
   actor: Actor,
   invoiceId: string,
-  input: { method: "MANUAL_TRANSFER" | "CCP" | "BARIDIMOB" | "CASH"; reference: string; note: string | null; idempotencyKey: string },
+  input: { method: "MANUAL_TRANSFER" | "CCP" | "BARIDIMOB" | "CASH"; reference: string; note: string | null; idempotencyKey: string; proof?: Buffer | null },
 ) {
   const account = await ownAccount(actor);
   if (!UUID.test(invoiceId) || !UUID.test(input.idempotencyKey)) throw new ForbiddenError();
@@ -227,9 +242,12 @@ export async function declarePayment(
   if (invoice.payments.some((p) => p.status === "PENDING")) throw new BillingBlocked("pending");
   const reference = input.reference.trim().slice(0, 120);
   if (reference.length < 3) throw new BillingBlocked("note");
+  // The proof (receipt photo, screenshot or PDF) is checked and stored before anything is written.
+  const paymentId = randomUUID();
+  const proofKey = input.proof && input.proof.length > 0 ? await storePaymentProof(account.id, paymentId, input.proof) : null;
   return db.$transaction(async (tx) => {
     const payment = await tx.subscriptionPayment.create({
-      data: { invoiceId: invoice.id, amount: invoice.total, status: "PENDING", method: input.method, externalReference: reference, note: input.note?.trim().slice(0, 500) || null, idempotencyKey: key, declaredById: actor.id },
+      data: { id: paymentId, invoiceId: invoice.id, amount: invoice.total, status: "PENDING", method: input.method, externalReference: reference, note: input.note?.trim().slice(0, 500) || null, idempotencyKey: key, declaredById: actor.id, proofStorageKey: proofKey },
     });
     await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.payment.declare", entityType: "SubscriptionPayment", entityId: payment.id, metadata: { invoice: invoice.number, method: input.method } } });
     const owner = await tx.providerAccount.findUniqueOrThrow({ where: { id: account.id }, select: { businessName: true } });
@@ -469,6 +487,133 @@ export async function recordDirectPayment(
   });
 }
 
+/**
+ * The Super Admin sends a professional an invoice now (her monthly price by default), for the next
+ * month with no invoice. She gets it by e-mail and in her notifications, then declares her transfer
+ * with a proof; the Super Admin confirms it on Paiements. One invoice covers all her categories.
+ */
+export async function sendInvoice(actor: Actor, providerId: string, input: { amount: number }) {
+  requirePaymentAdmin(actor);
+  if (!UUID.test(providerId)) throw new ForbiddenError();
+  if (!Number.isInteger(input.amount) || input.amount <= 0 || input.amount > 1_000_000) throw new BillingBlocked("amount");
+  const account = await db.providerAccount.findUnique({ where: { id: providerId }, select: { id: true } });
+  if (!account) throw new ForbiddenError();
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "ProviderAccount" WHERE id = ${providerId}::uuid FOR UPDATE`;
+    const sub = await ensureSubscription(tx, providerId);
+    if (sub.status === "EXEMPT") throw new BillingBlocked("basis");
+    if (await tx.invoice.findFirst({ where: { subscriptionId: sub.id, status: { in: ["OPEN", "OVERDUE"] } }, select: { id: true } })) throw new BillingBlocked("unpaid");
+    const now = new Date();
+    const { dueDays } = await settings(tx);
+    const period = await nextPeriodToPay(tx, sub, now);
+    const invoice = await tx.invoice.create({
+      data: {
+        number: invoiceNumber(period.start, rand6()),
+        subscriptionId: sub.id,
+        providerId,
+        periodStart: period.start,
+        periodEnd: period.end,
+        subtotal: input.amount,
+        total: input.amount,
+        dueAt: new Date(now.getTime() + dueDays * DAY),
+        pricingBasisSnapshot: { basis: sub.billingBasis, negotiated: sub.negotiatedMonthlyPrice?.toString() ?? null, sentByStaff: true },
+        lines: { create: [{ categoryId: null, description: "Abonnement", amount: input.amount }] },
+      },
+    });
+    if (period.fresh) await tx.providerSubscription.update({ where: { id: sub.id }, data: { currentPeriodStart: period.start, currentPeriodEnd: period.end } });
+    await tx.auditLog.create({
+      data: { actorId: actor.id, action: "subscription.invoice.send", entityType: "Invoice", entityId: invoice.id, metadata: { providerId, invoice: invoice.number, amount: String(input.amount), period: { from: period.start.toISOString(), to: period.end.toISOString() } } },
+    });
+    await notify(tx, providerId, "billing-invoice", { reference: invoice.number, amount: input.amount, when: invoice.dueAt }, `invoice:${invoice.id}`);
+    await refreshState(tx, sub.id, now);
+    return invoice;
+  });
+}
+
+/** Ends one subscription's free time now: paid months only from here (inside a locked transaction). */
+async function stopFreeTime(tx: Prisma.TransactionClient, subscriptionId: string, now: Date) {
+  const sub = await tx.providerSubscription.findUniqueOrThrow({ where: { id: subscriptionId } });
+  if (sub.status === "EXEMPT" || sub.status === "SUSPENDED" || sub.status === "CANCELLED") return { before: sub.status, after: sub.status };
+  await tx.providerSubscription.update({
+    where: { id: sub.id },
+    data: {
+      paidOnly: true,
+      graceEndsAt: null,
+      // Still in trial: billing months start today.
+      ...(sub.trialEndsAt && sub.trialEndsAt > now ? { trialEndsAt: now } : {}),
+      ...(sub.status === "TRIALING" ? { status: "ACTIVE" } : {}),
+    },
+  });
+  await issueDue(tx, sub.id, now);
+  return { before: sub.status, after: await refreshState(tx, sub.id, now) };
+}
+
+/**
+ * Stops one professional's free time now. She stays visible only while a paid month covers today;
+ * otherwise her profiles leave the directory at once (her account and data are kept). An invoice for
+ * the month is sent when she has a price. Giving her a new trial date gives free time back.
+ */
+export async function stopTrial(actor: Actor, providerId: string, now = new Date()) {
+  requireBillingAdmin(actor);
+  if (!UUID.test(providerId)) throw new ForbiddenError();
+  const account = await db.providerAccount.findUnique({ where: { id: providerId }, select: { id: true } });
+  if (!account) throw new ForbiddenError();
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "ProviderAccount" WHERE id = ${providerId}::uuid FOR UPDATE`;
+    const sub = await ensureSubscription(tx, providerId, now);
+    if (sub.status === "EXEMPT") throw new BillingBlocked("basis");
+    const r = await stopFreeTime(tx, sub.id, now);
+    await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.trial.stop", entityType: "ProviderSubscription", entityId: sub.id, metadata: { providerId, ...r } } });
+    return r.after;
+  });
+}
+
+/**
+ * The Super Admin's switch for everyone. Off: every professional's free time stops now (as above,
+ * one by one), and new professionals start without any. On again: new professionals get the default
+ * trial; those already stopped stay paid-only until given a trial date on their own page.
+ */
+export async function setFreeTrialForAll(actor: Actor, on: boolean, now = new Date()) {
+  requirePaymentAdmin(actor);
+  await db.$transaction(async (tx) => {
+    await tx.platformSetting.upsert({ where: { key: "billing.freeTrial" }, create: { key: "billing.freeTrial", value: on }, update: { value: on } });
+    await tx.auditLog.create({ data: { actorId: actor.id, action: on ? "billing.free_trial.resume" : "billing.free_trial.stop", entityType: "PlatformSetting", entityId: "billing.freeTrial" } });
+  });
+  if (on) return { hidden: 0, total: 0 };
+  // Every approved professional, including one whose subscription was deleted.
+  const providers = await db.providerAccount.findMany({ where: { status: { in: ["APPROVED", "SUSPENDED"] } }, select: { id: true } });
+  let hidden = 0;
+  for (const p of providers) {
+    await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "ProviderAccount" WHERE id = ${p.id}::uuid FOR UPDATE`;
+      const sub = await ensureSubscription(tx, p.id, now);
+      const r = await stopFreeTime(tx, sub.id, now);
+      if (!isPubliclyVisible(r.after as SubStatus)) hidden += 1;
+    });
+  }
+  return { hidden, total: providers.length };
+}
+
+/** Whether free time is on for everyone (the switch on Paramètres). */
+export async function getFreeTrialForAll(actor: Actor) {
+  requirePaymentAdmin(actor);
+  return (await settings()).freeTrial;
+}
+
+/** After a subscription was deleted: starts a new one (trial per the current rules). */
+export async function startSubscription(actor: Actor, providerId: string, now = new Date()) {
+  requireBillingAdmin(actor);
+  if (!UUID.test(providerId)) throw new ForbiddenError();
+  const account = await db.providerAccount.findUnique({ where: { id: providerId }, select: { id: true } });
+  if (!account) throw new ForbiddenError();
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "ProviderAccount" WHERE id = ${providerId}::uuid FOR UPDATE`;
+    const sub = await ensureSubscription(tx, providerId, now);
+    await tx.auditLog.create({ data: { actorId: actor.id, action: "subscription.start", entityType: "ProviderSubscription", entityId: sub.id, metadata: { providerId } } });
+    return refreshState(tx, sub.id, now);
+  });
+}
+
 /** Mark an invoice paid once verified payments cover it, then refresh the subscription. */
 async function settleInvoice(tx: Prisma.TransactionClient, invoiceId: string, paidAt = new Date()) {
   const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { payments: { where: { status: "PAID" } } } });
@@ -545,7 +690,7 @@ export async function setTrialEnd(actor: Actor, providerId: string, endsAt: Date
       data: {
         trialEndsAt: endsAt,
         // Free time moves the next billing period to the end of the trial.
-        ...(future && !fixed ? { status: "TRIALING", graceEndsAt: null, ...(sub.currentPeriodEnd && sub.currentPeriodEnd < endsAt ? { currentPeriodEnd: endsAt } : {}) } : {}),
+        ...(future && !fixed ? { status: "TRIALING", graceEndsAt: null, paidOnly: false, ...(sub.currentPeriodEnd && sub.currentPeriodEnd < endsAt ? { currentPeriodEnd: endsAt } : {}) } : {}),
         // Ending the trial before any billing period: periods start from the new end date.
         ...(!future && !sub.currentPeriodEnd ? { currentPeriodEnd: null } : {}),
       },

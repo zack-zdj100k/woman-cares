@@ -30,7 +30,7 @@ classDiagram
     class BookingStatusHistory { UUID id; UUID bookingId; BookingStatus fromStatus; BookingStatus toStatus; UUID actorId }
     class BookingReferenceMedia { UUID id; UUID bookingId; String storageKey }
     class BookingPayment { UUID id; UUID bookingId; Decimal amount; PaymentStatus status }
-    class ProviderSubscription { UUID id; UUID providerId; SubscriptionStatus status; BillingBasis billingBasis; DateTime trialEndsAt; DateTime currentPeriodEnd; DateTime graceEndsAt }
+    class ProviderSubscription { UUID id; UUID providerId; SubscriptionStatus status; BillingBasis billingBasis; DateTime trialEndsAt; DateTime currentPeriodEnd; DateTime graceEndsAt; Boolean paidOnly }
     class SubscriptionItem { UUID id; UUID subscriptionId; UUID categoryId; Decimal priceSnapshot }
     class CategorySubscriptionPricing { UUID id; UUID categoryId; Decimal monthlyPrice; DateTime effectiveFrom }
     class Invoice { UUID id; String number; Decimal total; InvoiceStatus status; Json pricingBasisSnapshot }

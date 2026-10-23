@@ -72,6 +72,11 @@ async function Payments({ params, searchParams }: PageProps<"/[locale]/dashboard
                   {p.externalReference}
                 </span>
                 {p.note && <span className="block max-w-[16rem] text-xs text-muted-foreground">{p.note}</span>}
+                {decide && p.proofStorageKey && (
+                  <a href={`/api/v1/billing/payments/${p.id}/proof`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-xs font-medium text-chart-1 underline underline-offset-4">
+                    {b.proofView}
+                  </a>
+                )}
               </Td>
               <Td className="text-muted-foreground">{formatDate(p.createdAt, locale, { dateStyle: "medium", timeStyle: "short" })}</Td>
               <Td>
