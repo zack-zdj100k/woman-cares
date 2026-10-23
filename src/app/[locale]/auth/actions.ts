@@ -140,6 +140,7 @@ export async function verifyEmailAction(form: FormData) {
   const token = String(form.get("token") ?? "");
   const result = token.length >= 20 && token.length <= 100 ? await verifyEmail(token) : { ok: false as const, reason: "invalid" as const };
   if (result.ok) {
+    flushEmails();
     const role = await claimFirstSignIn(result.userId);
     if (role) {
       await startSession(result.userId);

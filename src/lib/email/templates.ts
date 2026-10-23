@@ -39,7 +39,7 @@ export type TemplateData = {
   when?: string;
   client?: string;
   /** staff-alert: what happened. */
-  kind?: "provider" | "contact" | "payment" | "payment-details" | "payment-tampered";
+  kind?: "provider" | "client" | "contact" | "payment" | "payment-details" | "payment-tampered";
   /** booking-cancelled: who cancelled. */
   by?: "client" | "provider";
   /** Billing: amount already formatted. */
@@ -271,6 +271,8 @@ const copy: Record<EmailTemplate, Record<Locale, (d: TemplateData) => Copy>> = {
     fr: (d) =>
       d.kind === "provider"
         ? { subject: `Nouvelle professionnelle inscrite : ${d.client ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} vient de créer un compte professionnel (${d.note ?? ""}).`, d.category ? `Catégories : ${d.category}.` : "", "Ouvrez sa fiche pour vérifier ses informations."], button: "Voir la fiche", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
+        : d.kind === "client"
+          ? { subject: `Nouvelle cliente : ${d.client ?? ""}`, heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} vient de confirmer son compte cliente sur Woman Cares.`], button: "Voir la fiche", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
         : d.kind === "payment-details"
           ? { subject: "Coordonnées de paiement modifiées", heading: `Bonjour ${d.name},`, body: [`${d.client ?? ""} vient de modifier le compte affiché aux professionnelles pour payer leur abonnement (se termine par ${d.reference ?? ""}).`, "Si ce n’est pas vous ou une autre super administratrice, changez votre mot de passe tout de suite et consultez le journal."], button: "Ouvrir les réglages", footnote: "Alerte envoyée aux super administratrices de Woman Cares." }
           : d.kind === "payment-tampered"
@@ -281,6 +283,8 @@ const copy: Record<EmailTemplate, Record<Locale, (d: TemplateData) => Copy>> = {
     ar: (d) =>
       d.kind === "provider"
         ? { subject: `محترفة جديدة مسجلة: ${d.client ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`أنشأت ${d.client ?? ""} حسابًا مهنيًا (${d.note ?? ""}).`, d.category ? `الفئات: ${d.category}.` : "", "افتحي ملفها للتحقق من معلوماتها."], button: "عرض الملف", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
+        : d.kind === "client"
+          ? { subject: `زبونة جديدة: ${d.client ?? ""}`, heading: `مرحبًا ${d.name}،`, body: [`أكّدت ${d.client ?? ""} للتو حسابها كزبونة في Woman Cares.`], button: "عرض الملف", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
         : d.kind === "payment-details"
           ? { subject: "تم تعديل بيانات الدفع", heading: `مرحبًا ${d.name}،`, body: [`عدّلت ${d.client ?? ""} الحساب الذي يظهر للمحترفات لدفع اشتراكهن (ينتهي بـ ${d.reference ?? ""}).`, "إن لم تكوني أنتِ ولا مشرفة عامة أخرى، فغيّري كلمة المرور فورًا وراجعي السجل."], button: "فتح الإعدادات", footnote: "تنبيه مرسل إلى المشرفات العامات في Woman Cares." }
           : d.kind === "payment-tampered"

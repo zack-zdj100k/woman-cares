@@ -234,12 +234,19 @@ async function consumeToken(token: string, purpose: "EMAIL_VERIFICATION" | "PASS
 export async function verifyEmail(token: string, now = new Date()): Promise<TokenCheck> {
   const result = await consumeToken(token, "EMAIL_VERIFICATION", now);
   if (!result.ok) return result;
-  await db.user.updateMany({
-    where: { id: result.userId, emailVerifiedAt: null },
-    data: { emailVerifiedAt: now },
+  await db.$transaction(async (tx) => {
+    const first = await tx.user.updateMany({ where: { id: result.userId, emailVerifiedAt: null }, data: { emailVerifiedAt: now } });
+    // Only a pending account becomes active; a suspended one stays suspended.
+    await tx.user.updateMany({ where: { id: result.userId, status: "PENDING_VERIFICATION" }, data: { status: "ACTIVE" } });
+    if (first.count === 1) {
+      // A professional alerts the staff when she signs up; a client does it here, once her address is
+      // confirmed, so a bot filling the sign-up form cannot flood the Super Admins' inbox.
+      const user = await tx.user.findUnique({ where: { id: result.userId }, select: { role: true, fullName: true } });
+      if (user?.role === "CLIENT") {
+        await notifyStaff(tx, { kind: "client", path: `/dashboard/admin/users/${result.userId}`, data: { client: user.fullName }, dedupeKey: `client-joined:${result.userId}` });
+      }
+    }
   });
-  // Only a pending account becomes active; a suspended one stays suspended.
-  await db.user.updateMany({ where: { id: result.userId, status: "PENDING_VERIFICATION" }, data: { status: "ACTIVE" } });
   return result;
 }
 

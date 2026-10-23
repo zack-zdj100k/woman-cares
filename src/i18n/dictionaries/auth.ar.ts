@@ -78,7 +78,7 @@ const authAr: AuthDictionary = {
     metaTitle: "تحققي من بريدك",
     title: "تحققي من بريدك الإلكتروني",
     body: "إن كان هذا العنوان قابلًا للاستعمال، فقد أرسلنا إليه للتو رابط تأكيد صالحًا لمدة 24 ساعة.",
-    spam: "لا تنسي التحقق من الرسائل غير المرغوب فيها.",
+    spam: "إن لم تجديها، فتحققي من الرسائل غير المرغوب فيها: افتحي الرسالة وأبلغي أنها ليست مزعجة (زر «Report not spam»).",
     openMailbox: { gmail: "فتح Gmail", outlook: "فتح Outlook", yahoo: "فتح Yahoo Mail", icloud: "فتح iCloud Mail" },
     openApp: { gmail: "فتح تطبيق Gmail", outlook: "فتح تطبيق Outlook", yahoo: "فتح تطبيق Yahoo Mail", icloud: "فتح تطبيق Mail" },
     openWeb: { gmail: "أو فتح Gmail على الويب", outlook: "أو فتح Outlook على الويب", yahoo: "أو فتح Yahoo Mail على الويب", icloud: "أو فتح iCloud Mail على الويب" },

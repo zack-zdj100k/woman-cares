@@ -153,6 +153,47 @@ describe("email verification", () => {
   });
 });
 
+describe("telling the staff about a new client", () => {
+  async function team() {
+    const make = (role: Actor["role"], email: string) => db.user.create({ data: { email, fullName: role, passwordHash: "x", role, status: "ACTIVE", emailVerifiedAt: new Date() } });
+    return { owner: await make("SUPER_ADMIN", "owner@test.invalid"), admin: await make("ADMIN", "admin@test.invalid"), support: await make("SUPPORT", "support@test.invalid") };
+  }
+  const alerts = (userId: string) => db.notification.count({ where: { userId, type: "staff.client" } });
+  const staffEmails = async () => (await db.outboxEvent.findMany()).map((e) => e.payload as { template: string; to: string; data: { kind?: string } }).filter((p) => p.template === "staff-alert" && p.data.kind === "client");
+
+  it("alerts the Super Admins and Admins in the app, and the Super Admins by e-mail, once her address is confirmed", async () => {
+    const { owner, admin, support } = await team();
+    await signUpClient(client(), "fr");
+    expect(await alerts(owner.id)).toBe(0); // signing up alone does not alert anyone
+    expect(await staffEmails()).toHaveLength(0);
+
+    await verifyEmail(await tokenFromOutbox("verify-email"));
+    expect(await alerts(owner.id)).toBe(1);
+    expect(await alerts(admin.id)).toBe(1);
+    expect(await alerts(support.id)).toBe(0);
+    expect((await staffEmails()).map((e) => e.to)).toEqual(["owner@test.invalid"]);
+    const note = await db.notification.findFirstOrThrow({ where: { userId: owner.id, type: "staff.client" } });
+    expect(note.title).toContain("Amina Benali");
+  });
+
+  it("does not alert twice for the same client, nor for a professional or a manual confirmation", async () => {
+    const { owner } = await team();
+    await signUpClient(client(), "fr");
+    const token = await tokenFromOutbox("verify-email");
+    await verifyEmail(token);
+    await verifyEmail(token); // the link is used up
+    expect(await alerts(owner.id)).toBe(1);
+
+    await signUpProvider(
+      providerSignUpSchema.parse({ fullName: "Lina K", businessName: "Salon Lina", email: "lina@test.invalid", phone: "0661234567", password: PASSWORD, wilaya: "16", workplaceType: "SALON", categories: ["nails"], terms: "on" }),
+      "fr",
+    );
+    await verifyEmail(await tokenFromOutbox("verify-email"));
+    expect(await alerts(owner.id)).toBe(1); // the professional alerted at sign-up, with another kind
+    expect(await db.notification.count({ where: { userId: owner.id, type: "staff.provider" } })).toBe(1);
+  });
+});
+
 describe("signing in right after the first confirmation", () => {
   async function confirmed(role: Actor["role"], email: string, over: Record<string, unknown> = {}) {
     const u = await db.user.create({ data: { email, fullName: role, passwordHash: "x", role, status: "ACTIVE", emailVerifiedAt: new Date(), ...over } });

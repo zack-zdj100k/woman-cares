@@ -76,7 +76,7 @@ const authFr = {
     metaTitle: "Vérifiez votre boîte mail",
     title: "Vérifiez votre boîte mail",
     body: "Si cette adresse peut être utilisée, nous venons d’y envoyer un lien de confirmation. Il est valable 24 heures.",
-    spam: "Pensez à regarder dans les courriers indésirables.",
+    spam: "Si vous ne le voyez pas, regardez dans les courriers indésirables : ouvrez le message et indiquez que ce n’est pas du spam (bouton « Signaler comme non-spam »).",
     openMailbox: { gmail: "Ouvrir Gmail", outlook: "Ouvrir Outlook", yahoo: "Ouvrir Yahoo Mail", icloud: "Ouvrir iCloud Mail" },
     openApp: { gmail: "Ouvrir l’application Gmail", outlook: "Ouvrir l’application Outlook", yahoo: "Ouvrir l’application Yahoo Mail", icloud: "Ouvrir l’application Mail" },
     openWeb: { gmail: "ou ouvrir Gmail sur le web", outlook: "ou ouvrir Outlook sur le web", yahoo: "ou ouvrir Yahoo Mail sur le web", icloud: "ou ouvrir iCloud Mail sur le web" },
