@@ -11,6 +11,7 @@ import { AccountMenu } from "@/components/layout/account-menu";
 import { LocaleSwitch } from "@/components/layout/locale-switch";
 import { publicMediaUrl } from "@/lib/storage/urls";
 import { DashboardSidebar, SidebarInset, SidebarProvider, SidebarTrigger, type NavGroup } from "./sidebar";
+import { Toaster } from "@/components/ui/toast";
 
 /**
  * The dashboards' application shell (all three areas): black workspace, sidebar with only the
@@ -105,6 +106,7 @@ export async function DashboardShell({
           </header>
           <main id="main" className="flex-1">
             {children}
+            <Toaster />
           </main>
         </SidebarInset>
       </SidebarProvider>

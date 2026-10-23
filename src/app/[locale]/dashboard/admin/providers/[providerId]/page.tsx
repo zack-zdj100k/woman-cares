@@ -265,7 +265,7 @@ async function Review({ params }: { params: Params }) {
                     {!sub.paidOnly && (
                       <div className="grid gap-2 rounded-xl border border-destructive/30 p-4">
                         <p className="text-xs text-muted-foreground">{b.trialBlock.stopHelp}</p>
-                        <StopTrialButton providerId={account.id} labels={{ stop: b.trialBlock.stop, stopConfirm: b.trialBlock.stopConfirm, stopped: b.trialBlock.stopped, errors: b.errors }} />
+                        <StopTrialButton providerId={account.id} labels={{ stop: b.trialBlock.stop, stopConfirm: b.trialBlock.stopConfirm, cancel: b.trialBlock.cancel, stopped: b.trialBlock.stopped, errors: b.errors }} />
                       </div>
                     )}
                     <div className="grid gap-3 rounded-xl border border-border p-4">

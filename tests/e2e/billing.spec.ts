@@ -32,7 +32,7 @@ test("an admin gives one professional an agreed monthly price, and the professio
   await received.getByLabel("Moyen de paiement").selectOption("CASH");
   await received.getByLabel("Référence du virement").fill("Espèces au salon");
   await received.getByRole("button", { name: "Confirmer le paiement" }).click();
-  await expect(admin.getByText("Paiement confirmé. La facture payée figure ci-dessous.")).toBeVisible();
+  await expect(admin.getByText("Paiement confirmé. La facture payée figure ci-dessous.").first()).toBeVisible();
   await admin.reload();
   await expect(admin.getByText("Payée").first()).toBeVisible();
   await admin.getByRole("heading", { name: "Essai gratuit" }).scrollIntoViewIfNeeded();
@@ -49,7 +49,7 @@ test("an admin gives one professional an agreed monthly price, and the professio
   await declare.getByLabel("Référence du virement").fill("BaridiMob 2026-11");
   await declare.getByLabel(/Preuve du paiement/).setInputFiles({ name: "recu.png", mimeType: "image/png", buffer: await sharp({ create: { width: 60, height: 40, channels: 3, background: "#8e3249" } }).png().toBuffer() });
   await declare.getByRole("button", { name: "Envoyer" }).click();
-  await expect(page.getByText("Merci, votre paiement est en cours de vérification.")).toBeVisible();
+  await expect(page.getByText("Merci, votre paiement est en cours de vérification.").first()).toBeVisible();
 
   await admin.goto("/fr/dashboard/admin/payments?status=PENDING");
   const row = admin.getByRole("row").filter({ hasText: business });
@@ -75,8 +75,44 @@ test("an admin gives one professional an agreed monthly price, and the professio
   await expect(ownPay.getByLabel("Montant envoyé (DA)")).toHaveValue("18000");
   await ownPay.getByLabel("Référence du virement").fill("CCP 2026-12");
   await ownPay.getByRole("button", { name: "Envoyer" }).click();
-  await expect(page.getByText("Merci, votre paiement est en cours de vérification.")).toBeVisible();
+  await expect(page.getByText("Merci, votre paiement est en cours de vérification.").first()).toBeVisible();
   await admin.goto("/fr/dashboard/admin/payments?status=PENDING");
   await expect(admin.getByRole("row").filter({ hasText: business }).getByRole("button", { name: "Confirmer" })).toBeVisible();
+  await admin.close();
+});
+
+test("stopping a trial asks in the site's own dialog, then says it worked", async ({ page, browser }) => {
+  const business = `Atelier Arret ${Date.now()}`;
+  await newVerifiedProvider(page, `arret-${Date.now()}@test.invalid`, business);
+  await page.getByRole("link", { name: "Mes profils" }).first().click();
+  await page.getByRole("link", { name: "Modifier" }).click();
+  await completeAndSubmitProfile(page);
+  const admin = await browser.newPage();
+  await newSuperAdmin(admin);
+  await openInQueue(admin, business);
+  await admin.getByRole("button", { name: "Publier le profil" }).click();
+  await expect(admin.getByText("Profil publié")).toBeVisible();
+  await admin.reload();
+
+  // No browser window: a native confirm() would fail the test.
+  admin.on("dialog", () => {
+    throw new Error("the browser's own confirm window was used");
+  });
+  await admin.getByRole("button", { name: "Arrêter l’essai gratuit maintenant" }).click();
+  const dialog = admin.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Arrêter son essai gratuit maintenant ?")).toBeVisible();
+  await dialog.getByRole("button", { name: "Annuler" }).click();
+  await expect(dialog).toBeHidden();
+
+  await admin.getByRole("button", { name: "Arrêter l’essai gratuit maintenant" }).click();
+  await expect(dialog).toBeVisible();
+  await admin.waitForTimeout(400); // let it finish fading in
+  await admin.screenshot({ path: test.info().outputPath("dialog.png") });
+  await dialog.getByRole("button", { name: "Arrêter l’essai gratuit maintenant" }).click();
+  await expect(admin.getByRole("status").filter({ hasText: "Essai gratuit arrêté." })).toBeVisible();
+  await expect(admin.getByText("Accès payant uniquement")).toBeVisible();
+  await admin.waitForTimeout(400);
+  await admin.screenshot({ path: test.info().outputPath("toast.png") });
   await admin.close();
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, type FormEvent } from "react";
+import { useActionState, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   recordDirectPaymentAction,
@@ -19,6 +19,8 @@ import {
 import { buttonClass } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAnnounce } from "@/components/ui/decision-feedback";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { showToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 type Errors = Record<string, string>;
@@ -146,7 +148,11 @@ export function DirectPaymentForm({
   today: string;
   labels: { title: string; help: string; amount: string; method: string; reference: string; paidOn: string; save: string; done: string; methods: Record<string, string>; errors: Errors };
 }) {
-  const [state, action, pending] = useActionState<BillingState, FormData>(recordDirectPaymentAction, { status: "idle" });
+  const [state, action, pending] = useActionState<BillingState, FormData>(async (prev, form) => {
+    const next = await recordDirectPaymentAction(prev, form);
+    if (next.status === "done") showToast(labels.done);
+    return next;
+  }, { status: "idle" });
   return (
     <form action={action} className="grid gap-3 rounded-xl border border-chart-1/40 bg-chart-1/5 p-4">
       <input type="hidden" name="providerId" value={providerId} />
@@ -292,6 +298,7 @@ export function DeclarePaymentForm({
       const res = await fetch(invoiceId ? `/api/v1/billing/invoices/${invoiceId}/declare` : "/api/v1/billing/own-payment", { method: "POST", body: form });
       if (res.ok) {
         setState({ status: "done", at: Date.now() });
+        showToast(labels.done);
         router.refresh();
       } else {
         const code = ((await res.json().catch(() => null)) as { error?: { code?: string } } | null)?.error?.code?.toLowerCase() ?? "generic";
@@ -404,7 +411,11 @@ export function TrialDefaultForm({ days, labels }: { days: number; labels: { tit
 
 /** Super Admin: send a professional an invoice now. */
 export function SendInvoiceForm({ providerId, amount, labels }: { providerId: string; amount: number | null; labels: { title: string; help: string; amount: string; send: string; sent: string; errors: Errors } }) {
-  const [state, action, pending] = useActionState<BillingState, FormData>(sendInvoiceAction, { status: "idle" });
+  const [state, action, pending] = useActionState<BillingState, FormData>(async (prev, form) => {
+    const next = await sendInvoiceAction(prev, form);
+    if (next.status === "done") showToast(labels.sent);
+    return next;
+  }, { status: "idle" });
   return (
     <form action={action} className="grid content-start gap-3 rounded-xl border border-border p-4">
       <input type="hidden" name="providerId" value={providerId} />
@@ -426,12 +437,16 @@ export function SendInvoiceForm({ providerId, amount, labels }: { providerId: st
   );
 }
 
-/** A one-button form that asks before acting (the message says what will happen). */
+/**
+ * A one-button action. With `confirm`, the site's own dialog asks first; the success message goes to the
+ * bottom of the screen (the button itself often disappears once the change is made).
+ */
 function ConfirmButton({
   action,
   fields,
   label,
   confirm,
+  cancel,
   done,
   tone = "outline",
   errors,
@@ -440,31 +455,53 @@ function ConfirmButton({
   fields: Record<string, string>;
   label: string;
   confirm?: string;
+  cancel?: string;
   done?: string;
   tone?: "outline" | "solid" | "danger";
   errors: Errors;
 }) {
-  const [state, run, pending] = useActionState<BillingState, FormData>(action, { status: "idle" });
+  const formRef = useRef<HTMLFormElement>(null);
+  const [asking, setAsking] = useState(false);
+  const [state, run, pending] = useActionState<BillingState, FormData>(async (prev, form) => {
+    const next = await action(prev, form);
+    setAsking(false);
+    if (next.status === "done" && (next.info || done)) showToast(next.info ?? done!);
+    return next;
+  }, { status: "idle" });
+  const buttonClassName = buttonClass({ variant: tone === "solid" ? "solid" : "outline", size: "sm", className: tone === "danger" ? "text-destructive" : undefined });
   return (
-    <form action={run} onSubmit={(e) => { if (confirm && !window.confirm(confirm)) e.preventDefault(); }} className="flex flex-wrap items-center gap-3">
+    <form ref={formRef} action={run} className="flex flex-wrap items-center gap-3">
       {Object.entries(fields).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <button
-        type="submit"
-        disabled={pending}
-        className={buttonClass({ variant: tone === "solid" ? "solid" : "outline", size: "sm", className: tone === "danger" ? "text-destructive" : undefined })}
-      >
-        {label}
-      </button>
-      {state.status === "done" && (state.info || done) && <p role="status" className="text-sm text-success">{state.info ?? done}</p>}
+      {confirm ? (
+        <>
+          <button type="button" disabled={pending} onClick={() => setAsking(true)} className={buttonClassName}>
+            {label}
+          </button>
+          <ConfirmDialog
+            open={asking}
+            message={confirm}
+            confirmLabel={label}
+            cancelLabel={cancel ?? "Annuler"}
+            pending={pending}
+            tone={tone === "danger" ? "danger" : "solid"}
+            onConfirm={() => formRef.current?.requestSubmit()}
+            onCancel={() => setAsking(false)}
+          />
+        </>
+      ) : (
+        <button type="submit" disabled={pending} className={buttonClassName}>
+          {label}
+        </button>
+      )}
       {state.status === "error" && <p role="alert" className="text-sm text-destructive">{errors[state.code] ?? errors.generic}</p>}
     </form>
   );
 }
 
-export function StopTrialButton({ providerId, labels }: { providerId: string; labels: { stop: string; stopConfirm: string; stopped: string; errors: Errors } }) {
-  return <ConfirmButton action={stopTrialAction} fields={{ providerId }} label={labels.stop} confirm={labels.stopConfirm} done={labels.stopped} tone="danger" errors={labels.errors} />;
+export function StopTrialButton({ providerId, labels }: { providerId: string; labels: { stop: string; stopConfirm: string; cancel: string; stopped: string; errors: Errors } }) {
+  return <ConfirmButton action={stopTrialAction} fields={{ providerId }} label={labels.stop} confirm={labels.stopConfirm} cancel={labels.cancel} done={labels.stopped} tone="danger" errors={labels.errors} />;
 }
 
 export function StartSubscriptionButton({ providerId, labels }: { providerId: string; labels: { start: string; started: string; errors: Errors } }) {
@@ -472,9 +509,9 @@ export function StartSubscriptionButton({ providerId, labels }: { providerId: st
 }
 
 /** Super Admin (Paramètres): free time for everyone, on or off. */
-export function FreeTrialSwitch({ on, locale, labels }: { on: boolean; locale: string; labels: { stop: string; stopConfirm: string; resume: string; errors: Errors } }) {
+export function FreeTrialSwitch({ on, locale, labels }: { on: boolean; locale: string; labels: { stop: string; stopConfirm: string; cancel: string; resume: string; errors: Errors } }) {
   return on ? (
-    <ConfirmButton action={setFreeTrialForAllAction} fields={{ on: "0", locale }} label={labels.stop} confirm={labels.stopConfirm} tone="danger" errors={labels.errors} />
+    <ConfirmButton action={setFreeTrialForAllAction} fields={{ on: "0", locale }} label={labels.stop} confirm={labels.stopConfirm} cancel={labels.cancel} tone="danger" errors={labels.errors} />
   ) : (
     <ConfirmButton action={setFreeTrialForAllAction} fields={{ on: "1", locale }} label={labels.resume} tone="solid" errors={labels.errors} />
   );

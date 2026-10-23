@@ -49,7 +49,7 @@ async function Settings({ params }: { params: PageProps<"/[locale]/dashboard/adm
           <FreeTrialSwitch
             on={freeTrial}
             locale={locale}
-            labels={{ stop: d.billing.freeTrialAll.stop, stopConfirm: d.billing.freeTrialAll.stopConfirm, resume: d.billing.freeTrialAll.resume, errors: d.billing.errors }}
+            labels={{ stop: d.billing.freeTrialAll.stop, stopConfirm: d.billing.freeTrialAll.stopConfirm, cancel: d.billing.trialBlock.cancel, resume: d.billing.freeTrialAll.resume, errors: d.billing.errors }}
           />
         </CardContent>
       </Card>
