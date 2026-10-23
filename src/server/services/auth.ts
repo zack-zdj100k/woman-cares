@@ -266,6 +266,22 @@ export async function claimFirstSignIn(userId: string, now = new Date()): Promis
   return user.role as Role;
 }
 
+/**
+ * The browser she signed up in, once her address is confirmed (see lib/auth/handoff). The handoff must
+ * belong to this very sign-up (issued within a minute of the account's creation), and the account must
+ * now be a confirmed, active client or professional. Returns her role, or null while she has not
+ * confirmed yet or when it does not apply.
+ */
+export async function claimHandoff(userId: string, issuedAt: number, now = new Date()): Promise<Role | null> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true, status: true, emailVerifiedAt: true, createdAt: true } });
+  if (!user || !user.emailVerifiedAt || user.status !== "ACTIVE") return null;
+  if (user.role !== "CLIENT" && user.role !== "PROVIDER") return null;
+  const sinceCreation = issuedAt - user.createdAt.getTime();
+  if (sinceCreation < 0 || sinceCreation > 60_000) return null;
+  await db.user.update({ where: { id: userId }, data: { lastLoginAt: now } });
+  return user.role as Role;
+}
+
 /** Sends a new verification email (previous unused links stop working). */
 export async function resendVerification(userId: string, locale: Locale) {
   const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, email: true, fullName: true, emailVerifiedAt: true } });

@@ -7,6 +7,7 @@ import {
   LOCK_MS,
   authenticate,
   claimFirstSignIn,
+  claimHandoff,
   requestPasswordReset,
   resetPassword,
   signUpClient,
@@ -16,6 +17,7 @@ import {
 import { deliverPendingEmails } from "@/server/services/outbox";
 import { ForbiddenError, changeUserRole, setUserSuspended } from "@/server/services/admin-users";
 import type { Actor } from "@/server/policies/roles";
+import { decodeHandoff, encodeHandoff, HANDOFF_TTL_MS } from "@/lib/auth/handoff";
 import { resetDatabase } from "./fixtures";
 
 const PASSWORD = "Jasmin et rose 7";
@@ -191,6 +193,39 @@ describe("telling the staff about a new client", () => {
     await verifyEmail(await tokenFromOutbox("verify-email"));
     expect(await alerts(owner.id)).toBe(1); // the professional alerted at sign-up, with another kind
     expect(await db.notification.count({ where: { userId: owner.id, type: "staff.provider" } })).toBe(1);
+  });
+});
+
+describe("the browser she signed up in, once she confirms elsewhere", () => {
+  it("reads back only an intact, unexpired handoff", () => {
+    const id = "6f1c2a7e-0d4b-4c1e-9a55-2f3b8e7d1c90";
+    const now = Date.now();
+    const value = encodeHandoff(id, now);
+    expect(decodeHandoff(value, now)).toEqual({ userId: id, issuedAt: now });
+    expect(decodeHandoff(value, now + HANDOFF_TTL_MS + 1)).toBeNull();
+    expect(decodeHandoff(value.replace(id, "6f1c2a7e-0d4b-4c1e-9a55-2f3b8e7d1c91"), now)).toBeNull(); // another account
+    expect(decodeHandoff(value.slice(0, -1) + (value.endsWith("0") ? "1" : "0"), now)).toBeNull(); // forged signature
+    expect(decodeHandoff(encodeHandoff(id, now + 5 * 60_000), now)).toBeNull(); // from the future
+    for (const junk of [undefined, "", "x", `${id}.${now}`, `${id}.${now}.zz`]) expect(decodeHandoff(junk, now)).toBeNull();
+  });
+
+  it("signs her in only after she confirms, and only for this sign-up", async () => {
+    const { userId } = (await signUpClient(client(), "fr")) as { userId: string };
+    const issuedAt = Date.now();
+    expect(await claimHandoff(userId, issuedAt)).toBeNull(); // not confirmed yet: keep waiting
+    await verifyEmail(await tokenFromOutbox("verify-email"));
+    expect(await claimHandoff(userId, issuedAt - 5 * 60_000)).toBeNull(); // not from this sign-up
+    expect(await claimHandoff(userId, issuedAt)).toBe("CLIENT");
+  });
+
+  it("is never honoured for staff or a suspended account", async () => {
+    const { userId } = (await signUpClient(client(), "fr")) as { userId: string };
+    const issuedAt = Date.now();
+    await verifyEmail(await tokenFromOutbox("verify-email"));
+    await db.user.update({ where: { id: userId }, data: { status: "SUSPENDED" } });
+    expect(await claimHandoff(userId, issuedAt)).toBeNull();
+    await db.user.update({ where: { id: userId }, data: { status: "ACTIVE", role: "ADMIN" } });
+    expect(await claimHandoff(userId, issuedAt)).toBeNull();
   });
 });
 

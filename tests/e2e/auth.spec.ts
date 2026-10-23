@@ -172,3 +172,30 @@ test("the link confirms on its own in a real browser and opens her space; an aut
   await expect(tab.getByText("Ce lien n’est pas valide ou a déjà été utilisé.")).toBeVisible();
   await human.close();
 });
+
+test("the page she signed up on opens her space once she confirms in another browser", async ({ page, browser }) => {
+  const email = `cliente-relais-${Date.now()}@test.invalid`;
+  await page.goto("/fr/auth/sign-up");
+  const f = form(page);
+  await f.getByLabel("Nom complet").fill("Rania Relais");
+  await f.getByLabel("E-mail").fill(email);
+  await f.getByLabel("Téléphone").fill("0550 12 34 56");
+  await f.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+  await f.getByRole("checkbox").check();
+  await f.getByRole("button", { name: "Créer mon compte" }).click();
+  await expect(page.getByRole("heading", { name: "Vérifiez votre boîte mail" })).toBeVisible();
+  await expect(page.getByText("Cette page ouvrira votre espace")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Aller à la connexion" })).toHaveCount(0);
+
+  // She opens the link in the mail app's browser: another browser, with no cookies from this one.
+  const mailApp = await browser.newContext();
+  const tab = await mailApp.newPage();
+  await tab.goto(await linkFromEmail(email, "verify-email"));
+  await tab.getByRole("button", { name: "Confirmer mon adresse" }).click();
+  await expect(tab).toHaveURL(/\/fr\/dashboard\/client$/);
+  await mailApp.close();
+
+  // Back in the first browser, the waiting page signs her in and opens her space.
+  await expect(page).toHaveURL(/\/fr\/dashboard\/client$/, { timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Bonjour Rania" })).toBeVisible();
+});

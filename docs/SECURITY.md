@@ -94,6 +94,8 @@ Owner decision: a click on the confirmation link verifies the address and opens 
 | The link becomes a way into any account | It signs in only a client or a professional who has **never signed in** (`lastLoginAt` is empty), whose address is now confirmed and whose account is active. Staff always use their password. The right is claimed with one conditional update, so two clicks cannot both open a session. The token is single use and expires after 24 hours. |
 | Someone forwards the e-mail | Same as a password-reset link: whoever holds it before she clicks gets into a just-created account that holds nothing yet. Later confirmations, and any account that has signed in once, go back to the password. |
 
+| The link opens in another browser (the mail app's own) | The browser she signed up in holds `wc_handoff`: httpOnly, HMAC-signed with a key derived from `AUTH_SECRET`, 24 hours, removed once used. Its "check your e-mail" page asks every 4 s (and when she returns to the tab) and is signed in once the account is confirmed. The handoff must be issued within a minute of the account's creation, for a confirmed, active client or professional; never staff. A sign-up with an address that already has an account gets a cookie of the same shape for an id that exists nowhere (no enumeration). Holding the cookie means holding the browser that just chose the password. |
+
 After a first confirmation she lands on her dashboard; a second click, or an account that already signed in, shows the confirmation page and she signs in with her password.
 
 ## Production hardening checklist

@@ -80,7 +80,7 @@ const authFr = {
     openMailbox: { gmail: "Ouvrir Gmail", outlook: "Ouvrir Outlook", yahoo: "Ouvrir Yahoo Mail", icloud: "Ouvrir iCloud Mail" },
     openApp: { gmail: "Ouvrir l’application Gmail", outlook: "Ouvrir l’application Outlook", yahoo: "Ouvrir l’application Yahoo Mail", icloud: "Ouvrir l’application Mail" },
     openWeb: { gmail: "ou ouvrir Gmail sur le web", outlook: "ou ouvrir Outlook sur le web", yahoo: "ou ouvrir Yahoo Mail sur le web", icloud: "ou ouvrir iCloud Mail sur le web" },
-    signIn: "Aller à la connexion",
+    waiting: "Cette page ouvrira votre espace dès que votre adresse sera confirmée.",
   },
   verify: {
     metaTitle: "Confirmer mon adresse",

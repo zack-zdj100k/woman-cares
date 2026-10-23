@@ -6,6 +6,7 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeNextPath } from "@/lib/auth/redirects";
 import { endSession, getSessionUser, requestMeta, startSession } from "@/lib/auth/session";
+import { endHandoff, readHandoff, startHandoff } from "@/lib/auth/handoff";
 import { clientSignUpSchema, emailOnlySchema, fieldErrors, providerSignUpSchema, resetSchema, signInSchema } from "@/lib/validation/auth";
 import { homeArea } from "@/server/policies/roles";
 import { db } from "@/lib/db";
@@ -17,6 +18,7 @@ import {
   signUpClient,
   signUpProvider,
   claimFirstSignIn,
+  claimHandoff,
   verifyEmail,
 } from "@/server/services/auth";
 import { deliverPendingEmails } from "@/server/services/outbox";
@@ -60,11 +62,13 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
   if (role === "provider") {
     const parsed = providerSignUpSchema.safeParse(raw);
     if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error), values };
-    await signUpProvider(parsed.data, locale);
+    const result = await signUpProvider(parsed.data, locale);
+    await startHandoff(result.status === "created" ? result.userId : null);
   } else {
     const parsed = clientSignUpSchema.safeParse(raw);
     if (!parsed.success) return { status: "error", errors: fieldErrors(parsed.error), values };
-    await signUpClient(parsed.data, locale);
+    const result = await signUpClient(parsed.data, locale);
+    await startHandoff(result.status === "created" ? result.userId : null);
   }
   // Same destination whether the email was new or already registered (no account enumeration).
   flushEmails();
@@ -144,6 +148,7 @@ export async function verifyEmailAction(form: FormData) {
     const role = await claimFirstSignIn(result.userId);
     if (role) {
       await startSession(result.userId);
+      await endHandoff();
       redirect(`/${locale}/dashboard/${homeArea(role)}`);
     }
   }
@@ -158,4 +163,21 @@ export async function resendVerificationAction(_prev: FormState, form: FormData)
   await resendVerification(user.id, locale);
   flushEmails();
   return { status: "done" };
+}
+
+/**
+ * Asked by the "check your e-mail" page while it waits. "none": nothing to wait for (stop asking);
+ * "waiting": not confirmed yet; otherwise she is now signed in here and `to` is her space.
+ */
+export async function checkHandoffAction(locale: string): Promise<{ state: "none" | "waiting" } | { state: "ready"; to: string }> {
+  const lang: Locale = isLocale(locale) ? locale : "fr";
+  const handoff = await readHandoff();
+  if (!handoff) return { state: "none" };
+  const { ip } = await requestMeta();
+  if (!rateLimit(`handoff:${ip}`, 400, 15 * MIN).ok) return { state: "waiting" };
+  const role = await claimHandoff(handoff.userId, handoff.issuedAt);
+  if (!role) return { state: "waiting" };
+  await startSession(handoff.userId);
+  await endHandoff();
+  return { state: "ready", to: `/${lang}/dashboard/${homeArea(role)}` };
 }

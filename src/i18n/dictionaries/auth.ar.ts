@@ -82,7 +82,7 @@ const authAr: AuthDictionary = {
     openMailbox: { gmail: "فتح Gmail", outlook: "فتح Outlook", yahoo: "فتح Yahoo Mail", icloud: "فتح iCloud Mail" },
     openApp: { gmail: "فتح تطبيق Gmail", outlook: "فتح تطبيق Outlook", yahoo: "فتح تطبيق Yahoo Mail", icloud: "فتح تطبيق Mail" },
     openWeb: { gmail: "أو فتح Gmail على الويب", outlook: "أو فتح Outlook على الويب", yahoo: "أو فتح Yahoo Mail على الويب", icloud: "أو فتح iCloud Mail على الويب" },
-    signIn: "الذهاب إلى تسجيل الدخول",
+    waiting: "ستفتح هذه الصفحة فضاءك بمجرد تأكيد عنوانك.",
   },
   verify: {
     metaTitle: "تأكيد البريد",

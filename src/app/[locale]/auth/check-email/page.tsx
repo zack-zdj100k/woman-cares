@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { MailCheck } from "lucide-react";
 import { getAuthDictionary } from "@/i18n/get-dictionary";
 import { getLocale } from "@/i18n/server";
 import { PageShell } from "@/components/layout/page-shell";
-import { buttonClass } from "@/components/ui/button";
 import { OpenMailbox } from "@/components/auth/open-mailbox";
+import { AwaitConfirmation } from "@/components/auth/await-confirmation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getAuthDictionary(await getLocale());
@@ -25,9 +24,7 @@ export default async function CheckEmailPage() {
         <div>
           <OpenMailbox labels={{ open: t.checkEmail.openMailbox, app: t.checkEmail.openApp, web: t.checkEmail.openWeb }} />
         </div>
-        <Link href={`/${locale}/auth/sign-in`} className={buttonClass({ variant: "outline", className: "mt-6" })}>
-          {t.checkEmail.signIn}
-        </Link>
+        <AwaitConfirmation locale={locale} label={t.checkEmail.waiting} />
       </div>
     </PageShell>
   );
