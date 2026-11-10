@@ -2,11 +2,13 @@
  * The page itself: the owner's two framed artworks (parchment with lilies, blush roses) blended
  * into one texture, with their flowers fixed in the corners of the viewport. Built by
  * scripts/build-backgrounds.mjs from assets/source. Decorative only; sits behind everything.
+ * Sized to the large viewport (100lvh), not the visible one: when Safari's toolbars shrink and grow
+ * during a scroll the backdrop keeps its size, so it stays still instead of rescaling and jumping.
  */
 export function SiteBackdrop() {
   const corner = "pointer-events-none absolute select-none";
   return (
-    <div aria-hidden="true" className="fixed inset-0 -z-10 overflow-hidden bg-[#f6eae2] [transform:translateZ(0)]">
+    <div aria-hidden="true" className="fixed inset-x-0 top-0 -z-10 h-lvh overflow-hidden bg-[#f6eae2] [transform:translateZ(0)]">
       <div className="absolute inset-0 bg-[url('/images/backgrounds/site-texture.webp')] bg-cover bg-center" />
       {/* Soft light from the centre keeps long text readable. */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(255_250_246/0.55),rgb(255_250_246/0.15)_60%,transparent_85%)]" />

@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
  * media and cards use --radius-media; fields use --radius-field.
  */
 const base =
-  "group/btn relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium " +
+  "group/btn relative inline-flex max-w-full items-center justify-center gap-2 rounded-full text-center leading-tight font-medium [&>svg]:shrink-0 " +
   "transition-[background-color,color,border-color,transform,box-shadow] duration-300 ease-(--ease-soft) " +
   "hover:-translate-y-px active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
@@ -37,11 +37,16 @@ const variants = {
   ghost: "text-foreground/80 hover:bg-white/8 hover:text-foreground",
 } as const;
 
+/*
+ * Heights are minimums: a label longer than the screen wraps onto a second line inside the pill
+ * instead of pushing the page sideways (iPhone, 2026-11-10).
+ */
 const sizes = {
   icon: "size-10 p-0",
-  sm: "h-10 px-4 text-sm",
-  md: "h-12 px-6 text-[0.95rem]",
-  lg: "h-14 px-7 text-base",
+  xs: "min-h-8 px-3 py-1 text-xs",
+  sm: "min-h-10 px-4 py-2 text-sm",
+  md: "min-h-12 px-6 py-2.5 text-[0.95rem]",
+  lg: "min-h-14 px-7 py-3 text-base",
 } as const;
 
 type StyleProps = { variant?: keyof typeof variants; size?: keyof typeof sizes; className?: string };
@@ -79,7 +84,7 @@ export function ArrowDot({ className, tone = "light" }: { className?: string; to
     <span
       aria-hidden="true"
       className={cn(
-        "-me-2 grid size-7 place-items-center rounded-full shadow-[0_2px_6px_rgb(0_0_0/0.25)] transition-transform duration-500 ease-(--ease-soft) group-hover/btn:rotate-45 rtl:-scale-x-100 rtl:group-hover/btn:-rotate-45",
+        "-me-2 grid size-7 shrink-0 place-items-center rounded-full shadow-[0_2px_6px_rgb(0_0_0/0.25)] transition-transform duration-500 ease-(--ease-soft) group-hover/btn:rotate-45 rtl:-scale-x-100 rtl:group-hover/btn:-rotate-45",
         tone === "light" ? "bg-white/95 text-[#25161d]" : "bg-[#25161d] text-white",
         className,
       )}

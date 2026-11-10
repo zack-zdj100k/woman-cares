@@ -102,9 +102,13 @@ html {
   scroll-behavior: smooth;
   /* The page stays at one scale (owner, 2026-10-21): panning still works, pinching no longer zooms. */
   touch-action: pan-x pan-y;
+  /* Nothing may widen the page: on iPhone a sideways drag used to slide the whole site and its
+     backdrop. `clip` (not `hidden`) keeps sticky elements working. */
+  overflow-x: clip;
 }
 
 body {
+  overflow-x: clip;
   background: var(--ground);
   background-color: #f6eae2;
   color: var(--ink);

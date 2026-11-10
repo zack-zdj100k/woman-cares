@@ -18,14 +18,14 @@ export function BookingRowActions({ bookingId, canRespond, canCancel, canDelete,
   const [cancel, cancelAction, cancelling] = useActionState<BookingActionState, FormData>(providerCancelAction, { status: "idle" });
   const [remove, removeAction, removing] = useActionState<BookingActionState, FormData>(deleteBookingAction, { status: "idle" });
   const error = [respond, cancel, remove].find((s) => s.status === "error") as { code: string } | undefined;
-  const small = buttonClass({ variant: "outline", size: "sm", className: "h-8 px-3 text-xs" });
+  const small = buttonClass({ variant: "outline", size: "xs" });
   return (
     <div className="grid justify-items-end gap-1.5">
       <div className="flex flex-wrap justify-end gap-1.5">
         {canRespond && (
           <form action={respondAction} className="flex gap-1.5">
             <input type="hidden" name="bookingId" value={bookingId} />
-            <button type="submit" name="decision" value="accept" disabled={responding} className={buttonClass({ variant: "solid", size: "sm", className: "h-8 px-3 text-xs" })}>
+            <button type="submit" name="decision" value="accept" disabled={responding} className={buttonClass({ variant: "solid", size: "xs" })}>
               {labels.accept}
             </button>
             <button type="submit" name="decision" value="reject" disabled={responding} className={small}>
